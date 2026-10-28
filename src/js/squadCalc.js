@@ -6,7 +6,7 @@ import { animateCSS, animateCalc } from "./animations.js";
 import { loadLanguage } from "./localization.js";
 import { tooltip_save, createSessionTooltips, leaveSessionTooltips } from "./tooltips.js";
 import { checkApiHealth, fetchLayersByMap, fetchLayerByName } from "./squadCalcAPI.js";
-import { initWebSocket } from "./smcConnector.js";
+import { initWebSocket, getTargetData } from "./smcConnector.js";
 import { initOverlayLink } from "./overlayLink.js";
 import { LatLng } from "leaflet";
 import SquadServersBrowser from "./squadServersBrowser.js";
@@ -94,6 +94,8 @@ export default class SquadCalc {
         checkApiHealth();
         initWebSocket();
         initOverlayLink();
+        // Read by Squad Ballistics (embedded map): it solves the targets for its own weapon
+        window.squadBallistics = { version: 1, targets: getTargetData };
         console.log(`SquadCalc v${this.version} Loaded! 🎯`);
     }
 

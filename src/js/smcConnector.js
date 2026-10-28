@@ -130,9 +130,11 @@ function checkCoordinates(socketCoordinates) {
 
 /**
  * Builds the text describing every target for an external overlay, one line per target:
- * "<elevation> | <bearing>°[ | <distance>m]" (the elevation is a hold time like "1.20s" for AGS-17,
- * "---" when the target is out of range)
- * @param {boolean} [forceDistance=false] - add the distance even if the "show distance" setting is off
+ * "<elevation> | <bearing>°[ | <distance>m[ | <height>m]]" (the elevation is a hold time like "1.20s"
+ * for AGS-17, "---" when the target is out of range; the height is the target ground minus the
+ * weapon, signed, like "+12m")
+ * @param {boolean} [forceDistance=false] - add the distance and the height even if the "show distance"
+ *     setting is off (overlay relay); without it the SquadMortarOverlay format is kept
  * @returns {string} The lines joined by "\n", empty if there are no targets
  */
 export function getTargetLines(forceDistance = false) {
@@ -168,9 +170,37 @@ export function getTargetLines(forceDistance = false) {
             if (forceDistance || App.userSettings.showDistance) {
                 coorArray = coorArray + ` | ${DISTANCE.toFixed(0)}m`;
             }
+
+            if (forceDistance) {
+                const HEIGHT = Math.round(target.firingSolution1.heightDiff);
+                coorArray = coorArray + ` | ${HEIGHT >= 0 ? "+" : ""}${HEIGHT}m`;
+            }
         });
     }
     return coorArray;
+}
+
+/**
+ * Geometry of every target relative to the first weapon marker, for Squad Ballistics: its embedded
+ * map polls `window.squadBallistics.targets()` and solves the shot for its own weapon.
+ * @returns {{distance: number, heightDiff: number, bearing: number}[]} In the order the targets were
+ *     placed; distance in meters (horizontal), heightDiff = target ground minus weapon (with its height
+ *     padding) in meters, bearing in degrees. Empty without a weapon marker.
+ */
+export function getTargetData() {
+    const targets = [];
+    if (!App.minimap.activeTargetsMarkers || !App.minimap.activeWeaponsMarkers.getLayers().length) return targets;
+
+    App.minimap.activeTargetsMarkers.eachLayer(function (target) {
+        const solution = target.firingSolution1;
+        if (!solution) return;
+        targets.push({
+            distance: solution.distance,
+            heightDiff: solution.heightDiff,
+            bearing: solution.bearing,
+        });
+    });
+    return targets;
 }
 
 /**
