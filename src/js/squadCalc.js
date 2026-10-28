@@ -96,10 +96,12 @@ export default class SquadCalc {
         initOverlayLink();
         // Read by Squad Ballistics (embedded map): it solves the targets for the same weapon
         window.squadBallistics = {
-            version: 2,
+            version: 3,
             targets: getTargetData,
             // Name of the selected weapon in Squad Ballistics' weapons.json, null if it has none
             weapon: () => this.activeWeapon?.ballistics ?? null,
+            // The weapon picked in Squad Ballistics, selected here too (fire coverage, popups)
+            selectWeapon: (name) => this.selectBallisticsWeapon(name),
         };
         console.log(`SquadCalc v${this.version} Loaded! 🎯`);
     }
@@ -1426,6 +1428,18 @@ export default class SquadCalc {
 
         // Refresh Heatmap
         this.minimap.toggleHeatmap();
+    }
+
+    /**
+     * Select the weapon whose Squad Ballistics name is `name`, as if picked in the weapon selector
+     * @param {string} name - weapon name in Squad Ballistics' weapons.json
+     * @returns {boolean} - false if no weapon here has that name (or it is hidden by the mod filter)
+     */
+    selectBallisticsWeapon(name) {
+        const index = WEAPONS.findIndex((weapon) => weapon.ballistics === name);
+        if (index === -1 || !this.WEAPON_SELECTOR.find(`option[value="${index}"]`).length) return false;
+        if (String(this.WEAPON_SELECTOR.val()) !== String(index)) this.WEAPON_SELECTOR.val(index).trigger("change");
+        return true;
     }
 
     /**

@@ -1,3 +1,10 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.3.1** *(2026-10-28)*
+
+</br><img src="https://img.shields.io/badge/-new%20features-green">
+- Squad Ballistics can select the weapon picked there (`window.squadBallistics.selectWeapon(name)`, bridge version 3), so the fire coverage and popups follow the weapon chosen in the app
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.3.0** *(2026-10-28)*
 
 </br><img src="https://img.shields.io/badge/-new%20features-green">
