@@ -1,9 +1,10 @@
-# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.1.0** *(2026-10-02)*
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.1.0** *(2026-10-28)*
 
 </br><img src="https://img.shields.io/badge/-new%20features-green">
 - Added the AGS-17 emplacement. It is aimed by holding the elevation key (the mount starts at its highest elevation and the key lowers it), so SquadCalc tells you how long to hold it (in seconds) instead of an angle, for the exact weapon and target heights. The ballistic model was fitted on 67 in-game measurements (280 m at 0 s to 1930 m at 4.1 s, 6.4 m RMS error)
 - The weapon card shows the hold time range and the elevation speed of such weapons
 - The heatmap is not available for the AGS-17 yet
+- Squad Ballistics integration: its embedded map reads the targets (distance, height difference, bearing) through `window.squadBallistics.targets()` and solves them for the weapon picked there; overlay link messages also carry the signed height difference (`... | 1000m | +12m`)
 - Added an overlay link: a session code (Settings > Weapons) lets a timer overlay running on another device or network receive your targets through a relay server (`/relay/<code>`), so the AGS-17 hold time can be shown over the game
 
 </br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  

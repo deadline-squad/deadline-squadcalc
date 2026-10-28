@@ -43,6 +43,15 @@ export function initOverlayLink() {
     showCode();
     setStatus("overlayStatusOffline");
     setInterval(syncOverlayLink, SYNC_INTERVAL_MS);
+
+    // Several tabs share the code: the one the user looks at takes over the overlay
+    const takeOver = () => {
+        if (document.hidden || getTargetLines(true) === "") return;
+        lastSent = null;
+        syncOverlayLink();
+    };
+    document.addEventListener("visibilitychange", takeOver);
+    window.addEventListener("focus", takeOver);
 }
 
 /**
@@ -86,7 +95,9 @@ function connect() {
     const protocol = window.location.protocol === "https:" ? "wss" : "ws";
     const relay = new WebSocket(`${protocol}://${window.location.host}/relay/${getSessionCode()}?role=page`);
     socket = relay;
-    lastSent = null;
+    // A (re)connect must not overwrite the overlay with nothing (a new empty tab), and a hidden tab
+    // must not race the visible one after a relay restart: only later changes are sent
+    lastSent = document.hidden ? getTargetLines(true) : "";
 
     relay.addEventListener("message", (event) => {
         try {

@@ -677,8 +677,8 @@ export const squadTargetMarker = squadMarker.extend({
         this.updateCalc(true);
         this.updateIcon();
 
-        // Report target to squadcalc API
-        sendTargetData({
+        // Report target to squadcalc API (only weapons it collects data for)
+        if (App.activeWeapon.heatmap) sendTargetData({
             lat: event.target.getLatLng().lat,
             lng: event.target.getLatLng().lng,
             weapon: App.activeWeapon.name,

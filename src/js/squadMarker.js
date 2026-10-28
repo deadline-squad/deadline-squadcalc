@@ -135,7 +135,7 @@ export const squadWeaponMarker = squadMarker.extend({
             this.minRangeMarker.setStyle(this.minMaxDistCircleOff);
         }
 
-        if (!options.uid) {
+        if (!options.uid && App.activeWeapon.heatmap) {
             sendMarkerData({
                 lat: this._latlng.lat,
                 lng: this._latlng.lng,
@@ -526,8 +526,8 @@ export const squadWeaponMarker = squadMarker.extend({
 
         this.map.updateTargets();
 
-        // Report marker to squadcalc API
-        sendMarkerData({
+        // Report marker to squadcalc API (only weapons it collects data for)
+        if (App.activeWeapon.heatmap) sendMarkerData({
             lat: this._latlng.lat,
             lng: this._latlng.lng,
             weapon: App.activeWeapon.name,

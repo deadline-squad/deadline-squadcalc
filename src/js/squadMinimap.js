@@ -573,10 +573,12 @@ export const squadMinimap = Map.extend({
         $(".btn-delete, .btn-undo").show();
 
         if (App.userSettings.targetAnimation){
-            const angleType = App.activeWeapon.angleType;
-            if (this.activeWeaponsMarkers.getLayers().length === 1) {
-                if (isNaN(target.firingSolution1.elevation[angleType].rad)) return;
-            } else if (isNaN(target.firingSolution1.elevation[angleType].rad) && isNaN(target.firingSolution2.elevation[angleType].rad)) {
+            // Same angle as the target icon: each weapon marker has its own (user-switchable) angle type
+            const weapons = this.activeWeaponsMarkers.getLayers();
+            const unreachable1 = isNaN(target.firingSolution1.elevation[weapons[0].angleType].rad);
+            if (weapons.length === 1) {
+                if (unreachable1) return;
+            } else if (unreachable1 && isNaN(target.firingSolution2.elevation[weapons[1].angleType].rad)) {
                 return;
             } 
             setTimeout(() => {
