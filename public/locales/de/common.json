@@ -75,5 +75,8 @@
     "next": "Nächste",
     "playTime": "Spielzeit",
     "mapSyncedwith": "Karte synchronisiert mit",
-    "favServers": "Server"
+    "favServers": "Server",
+    "coverageLow": "Flache Flugbahn / Direktfeuer",
+    "coverageHigh": "Nur Steilfeuer",
+    "coverageBlocked": "Verdeckt (Gelände, Gebäude)"
 }

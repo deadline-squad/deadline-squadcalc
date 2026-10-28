@@ -683,6 +683,7 @@ export default class SquadSettings {
             { key: "settings-btn-hd",      sharedContainer: null,             buttons: ".btn-hd",                                   default: true },
             { key: "settings-btn-legacy",  sharedContainer: "#mapBtnMain",    buttons: ".btn-legacy",                                default: false },
             { key: "settings-btn-helpmap", sharedContainer: "#mapBtnMain",    buttons: ".btn-helpmap",                               default: false },
+            { key: "settings-btn-coverage", sharedContainer: "#mapBtnMain",   buttons: ".btn-coverage",                              default: true },
             { key: "settings-btn-focus",   sharedContainer: "#mapBtnMain",    buttons: ".btn-focus",                                 default: false },
             { key: "settings-btn-servers", sharedContainer: "#mapBtnServers", buttons: "#servers",                                  default: true },
             { key: "settings-btn-session", sharedContainer: "#mapBtnServers", buttons: ".btn-session",                              default: true },

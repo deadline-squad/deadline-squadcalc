@@ -85,5 +85,6 @@
     "legacyMode": "Zum einfachen Modus wechseln",
     "returnToMap": "Zur Kartenansicht wechseln",
     "settings": "Einstellungen",
-    "openFactionSelection": "Klicken um die Fraktionsauswahl zu öffnen"
+    "openFactionSelection": "Klicken um die Fraktionsauswahl zu öffnen",
+    "coverage": "Wirkungsbereich: wohin die Waffe vom ersten Waffenmarker trifft, unter Berücksichtigung von Gelände und Gebäuden"
 }

@@ -455,3 +455,41 @@
         }
     }
 }
+
+// Legend of the fire coverage drawn by squadCoverage.js
+#coverageLegend {
+    display: none;
+    position: absolute;
+    left: 50%;
+    bottom: 12px;
+    transform: translateX(-50%);
+    z-index: 1;
+    padding: 6px 12px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    font-size: 0.8em;
+    pointer-events: none;
+    white-space: nowrap;
+
+    span {
+        margin: 0 8px;
+
+        &::before {
+            content: "";
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            margin-right: 6px;
+            border-radius: 2px;
+        }
+    }
+
+    .coverageLow::before { background: rgb(46, 204, 113); }
+    .coverageHigh::before { background: rgb(241, 196, 15); }
+    .coverageBlocked::before { background: rgb(231, 76, 60); }
+}
+
+.coverageOverlay {
+    image-rendering: pixelated;
+}

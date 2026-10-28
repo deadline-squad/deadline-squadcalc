@@ -74,5 +74,8 @@
     "next": "à suivre",
     "playTime": "Temps de jeu",
     "mapSyncedwith": "Carte synchronisée avec",
-    "favServers": "Serveur"
+    "favServers": "Serveur",
+    "coverageLow": "Trajectoire basse / tir direct",
+    "coverageHigh": "Tir courbe uniquement",
+    "coverageBlocked": "Masqué (relief, bâtiments)"
 }

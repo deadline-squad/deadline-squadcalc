@@ -79,5 +79,8 @@
     "next": "Next",
     "playTime": "Play Time",
     "mapSyncedwith": "Map Synced with",
-    "favServers": "Server"
+    "favServers": "Server",
+    "coverageLow": "Low trajectory / direct fire",
+    "coverageHigh": "High trajectory only",
+    "coverageBlocked": "Blocked (terrain, buildings)"
 }

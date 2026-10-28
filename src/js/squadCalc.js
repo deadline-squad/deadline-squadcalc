@@ -917,6 +917,17 @@ export default class SquadCalc {
             this.minimap.toggleHeatmap();
         });
 
+        // Fire coverage of the first weapon marker (see squadCoverage.js), remembered across visits
+        const coverageEnabled = localStorage.getItem("settings-coverage") === "1";
+        $(".btn-coverage").toggleClass("active", coverageEnabled);
+        this.minimap.coverage.setEnabled(coverageEnabled);
+        $("#mapLayerMenu").find("button.btn-coverage").on("click", () => {
+            const enabled = !$(".btn-coverage").hasClass("active");
+            $(".btn-coverage").toggleClass("active", enabled);
+            localStorage.setItem("settings-coverage", +enabled);
+            this.minimap.coverage.setEnabled(enabled);
+        });
+
         $("#mapLayerMenu").find("button.btn-hd").on("click", () => {
             const VAL = !$(".btn-hd").hasClass("active");
             $(".btn-hd").toggleClass("active");

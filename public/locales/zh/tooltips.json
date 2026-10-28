@@ -85,5 +85,6 @@
     "legacyMode": "切换到简单模式",
     "returnToMap": "切换到地图模式",
     "settings": "设置",
-    "openFactionSelection": "点击打开派系选择"
+    "openFactionSelection": "点击打开派系选择",
+    "coverage": "火力覆盖：从第一个武器标记出发，考虑地形和建筑后武器能命中的区域"
 }

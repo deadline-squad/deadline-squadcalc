@@ -1,6 +1,7 @@
 import {Icon, ImageOverlay, TileLayer, Map, CRS, SVG, Util, LayerGroup, Popup, LatLngBounds, LatLng, Browser } from "leaflet";
 import squadGrid from "./squadGrid.js";
 import squadHeightmap from "./squadHeightmaps.js";
+import SquadCoverage from "./squadCoverage.js";
 import { App } from "../app.js";
 import { squadWeaponMarker } from "./squadMarker.js";
 import { squadTargetMarker } from "./squadTargetMarker.js";
@@ -64,6 +65,7 @@ export const squadMinimap = Map.extend({
         this.spinOptions = {color: "white", scale: 1.5, width: 5, shadow: "5px 5px 5px transparent"};
         this.activeTargetsMarkers = new LayerGroup().addTo(this);
         this.activeWeaponsMarkers = new LayerGroup().addTo(this);
+        this.coverage = new SquadCoverage(this);
         this.targetGrids = new LayerGroup().addTo(this);
         this.activeMarkers = new LayerGroup().addTo(this);
         this.activeArrowsGroup = new LayerGroup().addTo(this);
@@ -273,6 +275,7 @@ export const squadMinimap = Map.extend({
         this.activeCircles = [];
 
         if (this.layer) this.layer.clear();
+        this.coverage.clear();
 
         // Empty and clear buttons of DOM elements
         $(".dropbtn8, .dropbtn9, .dropbtn10, .dropbtn11").empty();
@@ -293,6 +296,8 @@ export const squadMinimap = Map.extend({
             target.updateCalc(copy);
             target.updateIcon();
         });
+        // Weapon moved, deleted or raised: recomputed only if its inputs changed
+        this.coverage.update();
     },
 
 
@@ -414,6 +419,7 @@ export const squadMinimap = Map.extend({
         this.activeWeaponsMarkers.eachLayer(function (weapon) {
             weapon.updateWeapon();
         });
+        this.coverage.update();
     },
 
 
@@ -525,6 +531,7 @@ export const squadMinimap = Map.extend({
             );
         }
 
+        this.coverage.update();
     },
 
     /**

@@ -1,3 +1,10 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.3.0** *(2026-10-28)*
+
+</br><img src="https://img.shields.io/badge/-new%20features-green">
+- Fire coverage (new map button): colors where the selected weapon can hit from the first weapon marker. The heightmap includes the buildings, so every cell is checked for a trajectory that clears the terrain and the buildings on the way: green for the low trajectory (direct fire), yellow when only the high one (lob, the AGS-17 hold range) gets there, red when it is in range but blocked. It follows the weapon, its position and height, and the map
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.2.1** *(2026-10-28)*
 
 </br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  

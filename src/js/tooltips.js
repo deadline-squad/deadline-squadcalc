@@ -328,6 +328,12 @@ tippy(".btn-helpmap", {
         tip.setContent(i18next.t("tooltips:helpmode"));
     },
 });
+tippy(".btn-coverage", {
+    ...commonMapMenuToolipsSettings,
+    onShow(tip) {
+        tip.setContent(i18next.t("tooltips:coverage"));
+    },
+});
 tippy(".btn-focus", {
     ...commonMapMenuToolipsSettings,
     onShow(tip) {

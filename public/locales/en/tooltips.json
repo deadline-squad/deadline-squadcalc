@@ -85,5 +85,6 @@
     "legacyMode": "Switch to simple mode",
     "returnToMap": "Switch to map mode",
     "settings": "Settings",
-    "openFactionSelection": "Click to open faction selection"
+    "openFactionSelection": "Click to open faction selection",
+    "coverage": "Fire coverage: where the weapon can hit from the first weapon marker, past the terrain and buildings"
 }

@@ -75,5 +75,8 @@
     "next": "Наступна",
     "playTime": "Час на мапі",
     "mapSyncedwith": "Мапу синхронізовано з",
-    "favServers": "Сервер"
+    "favServers": "Сервер",
+    "coverageLow": "Настильно / прямим наведенням",
+    "coverageHigh": "Лише навісом",
+    "coverageBlocked": "Закрито (рельєф, будівлі)"
 }
