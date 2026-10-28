@@ -26,6 +26,8 @@
         "weapon2": "武器 2",
         "bearing": "方位",
         "elevation": "高度",
+        "holdTime": "按键时长",
+        "elevationRate": "仰角速度",
         "distance": "距离",
         "timeOfFlight": "飞行时间",
         "spread": "散布",

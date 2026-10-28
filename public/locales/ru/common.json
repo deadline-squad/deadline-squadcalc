@@ -22,6 +22,8 @@
         "weapon2": "Оружие 2",
         "bearing": "Пеленг",
         "elevation": "Возвышение",
+        "holdTime": "Время нажатия",
+        "elevationRate": "Скорость подъёма",
         "distance": "Расстояние",
         "timeOfFlight": "Время полёта",
         "spread": "Разброс",

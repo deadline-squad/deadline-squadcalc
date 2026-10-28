@@ -31,7 +31,8 @@ export default class Simulation {
                 App.activeWeapon.name !== "Mortar" &&
                 App.activeWeapon.name !== "UB-32" &&
                 App.activeWeapon.name !== "M1064M121" &&
-                App.activeWeapon.name !== "Mk19") {
+                App.activeWeapon.name !== "Mk19" &&
+                App.activeWeapon.name !== "AGS-17") {
         
                 if (this.angleType === "low") {
                     this.angleType = "high";
@@ -71,7 +72,8 @@ export default class Simulation {
                  App.activeWeapon.name != "UB-32" &&
                   App.activeWeapon.name != "M1064M121" &&
                    App.activeWeapon.name != "Mk19" &&
-                    App.activeWeapon.name != "BTR4-AGS"
+                    App.activeWeapon.name != "AGS-17" &&
+                     App.activeWeapon.name != "BTR4-AGS"
             ) {
 
                 let elevationlow = this.firingSolution.elevation.low;
@@ -118,6 +120,9 @@ export default class Simulation {
                     this.div.find(".infTimeOfFlight").first().text(this.firingSolution.timeOfFlight.high.toFixed(1)+i18next.t("common:s"));
                     this.div.find(".infSpread").first().text(`H:${this.firingSolution.spreadParameters.high.semiMajorAxis.toFixed(1) + i18next.t("common:m")} V:${this.firingSolution.spreadParameters.high.semiMinorAxis.toFixed(1) + i18next.t("common:m")}`);
                     switch (App.activeWeapon.unit) {
+                    case "sec":
+                        this.div.find(".infElevation").first().text(`${this.firingSolution.holdTime.high.toFixed(App.activeWeapon.elevationPrecision)}${i18next.t("common:s")}`);
+                        break;
                     case "mil":
                         this.div.find(".infElevation").first().text(`${this.firingSolution.elevation.high.mil.toFixed(1)}mil`);
                         break;
@@ -140,6 +145,9 @@ export default class Simulation {
                     this.div.find(".infSpread").first().text(`H:${this.firingSolution.spreadParameters.low.semiMajorAxis.toFixed(1) + i18next.t("common:m")} V:${this.firingSolution.spreadParameters.low.semiMinorAxis.toFixed(1) + i18next.t("common:m")}`);
                     
                     switch (App.activeWeapon.unit) {
+                    case "sec":
+                        this.div.find(".infElevation").first().text(`${this.firingSolution.holdTime.low.toFixed(App.activeWeapon.elevationPrecision)}${i18next.t("common:s")}`);
+                        break;
                     case "mil":
                         this.div.find(".infElevation").first().text(`${this.firingSolution.elevation.low.mil.toFixed(1)}mil`);
                         break;

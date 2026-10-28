@@ -2,6 +2,7 @@
     "deployables": "武器工事",
         "Mortar": "81毫米迫击炮",
         "UB-32": "UB32火箭巢",
+        "AGS-17": "AGS-17榴弹发射器",
         "HellCannon": "地狱加农(煤气罐)",
     "vehicles": "载具",
         "Tech.Mortar": "迫击炮皮卡",

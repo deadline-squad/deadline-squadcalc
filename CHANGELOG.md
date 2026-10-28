@@ -1,3 +1,17 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.1.0** *(2026-10-02)*
+
+</br><img src="https://img.shields.io/badge/-new%20features-green">
+- Added the AGS-17 emplacement. It is aimed by holding the elevation key (the mount starts at its highest elevation and the key lowers it), so SquadCalc tells you how long to hold it (in seconds) instead of an angle, for the exact weapon and target heights. The ballistic model was fitted on 67 in-game measurements (280 m at 0 s to 1930 m at 4.1 s, 6.4 m RMS error)
+- The weapon card shows the hold time range and the elevation speed of such weapons
+- The heatmap is not available for the AGS-17 yet
+- Added an overlay link: a session code (Settings > Weapons) lets a timer overlay running on another device or network receive your targets through a relay server (`/relay/<code>`), so the AGS-17 hold time can be shown over the game
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- Targets whose projectile would expire mid-air are now consistently out of range in every elevation display (previously only the map markers noticed)
+- The SquadMortarOverlay bridge, the copied/saved results and the legacy calculator tooltip use the hold time for the AGS-17; the bridge now sends `---` (instead of `NaN`) for targets out of range
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.0.2** *(2026-07-12)*
 
 </br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  

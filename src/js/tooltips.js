@@ -441,7 +441,8 @@ tippy("#elevationNum", {
     touch: false,
     theme: "results",
     onShow(tip) {
-        tip.setContent(`${i18next.t("tooltips:elevation")}</br><span class=tooltipsubtext>${i18next.t("tooltips:howFar")}</span>`);
+        const label = App.activeWeapon.unit === "sec" ? i18next.t("common:holdTime") : i18next.t("tooltips:elevation");
+        tip.setContent(`${label}</br><span class=tooltipsubtext>${i18next.t("tooltips:howFar")}</span>`);
     },
 });
 

@@ -22,6 +22,8 @@
         "weapon2": "Waffe 2",
         "bearing": "Peilung",
         "elevation": "Elevation",
+        "holdTime": "Haltezeit",
+        "elevationRate": "Richtgeschwindigkeit",
         "distance": "Entfernung",
         "timeOfFlight": "Flugzeit",
         "spread": "Streuung",

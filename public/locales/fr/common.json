@@ -22,6 +22,8 @@
         "weapon2": "Arme 2",
         "bearing": "Direction",
         "elevation": "Élévation",
+        "holdTime": "Durée d'appui",
+        "elevationRate": "Vitesse d'élévation",
         "distance": "Distance",
         "timeOfFlight": "Temps de vol",
         "spread": "Dispersion",

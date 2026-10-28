@@ -22,6 +22,8 @@
         "weapon2": "Зброя 2",
         "bearing": "Підшипник",
         "elevation": "Висота",
+        "holdTime": "Час натискання",
+        "elevationRate": "Швидкість підйому",
         "distance": "Відстань",
         "timeOfFlight": "Час польоту",
         "spread": "Розподіл",

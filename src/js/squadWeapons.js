@@ -2,7 +2,7 @@ import { App } from "../app.js";
 import { WEAPONS } from "../data/weapons.js";
 
 export class Weapon {
-    constructor(name, deceleration, decelerationTime, gravityScale, minElevation, unit, logo, marker, type, angleType, elevationPrecision, shells = [], heightOffset = 0, angleOffset = 0, projectileLifespan = 100, mod = null) {
+    constructor(name, deceleration, decelerationTime, gravityScale, minElevation, unit, logo, marker, type, angleType, elevationPrecision, shells = [], heightOffset = 0, angleOffset = 0, projectileLifespan = 100, mod = null, elevationRate = null, heatmap = true) {
         this.name = name;
         //this.velocity = velocity;
         this.deceleration = deceleration;
@@ -26,7 +26,8 @@ export class Weapon {
         this.angleOffset = angleOffset;
         this.projectileLifespan = projectileLifespan;
         this.mod = mod;
-
+        this.elevationRate = elevationRate;
+        this.heatmap = heatmap;
     }
 
 
@@ -62,6 +63,28 @@ export class Weapon {
 
 
     /**
+     * Longest hold of the elevation key: the time to lower the mount from its highest
+     * to its lowest elevation.
+     * @returns {number} - Hold time in seconds, NaN for weapons without `elevationRate`.
+     */
+    getMaxHoldTime() {
+        return this.getHoldTime(this.minElevation[0]);
+    }
+
+    /**
+     * Convert an elevation angle into the time the elevation key must be held,
+     * for weapons whose mount starts at its highest elevation (`minElevation[1]`) and is
+     * lowered at a constant `elevationRate` (ex: AGS-17).
+     * @param {number} elevationDeg - Elevation angle in degrees, from SquadFiringSolution.
+     * @returns {number} - Hold time in seconds, NaN if the weapon has no rate or the angle is NaN.
+     */
+    getHoldTime(elevationDeg) {
+        if (!this.elevationRate) return NaN;
+        return Math.max(0, (this.minElevation[1] - elevationDeg) / this.elevationRate);
+    }
+
+
+    /**
      * Return the angle factor from 45°
      * @returns {1/-1} -1 = 0-45° / 1 = 45-90°
      */
@@ -84,8 +107,17 @@ export class Weapon {
     getMaxDistance() {
 
         // If there's no deceleration (anything but UB32)
-        if (this.decelerationDistance == 0) { 
-            return (this.velocity ** 2) / App.gravity / this.gravityScale; 
+        if (this.decelerationDistance == 0) {
+            const gravity = App.gravity * this.gravityScale;
+
+            // Weapons aimed by key press duration (AGS-17) cannot reach the ideal 45° when
+            // their mount stops above it: their range is the one of the lowest elevation
+            if (this.elevationRate) {
+                const angle = Math.max(45, this.minElevation[0]) * Math.PI / 180;
+                return (this.velocity ** 2) * Math.sin(2 * angle) / gravity;
+            }
+
+            return (this.velocity ** 2) / gravity;
         }
 
         // Calculate distance due to deceleration (only the velocity difference part)

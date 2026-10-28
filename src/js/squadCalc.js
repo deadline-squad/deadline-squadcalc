@@ -7,6 +7,7 @@ import { loadLanguage } from "./localization.js";
 import { tooltip_save, createSessionTooltips, leaveSessionTooltips } from "./tooltips.js";
 import { checkApiHealth, fetchLayersByMap, fetchLayerByName } from "./squadCalcAPI.js";
 import { initWebSocket } from "./smcConnector.js";
+import { initOverlayLink } from "./overlayLink.js";
 import { LatLng } from "leaflet";
 import SquadServersBrowser from "./squadServersBrowser.js";
 import SquadSession from "./squadSession.js";
@@ -92,6 +93,7 @@ export default class SquadCalc {
         this.loadTheme();
         checkApiHealth();
         initWebSocket();
+        initOverlayLink();
         console.log(`SquadCalc v${this.version} Loaded! 🎯`);
     }
 
@@ -550,7 +552,9 @@ export default class SquadCalc {
                 weapon.heightOffset,
                 weapon.angleOffset,
                 weapon.projectileLifespan,
-                weapon.mod
+                weapon.mod,
+                weapon.elevationRate,
+                weapon.heatmap
             );
         });
         
@@ -1465,7 +1469,8 @@ export default class SquadCalc {
         let firingSolution = new SquadFiringSolution(aPos, bPos, this.minimap, 0);
 
         let elevation = this.activeWeapon.getAngleType() === -1 ? firingSolution.elevation.high : firingSolution.elevation.low;
-        elevation = this.activeWeapon.unit === "mil" ? elevation.mil : elevation.deg;
+        if (this.activeWeapon.unit === "sec") elevation = this.activeWeapon.getHoldTime(elevation.deg);
+        else elevation = this.activeWeapon.unit === "mil" ? elevation.mil : elevation.deg;
     
 
         // If Target too close/far
@@ -1487,7 +1492,7 @@ export default class SquadCalc {
         animateCalc(bearing.toFixed(1), 500, "bearingNum");
         animateCalc(elevation.toFixed(this.activeWeapon.elevationPrecision), 500, "elevationNum");
 
-        if (this.activeWeapon.name != "Mortar" && this.activeWeapon.name != "UB-32") $("#highlow").addClass("active");
+        if (this.activeWeapon.name != "Mortar" && this.activeWeapon.name != "UB-32" && this.activeWeapon.name != "AGS-17") $("#highlow").addClass("active");
         if (this.activeWeapon.getAngleType() === -1) $("#highlowicon").css({ transform: "rotate(0deg)"});
         else $("#highlowicon").css({transform: "rotate(180deg)"});
 
@@ -1672,7 +1677,7 @@ export default class SquadCalc {
             `<p class=savedrow>
                 <input maxlength=20 spellcheck=false placeholder="${$("#target-location").val()}" class=friendlyname></input>
                 <span class=savespan> 
-                    ➜ ${$("#bearingNum").text()} - ${$("#elevationNum").text()}
+                    ➜ ${$("#bearingNum").text()} - ${$("#elevationNum").text()}${this.activeWeapon.unit === "sec" ? i18next.t("common:s") : ""}
                 </span>
                 <span class="del">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM160 128l41.4 0 11.3-11.3c3-3 7.1-4.7 11.3-4.7l64 0c4.2 0 8.3 1.7 11.3 4.7L310.6 128l41.4 0c8.8 0 16 7.2 16 16s-7.2 16-16 16l-192 0c-8.8 0-16-7.2-16-16s7.2-16 16-16zm0 64l192 0L338.4 354.7c-1.4 16.6-15.2 29.3-31.9 29.3l-101.1 0c-16.6 0-30.5-12.8-31.9-29.3L160 192z"/></svg>
@@ -1704,7 +1709,7 @@ export default class SquadCalc {
         }
 
         animateCSS($(".copy"), "headShake");
-        navigator.clipboard.writeText(`${$("#target-location").val()} ➜ ${$("#bearingNum").text()} - ${$("#elevationNum").text()}`);
+        navigator.clipboard.writeText(`${$("#target-location").val()} ➜ ${$("#bearingNum").text()} - ${$("#elevationNum").text()}${this.activeWeapon.unit === "sec" ? i18next.t("common:s") : ""}`);
         this.openToast("success", "copied", "");
 
     }

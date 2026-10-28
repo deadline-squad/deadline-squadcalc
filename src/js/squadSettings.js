@@ -1,5 +1,6 @@
 import { animateCSS } from "./animations.js";
 import SquadFactions from "./squadFactions.js";
+import { syncOverlayLink } from "./overlayLink.js";
 import packageInfo from "../../package.json";
 
 
@@ -121,6 +122,12 @@ export default class SquadSettings {
                 default: false,
                 selector: "#realMaxRangeSettings",
                 onChange: () => this.app.minimap.updateWeapons()
+            },
+            overlayLink: {
+                key: "settings-overlay-link",
+                default: false,
+                selector: "#overlayLinkSetting",
+                onChange: () => syncOverlayLink()
             },
             experimentalWeapons: {
                 key: "settings-experimental-weapons",

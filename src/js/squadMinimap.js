@@ -210,6 +210,11 @@ export const squadMinimap = Map.extend({
     toggleHeatmap: function(){
 
         if ($(".btn-helpmap").hasClass("active")){
+            // The API only knows the weapons it collected data for
+            if (!App.activeWeapon.heatmap) {
+                if (this.heatmap) this.removeLayer(this.heatmap);
+                return;
+            }
             this.spin(true, this.spinOptions);
             if (this.heatmap) this.heatmap.remove();
             fetchMarkersByMap(this.activeMap.name, App.activeWeapon.name)
@@ -568,9 +573,10 @@ export const squadMinimap = Map.extend({
         $(".btn-delete, .btn-undo").show();
 
         if (App.userSettings.targetAnimation){
+            const angleType = App.activeWeapon.angleType;
             if (this.activeWeaponsMarkers.getLayers().length === 1) {
-                if (isNaN(target.firingSolution1.elevation.high.rad)) return;
-            } else if (isNaN(target.firingSolution1.elevation.high.rad) && isNaN(target.firingSolution2.elevation.high.rad)) {
+                if (isNaN(target.firingSolution1.elevation[angleType].rad)) return;
+            } else if (isNaN(target.firingSolution1.elevation[angleType].rad) && isNaN(target.firingSolution2.elevation[angleType].rad)) {
                 return;
             } 
             setTimeout(() => {

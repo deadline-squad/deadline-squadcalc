@@ -88,7 +88,7 @@ export const squadTargetMarker = squadMarker.extend({
         this.firingSolution1 = new SquadFiringSolution(this.map.activeWeaponsMarkers.getLayers()[0].getLatLng(), this.getLatLng(), this.map, this.map.activeWeaponsMarkers.getLayers()[0].heightPadding);
 
         // Report target to squadcalc API
-        if (!options.uid && !options.skipApiReport) {
+        if (!options.uid && !options.skipApiReport && App.activeWeapon.heatmap) {
             sendTargetData({
                 lat: latlng.lat,
                 lng: latlng.lng,
@@ -240,6 +240,9 @@ export const squadTargetMarker = squadMarker.extend({
             const formattedTime = `${timeOfFlight.toFixed(0)}<span data-i18n="common:s">${i18next.t("common:s")}</span>`;
 
             switch (App.activeWeapon.unit) {
+            case "sec":
+                convertedElevation = `${App.activeWeapon.getHoldTime(elevationData.deg).toFixed(App.activeWeapon.elevationPrecision)}${i18next.t("common:s")}`;
+                break;
             case "mil":
                 convertedElevation = elevationData.mil.toFixed(App.activeWeapon.elevationPrecision);
                 break;
@@ -263,7 +266,7 @@ export const squadTargetMarker = squadMarker.extend({
 
         let elevation, timeOfFlight;
 
-        if (App.userSettings.lowAndHigh && !["Mortar", "UB-32", "M1064M121", "Mk19"].includes(App.activeWeapon.name)) {
+        if (App.userSettings.lowAndHigh && !["Mortar", "UB-32", "M1064M121", "Mk19", "AGS-17"].includes(App.activeWeapon.name)) {
             const [elevationLow, timeLow] = formatElevationData(firingSolution.elevation.low, firingSolution.timeOfFlight.low);
             const [elevationHigh, timeHigh] = formatElevationData(firingSolution.elevation.high, firingSolution.timeOfFlight.high);
             elevation = `${elevationLow} / ${elevationHigh}`;
@@ -288,7 +291,8 @@ export const squadTargetMarker = squadMarker.extend({
         if (App.userSettings.showTimeOfFlight) content += `<br><span class=bearingUiCalc>${timeOfFlight}</span>`;
         if (App.userSettings.showDistance) content += `<br><span class=bearingUiCalc>${DIST.toFixed(0)}<span data-i18n="common:m">${i18next.t("common:m")}</span></span>`;
         if (App.userSettings.showHeight) content += `<br><span class=bearingUiCalc>${heightDiff}<span data-i18n="common:m">${i18next.t("common:m")}</span></span>`;
-        return [content, `${i18next.t("common:elevation")}: ${elevation} - ${i18next.t("common:bearing")}: ${BEARING.toFixed(1)}°`];
+        const elevationLabel = i18next.t(App.activeWeapon.elevationRate ? "common:holdTime" : "common:elevation");
+        return [content, `${elevationLabel}: ${elevation} - ${i18next.t("common:bearing")}: ${BEARING.toFixed(1)}°`];
     },
 
 
@@ -338,7 +342,8 @@ export const squadTargetMarker = squadMarker.extend({
              App.activeWeapon.name != "UB-32" &&
               App.activeWeapon.name != "M1064M121" &&
                App.activeWeapon.name != "Mk19" &&
-                App.activeWeapon.name != "BTR4-30mm") {  
+                App.activeWeapon.name != "AGS-17" &&
+                 App.activeWeapon.name != "BTR4-30mm") {  
             setSpreadMarker(this.spreadMarker11, this.firingSolution1, 0, true);
         } else {
             this.spreadMarker11.setStyle(this.spreadOptionsOff);
@@ -426,7 +431,8 @@ export const squadTargetMarker = squadMarker.extend({
             App.activeWeapon.name != "Mortar" &&
              App.activeWeapon.name != "UB-32" &&
               App.activeWeapon.name != "M1064M121" &&
-               App.activeWeapon.name != "Mk19") {
+               App.activeWeapon.name != "Mk19" &&
+                App.activeWeapon.name != "AGS-17") {
             baseRadiiX = Math.max(this.spreadMarker1.getRadius().x, this.spreadMarker11.getRadius().x);  
             baseRadiiY = Math.max(this.spreadMarker1.getRadius().y, this.spreadMarker11.getRadius().y);
         }
@@ -561,6 +567,11 @@ export const squadTargetMarker = squadMarker.extend({
 
         $("#sim1").addClass("active");
         $("#sim2").removeClass("active");
+
+        // Weapons aimed by holding the elevation key (AGS-17) show a hold time where others show an angle
+        const elevationLabelKey = App.activeWeapon.elevationRate ? "common:holdTime" : "common:elevation";
+        $("#calcInformation td[data-i18n='common:elevation'], #calcInformation td[data-i18n='common:holdTime']")
+            .attr("data-i18n", elevationLabelKey).text(i18next.t(elevationLabelKey));
         $("#canvasControls > .active").first().removeClass("active");
         $("#canvasControls > button").first().addClass("active");
 

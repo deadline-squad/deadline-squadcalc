@@ -388,7 +388,16 @@ export const squadWeaponMarker = squadMarker.extend({
         $(".inf25damage").first().text(App.activeWeapon.twentyFiveDamageRadius.toFixed(1) + i18next.t("common:m"));
         $(".infVelocity").first().text(`${App.activeWeapon.velocity + i18next.t("common:m")}/${i18next.t("common:s")}`);
 
-        if (["Mortar", "UB-32"].includes(App.activeWeapon.name)) {
+        // Weapons aimed by holding the elevation key (AGS-17) : show the hold time range instead of angles
+        if (App.activeWeapon.elevationRate) {
+            $(".infHoldTime").first().text(`0${i18next.t("common:s")} - ${App.activeWeapon.getMaxHoldTime().toFixed(App.activeWeapon.elevationPrecision)}${i18next.t("common:s")}`);
+            $(".infElevationRate").first().text(`${App.activeWeapon.elevationRate}${i18next.t("common:°")}/${i18next.t("common:s")}`);
+            $(".holdTimeRow").show();
+        } else {
+            $(".holdTimeRow").hide();
+        }
+
+        if (["Mortar", "UB-32"].includes(App.activeWeapon.name) || App.activeWeapon.elevationRate) {
             $("#angleChoice").hide();
         } else {
             $("#angleChoice").show();

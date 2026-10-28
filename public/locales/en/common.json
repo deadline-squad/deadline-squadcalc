@@ -26,6 +26,8 @@
         "weapon2": "Weapon 2",
         "bearing": "Bearing",
         "elevation": "Elevation",
+        "holdTime": "Hold time",
+        "elevationRate": "Elevation speed",
         "distance": "Distance",
         "timeOfFlight": "Time of Flight",
         "spread": "Spread",

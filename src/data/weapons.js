@@ -500,4 +500,41 @@ export var WEAPONS = [
             damageFallOff: 4,
         }]
     },
+    /*
+     * Appended last: the weapon dropdown value and the saved selection (localStorage) are
+     * indexes in this array, inserting a weapon earlier would shift every later weapon.
+     */
+    {
+        name: "AGS-17",
+        deceleration: 0,
+        decelerationTime : 0,
+        gravityScale: 2.801,
+        // Aimed by holding the elevation key: the mount starts at its highest elevation
+        // (minElevation[1]) and the key lowers it at `elevationRate` deg/s until it reaches
+        // its lowest one (minElevation[0]). The grenade is lobbed on the high trajectory.
+        // The muzzle velocity (230 m/s) is the in-game one. gravityScale is an effective value:
+        // the grenade only flies 1925 m at most, so it falls 2.801 times faster than plain gravity
+        // (elevation only depends on velocity²/gravity). The top angle is the one that lands at
+        // 280 m (0 s) and the lowest elevation the one that lands at ~1925 m; gravityScale and
+        // rate were fitted by least squares on 67 in-game hold-time/distance measurements
+        // (0 s -> 280 m, 4.1 s -> 1930 m, 6.4 m RMS error).
+        minElevation: [47.4, 85.84],
+        elevationRate: 9.17,
+        heatmap: false,
+        unit: "sec",
+        type: "deployables",
+        angleType: "high",
+        elevationPrecision: 2,
+        heightOffset: 1,
+        shells : [{
+            name: "default",
+            minDistance: 280,
+            velocity: 230,
+            moa: 15,
+            explosionDamage: 115,
+            explosionRadius: [1, 15],
+            explosionDistanceFromImpact: 1,
+            damageFallOff: 1,
+        }]
+    },
 ];

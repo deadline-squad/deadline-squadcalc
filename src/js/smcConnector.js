@@ -119,6 +119,23 @@ function handleDisconnect() {
  * @param {WebSocket} socketCoordinates - WebSocket connection for sending coordinates
  */
 function checkCoordinates(socketCoordinates) {
+    const coorArray = getTargetLines();
+    if (coorArray != prevCoorArray) {
+        prevCoorArray = coorArray;
+        if (socketCoordinates && socketCoordinates.readyState === WebSocket.OPEN) {
+            socketCoordinates.send(coorArray);
+        }
+    }
+}
+
+/**
+ * Builds the text describing every target for an external overlay, one line per target:
+ * "<elevation> | <bearing>°[ | <distance>m]" (the elevation is a hold time like "1.20s" for AGS-17,
+ * "---" when the target is out of range)
+ * @param {boolean} [forceDistance=false] - add the distance even if the "show distance" setting is off
+ * @returns {string} The lines joined by "\n", empty if there are no targets
+ */
+export function getTargetLines(forceDistance = false) {
     let coorArray = "";
     if (App.minimap.activeTargetsMarkers) {
         App.minimap.activeTargetsMarkers.eachLayer(function (target) {
@@ -132,10 +149,12 @@ function checkCoordinates(socketCoordinates) {
                 elevation = target.firingSolution1.elevation.low;
             }
 
-            if (isNaN(elevation)) {
+            if (isNaN(elevation.rad)) {
                 elevation = "---";
             } else {
-                if (App.activeWeapon.unit === "mil") {
+                if (App.activeWeapon.unit === "sec") {
+                    elevation = `${App.activeWeapon.getHoldTime(elevation.deg).toFixed(App.activeWeapon.elevationPrecision)}s`;
+                } else if (App.activeWeapon.unit === "mil") {
                     elevation = elevation.mil.toFixed(0);
                 } else {
                     elevation = elevation.deg.toFixed(1);
@@ -146,17 +165,12 @@ function checkCoordinates(socketCoordinates) {
             }
             coorArray = coorArray + `${elevation} | ${BEARING.toFixed(1)}°`;
 
-            if (App.userSettings.showDistance) {
+            if (forceDistance || App.userSettings.showDistance) {
                 coorArray = coorArray + ` | ${DISTANCE.toFixed(0)}m`;
             }
         });
     }
-    if (coorArray != prevCoorArray) {
-        prevCoorArray = coorArray;
-        if (socketCoordinates && socketCoordinates.readyState === WebSocket.OPEN) {
-            socketCoordinates.send(coorArray);
-        }
-    }
+    return coorArray;
 }
 
 /**

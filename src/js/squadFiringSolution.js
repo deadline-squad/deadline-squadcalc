@@ -29,8 +29,16 @@ export default class SquadFiringSolution {
         this.spreadParameters.low = this.getSpreadParameter(this.elevation.low.rad, this.timeOfFlight.low);
         this.spreadParameters.high = this.getSpreadParameter(this.elevation.high.rad, this.timeOfFlight.high);
 
-        if (this.timeOfFlight.low > App.activeWeapon.projectileLifespan) this.elevation.low.rad = NaN;
-        if (this.timeOfFlight.high > App.activeWeapon.projectileLifespan) this.elevation.high.rad = NaN;
+        // A projectile that dies in the air before landing has no solution, whatever the unit displayed
+        for (const angleType of ["low", "high"]) {
+            if (this.timeOfFlight[angleType] > App.activeWeapon.projectileLifespan) {
+                this.elevation[angleType].rad = this.elevation[angleType].deg = this.elevation[angleType].mil = NaN;
+            }
+        }
+
+        this.holdTime = {low: [], high: []};
+        this.holdTime.low = App.activeWeapon.getHoldTime(this.elevation.low.deg);
+        this.holdTime.high = App.activeWeapon.getHoldTime(this.elevation.high.deg);
     }
 
 
