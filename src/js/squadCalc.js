@@ -1482,6 +1482,7 @@ export default class SquadCalc {
 
         let elevation = this.activeWeapon.getAngleType() === -1 ? firingSolution.elevation.high : firingSolution.elevation.low;
         if (this.activeWeapon.unit === "sec") elevation = this.activeWeapon.getHoldTime(elevation.deg);
+        else if (this.activeWeapon.type === "directFire") elevation = firingSolution.getSightAngle(elevation.rad);
         else elevation = this.activeWeapon.unit === "mil" ? elevation.mil : elevation.deg;
     
 

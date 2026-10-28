@@ -260,7 +260,8 @@ export const squadTargetMarker = squadMarker.extend({
                 break;
             }
             default:
-                convertedElevation = elevationData.deg.toFixed(App.activeWeapon.elevationPrecision);
+                // Direct fire is aimed relative to the target, not to the horizon
+                convertedElevation = (App.activeWeapon.type === "directFire" ? firingSolution.getSightAngle(elevationData.rad) : elevationData.deg).toFixed(App.activeWeapon.elevationPrecision);
             }
 
             return [convertedElevation, formattedTime];
@@ -271,7 +272,7 @@ export const squadTargetMarker = squadMarker.extend({
         if (App.activeWeapon.elevationRate) {
             // Weapons laid by holding a key (AGS-17): hold time of the lob, then the angle to aim at in direct fire
             const [holdTime, timeHigh] = formatElevationData(firingSolution.elevation.high, firingSolution.timeOfFlight.high);
-            const directAngle = isNaN(firingSolution.elevation.low.rad) ? "---" : `${firingSolution.elevation.low.deg.toFixed(1)}°`;
+            const directAngle = isNaN(firingSolution.elevation.low.rad) ? "---" : `${firingSolution.getSightAngle(firingSolution.elevation.low.rad).toFixed(1)}°`;
             elevation = `${holdTime} / ${directAngle}`;
             timeOfFlight = timeHigh;
         } else if (App.userSettings.lowAndHigh && !["Mortar", "UB-32", "M1064M121", "Mk19"].includes(App.activeWeapon.name)) {

@@ -1,3 +1,10 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.2.1** *(2026-10-28)*
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- Direct-fire weapons (and the direct-fire angle of the AGS-17) show the elevation above the line of sight to the target, the angle you aim with, instead of the elevation to the horizon, which counted the height difference twice uphill and downhill
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.2.0** *(2026-10-28)*
 
 </br><img src="https://img.shields.io/badge/-new%20features-green">

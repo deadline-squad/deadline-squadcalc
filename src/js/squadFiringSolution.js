@@ -86,6 +86,20 @@ export default class SquadFiringSolution {
 
 
     /**
+     * Elevation above the line of sight to the target, the angle a direct-fire weapon is aimed with
+     * (sight scale, Squad Ballistics overlay mark): the target is seen atan(rise / distance) above the
+     * horizon from the muzzle, so aiming at it already gives that part of the elevation.
+     * Same as Solution.sight_angle in Squad Ballistics (ballistics.py).
+     * @param {number} elevation - elevation in radians
+     * @returns {number} - degrees, NaN if the elevation is NaN
+     */
+    getSightAngle(elevation) {
+        const lineOfSight = Math.atan2(this.heightDiff - App.activeWeapon.heightOffset, this.distance);
+        return this.radToDeg(elevation - lineOfSight);
+    }
+
+
+    /**
      * Whether the weapon can be laid at this elevation
      * @param {number} elevation - elevation in radians
      * @returns {boolean} - true inside the weapon's minElevation range
