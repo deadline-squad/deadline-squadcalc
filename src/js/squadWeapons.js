@@ -1,8 +1,11 @@
 import { App } from "../app.js";
 import { WEAPONS } from "../data/weapons.js";
 
+// Range shown for weapons without gravity (NLAW): they fly straight, beyond the largest map.
+const NO_GRAVITY_RANGE = 10000;
+
 export class Weapon {
-    constructor(name, deceleration, decelerationTime, gravityScale, minElevation, unit, logo, marker, type, angleType, elevationPrecision, shells = [], heightOffset = 0, angleOffset = 0, projectileLifespan = 100, mod = null, elevationRate = null, heatmap = true) {
+    constructor(name, deceleration, decelerationTime, gravityScale, minElevation, unit, logo, marker, type, angleType, elevationPrecision, shells = [], heightOffset = 0, angleOffset = 0, projectileLifespan = 100, mod = null, elevationRate = null, heatmap = true, acceleration = 0, accelerationTime = 0, holdElevation = null, ballistics = null, image = null) {
         this.name = name;
         //this.velocity = velocity;
         this.deceleration = deceleration;
@@ -28,6 +31,15 @@ export class Weapon {
         this.mod = mod;
         this.elevationRate = elevationRate;
         this.heatmap = heatmap;
+        // Rocket boost (Squad Ballistics model): `acceleration` m/s² during `accelerationTime` s
+        this.acceleration = acceleration;
+        this.accelerationTime = accelerationTime;
+        // [lowest, top] elevations reachable by holding the elevation key (AGS-17)
+        this.holdElevation = holdElevation;
+        // Name of the same weapon in Squad Ballistics' weapons.json, null if it has none
+        this.ballistics = ballistics;
+        // Image file name in /img/weapons and /img/markers/weapons
+        this.image = image || name;
     }
 
 
@@ -40,6 +52,8 @@ export class Weapon {
      * @returns {number} - Calculated velocity of the weapon for the given distance.
      */
     getVelocity(distance) {
+
+        if (this.hasBoost()) return this.getBoostVelocity(distance);
 
         // If there's no deceleration, return the constant velocity
         if (this.decelerationDistance === 0) return this.velocity;
@@ -63,24 +77,66 @@ export class Weapon {
 
 
     /**
-     * Longest hold of the elevation key: the time to lower the mount from its highest
-     * to its lowest elevation.
+     * Whether the projectile is a rocket boosted by `acceleration` during `accelerationTime`.
+     * @returns {boolean}
+     */
+    hasBoost() {
+        return this.accelerationTime > 0 && this.acceleration !== 0;
+    }
+
+
+    /**
+     * Equivalent constant velocity over `distance` for a boosted rocket: it accelerates by
+     * `acceleration` m/s² during `accelerationTime` s, then keeps its speed.
+     * Same model as Weapon.velocity_at in Squad Ballistics (ballistics.py), so both apps give
+     * the same elevation.
+     * @param {number} distance - Distance to the target in meters.
+     * @returns {number} - distance / time of flight, in m/s.
+     */
+    getBoostVelocity(distance) {
+        if (distance <= 0) return this.velocity;
+
+        const a = this.acceleration;
+        const boostTime = this.accelerationTime;
+        const boostDistance = this.velocity * boostTime + 0.5 * a * boostTime ** 2;
+        let time;
+
+        if (distance <= boostDistance) {
+            time = (Math.sqrt(Math.max(0, this.velocity ** 2 + 2 * a * distance)) - this.velocity) / a;
+        } else {
+            time = boostTime + (distance - boostDistance) / (this.velocity + a * boostTime);
+        }
+
+        return distance / time;
+    }
+
+
+    /**
+     * Longest hold of the elevation key: the time to lower the mount from the top to the
+     * bottom of `holdElevation`.
      * @returns {number} - Hold time in seconds, NaN for weapons without `elevationRate`.
      */
     getMaxHoldTime() {
-        return this.getHoldTime(this.minElevation[0]);
+        if (!this.elevationRate) return NaN;
+        return this.getHoldTime(this.holdElevation[0]);
     }
 
     /**
      * Convert an elevation angle into the time the elevation key must be held,
-     * for weapons whose mount starts at its highest elevation (`minElevation[1]`) and is
-     * lowered at a constant `elevationRate` (ex: AGS-17).
+     * for weapons whose mount starts at the top of `holdElevation` and is
+     * lowered at a constant `elevationRate` down to its bottom (ex: AGS-17).
      * @param {number} elevationDeg - Elevation angle in degrees, from SquadFiringSolution.
-     * @returns {number} - Hold time in seconds, NaN if the weapon has no rate or the angle is NaN.
+     * @returns {number} - Hold time in seconds; NaN if the weapon has no rate, or the angle
+     * is NaN or outside `holdElevation` (the key cannot lay the barrel there).
      */
     getHoldTime(elevationDeg) {
         if (!this.elevationRate) return NaN;
-        return Math.max(0, (this.minElevation[1] - elevationDeg) / this.elevationRate);
+
+        const [lowest, top] = this.holdElevation;
+
+        if (!(elevationDeg >= lowest && elevationDeg <= top)) return NaN;
+
+        return (top - elevationDeg) / this.elevationRate;
     }
 
 
@@ -106,14 +162,35 @@ export class Weapon {
      */
     getMaxDistance() {
 
+        const gravity = App.gravity * this.gravityScale;
+
+        if (gravity === 0) return NO_GRAVITY_RANGE;
+
+        // Boosted rockets reach a distance while their equivalent velocity v(d) has v(d)² >= g·d
+        // (Weapon.max_range in Squad Ballistics)
+        if (this.hasBoost()) {
+            const reachable = (distance) => this.getBoostVelocity(distance) ** 2 >= gravity * distance;
+            let low = 0;
+            let high = Math.max(this.velocity, this.velocity + this.acceleration * this.accelerationTime) ** 2 / gravity;
+
+            while (reachable(high)) high *= 2;
+
+            for (let i = 0; i < 60; i++) {
+                const mid = (low + high) / 2;
+                if (reachable(mid)) low = mid;
+                else high = mid;
+            }
+
+            return low;
+        }
+
         // If there's no deceleration (anything but UB32)
         if (this.decelerationDistance == 0) {
-            const gravity = App.gravity * this.gravityScale;
 
             // Weapons aimed by key press duration (AGS-17) cannot reach the ideal 45° when
-            // their mount stops above it: their range is the one of the lowest elevation
+            // their mount stops above it: their range is the one of the lowest hold elevation
             if (this.elevationRate) {
-                const angle = Math.max(45, this.minElevation[0]) * Math.PI / 180;
+                const angle = Math.max(45, this.holdElevation[0]) * Math.PI / 180;
                 return (this.velocity ** 2) * Math.sin(2 * angle) / gravity;
             }
 

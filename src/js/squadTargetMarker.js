@@ -237,7 +237,9 @@ export const squadTargetMarker = squadMarker.extend({
 
             let convertedElevation;
 
-            const formattedTime = `${timeOfFlight.toFixed(0)}<span data-i18n="common:s">${i18next.t("common:s")}</span>`;
+            // Direct fire flies for fractions of a second: tenths matter to lead a moving target
+            const timeDigits = App.activeWeapon.type === "directFire" ? 1 : 0;
+            const formattedTime = `${timeOfFlight.toFixed(timeDigits)}<span data-i18n="common:s">${i18next.t("common:s")}</span>`;
 
             switch (App.activeWeapon.unit) {
             case "sec":
@@ -266,7 +268,13 @@ export const squadTargetMarker = squadMarker.extend({
 
         let elevation, timeOfFlight;
 
-        if (App.userSettings.lowAndHigh && !["Mortar", "UB-32", "M1064M121", "Mk19", "AGS-17"].includes(App.activeWeapon.name)) {
+        if (App.activeWeapon.elevationRate) {
+            // Weapons laid by holding a key (AGS-17): hold time of the lob, then the angle to aim at in direct fire
+            const [holdTime, timeHigh] = formatElevationData(firingSolution.elevation.high, firingSolution.timeOfFlight.high);
+            const directAngle = isNaN(firingSolution.elevation.low.rad) ? "---" : `${firingSolution.elevation.low.deg.toFixed(1)}°`;
+            elevation = `${holdTime} / ${directAngle}`;
+            timeOfFlight = timeHigh;
+        } else if (App.userSettings.lowAndHigh && !["Mortar", "UB-32", "M1064M121", "Mk19"].includes(App.activeWeapon.name)) {
             const [elevationLow, timeLow] = formatElevationData(firingSolution.elevation.low, firingSolution.timeOfFlight.low);
             const [elevationHigh, timeHigh] = formatElevationData(firingSolution.elevation.high, firingSolution.timeOfFlight.high);
             elevation = `${elevationLow} / ${elevationHigh}`;
@@ -493,12 +501,12 @@ export const squadTargetMarker = squadMarker.extend({
         const angleType = weapons[0].angleType;
         const elevationKey = angleType === "high" ? "high" : "low";
     
-        const elevation = this.firingSolution1.elevation[elevationKey]?.rad;
-        const elevation2 = weapons.length === 2 ? this.firingSolution2.elevation[elevationKey]?.rad : null;
-    
+        // Weapons laid by holding a key (AGS-17) also reach targets in direct fire (low trajectory)
+        const reaches = (firingSolution) => !isNaN(firingSolution.elevation[elevationKey]?.rad) ||
+            (Boolean(App.activeWeapon.elevationRate) && !isNaN(firingSolution.elevation.low.rad));
+
         const isSingleWeapon = weapons.length === 1;
-        const bothElevationsInvalid = isNaN(elevation) && isNaN(elevation2);
-        const isDisabled = (isSingleWeapon && isNaN(elevation)) || (!isSingleWeapon && bothElevationsInvalid);
+        const isDisabled = isSingleWeapon ? !reaches(this.firingSolution1) : !reaches(this.firingSolution1) && !reaches(this.firingSolution2);
 
         let iconURL;
         let iconClassName;

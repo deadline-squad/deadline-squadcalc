@@ -1,3 +1,15 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.2.0** *(2026-10-28)*
+
+</br><img src="https://img.shields.io/badge/-new%20features-green">
+- Added a "Direct fire (Squad Ballistics)" weapon group: the 43 weapons aimed with the Squad Ballistics overlay mark (grenade launchers, AGLs, launchers including boosted rockets and the NLAW, recoilless and tank guns, autocannons, HMGs). Their physics come from Squad Ballistics' weapons.json, so the elevation shown (with the terrain height of both markers) is the one its overlay aims at
+- AGS-17: the target popup shows the hold time of the lob and the elevation for direct fire through the sight (`2.31s / 3.2°`), and targets reachable only in direct fire (under 280 m) are no longer shown as out of range
+- Squad Ballistics follows the weapon selected here: `window.squadBallistics.weapon()` (embedded map, bridge version 2) and a `weapon: <name>` line after the targets on the overlay link give its name in Squad Ballistics
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- The time of flight of direct-fire shots at a target above the weapon is the time to reach it on the way up (the projectile was counted until it came back down)
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.1.0** *(2026-10-28)*
 
 </br><img src="https://img.shields.io/badge/-new%20features-green">

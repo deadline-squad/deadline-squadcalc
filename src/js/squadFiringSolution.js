@@ -39,6 +39,11 @@ export default class SquadFiringSolution {
         this.holdTime = {low: [], high: []};
         this.holdTime.low = App.activeWeapon.getHoldTime(this.elevation.low.deg);
         this.holdTime.high = App.activeWeapon.getHoldTime(this.elevation.high.deg);
+
+        // Weapons laid by holding a key (AGS-17) only lob on the angles the key can reach
+        if (App.activeWeapon.elevationRate && isNaN(this.holdTime.high)) {
+            this.elevation.high.rad = this.elevation.high.deg = this.elevation.high.mil = NaN;
+        }
     }
 
 
@@ -63,17 +68,31 @@ export default class SquadFiringSolution {
     */
     getElevation(dist = 0, lowangle = false) {
         let angleFactor;
-        
+        let elevation;
+
+        if (this.gravity === 0) {
+            // No gravity (NLAW): straight at the target, both "arcs" are the line of sight
+            elevation = Math.atan2(this.heightDiff - App.activeWeapon.heightOffset, dist) - this.degToRad(App.activeWeapon.angleOffset);
+            return this.isInElevationRange(elevation) ? elevation : NaN;
+        }
+
         const P1 = Math.sqrt(this.velocity ** 4 - this.gravity * (this.gravity * dist ** 2 + 2 * (this.heightDiff - App.activeWeapon.heightOffset) * this.velocity ** 2));
         angleFactor = lowangle ? -P1 : P1;
 
-        let elevation = Math.atan((this.velocity ** 2 + angleFactor) / (this.gravity * dist)) - this.degToRad(App.activeWeapon.angleOffset);
+        elevation = Math.atan((this.velocity ** 2 + angleFactor) / (this.gravity * dist)) - this.degToRad(App.activeWeapon.angleOffset);
 
-        if (this.radToDeg(elevation) < App.activeWeapon.minElevation[0] || this.radToDeg(elevation) > App.activeWeapon.minElevation[1]){
-            return NaN;
-        }
+        return this.isInElevationRange(elevation) ? elevation : NaN;
+    }
 
-        return elevation;
+
+    /**
+     * Whether the weapon can be laid at this elevation
+     * @param {number} elevation - elevation in radians
+     * @returns {boolean} - true inside the weapon's minElevation range
+     */
+    isInElevationRange(elevation) {
+        const degrees = this.radToDeg(elevation);
+        return degrees >= App.activeWeapon.minElevation[0] && degrees <= App.activeWeapon.minElevation[1];
     }
 
 
@@ -185,6 +204,9 @@ export default class SquadFiringSolution {
      * @returns {number} - vertical spread in meter
      */
     getVerticalSpread(angle){
+        // No dispersion, or no gravity to turn it into a range error (direct-fire weapons)
+        if (this.moa === 0 || this.gravity === 0) return 0;
+
         const verticalSpread1 = (this.velocity ** 2 * Math.sin(2*(angle + (this.moa/2)))) / this.gravity;
         const verticalSpread2  = (this.velocity ** 2 * Math.sin(2*(angle - (this.moa/2)))) / this.gravity;
         const totalSpread = Math.abs(verticalSpread2 - verticalSpread1);
@@ -199,9 +221,21 @@ export default class SquadFiringSolution {
      * @returns {number} - time of flight in seconds
      */
     getTimeOfFlight(angle){
+        // Without gravity the projectile flies the straight line of sight
+        if (this.gravity === 0) {
+            const path = this.distance / Math.cos(angle);
+            return path / App.activeWeapon.getVelocity(path);
+        }
+
+        // Direct fire hits on the way up when the target is above: the formula below would give
+        // the time the projectile comes back down to the target's height
+        if (App.activeWeapon.type === "directFire") {
+            return this.distance / (this.velocity * Math.cos(angle + this.degToRad(App.activeWeapon.angleOffset)));
+        }
+
         // In extreme cases ToF can be NaN (low angle, high heights)
         // if it does just aproximate without taking heights in account this time
-        var t = this.velocity * Math.sin(angle) + Math.sqrt( (Math.pow(this.velocity, 2) * Math.pow(Math.sin(angle), 2)) + (2 * this.gravity * -this.heightDiff));
+        let t = this.velocity * Math.sin(angle) + Math.sqrt( (Math.pow(this.velocity, 2) * Math.pow(Math.sin(angle), 2)) + (2 * this.gravity * -this.heightDiff));
         if (isNaN(t))  t = this.velocity * Math.sin(angle) + Math.sqrt( (Math.pow(this.velocity, 2) * Math.pow(Math.sin(angle), 2)));
         return t / this.gravity;
     }

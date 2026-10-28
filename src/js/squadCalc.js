@@ -94,8 +94,13 @@ export default class SquadCalc {
         checkApiHealth();
         initWebSocket();
         initOverlayLink();
-        // Read by Squad Ballistics (embedded map): it solves the targets for its own weapon
-        window.squadBallistics = { version: 1, targets: getTargetData };
+        // Read by Squad Ballistics (embedded map): it solves the targets for the same weapon
+        window.squadBallistics = {
+            version: 2,
+            targets: getTargetData,
+            // Name of the selected weapon in Squad Ballistics' weapons.json, null if it has none
+            weapon: () => this.activeWeapon?.ballistics ?? null,
+        };
         console.log(`SquadCalc v${this.version} Loaded! 🎯`);
     }
 
@@ -556,7 +561,12 @@ export default class SquadCalc {
                 weapon.projectileLifespan,
                 weapon.mod,
                 weapon.elevationRate,
-                weapon.heatmap
+                weapon.heatmap,
+                weapon.acceleration,
+                weapon.accelerationTime,
+                weapon.holdElevation,
+                weapon.ballistics,
+                weapon.image
             );
         });
         
@@ -1395,7 +1405,7 @@ export default class SquadCalc {
         });
         this.SHELL_SELECTOR.val(0).trigger("change");
 
-        $("#mortarImg").attr("src", `/img/weapons/${this.activeWeapon.name}.webp`);
+        $("#mortarImg").attr("src", `/img/weapons/${this.activeWeapon.image}.webp`);
         
         this.shoot();
     

@@ -183,7 +183,7 @@ export const squadWeaponMarker = squadMarker.extend({
         let iconUrl;
 
         if (layers.length === 1) {
-            iconUrl = `/img/markers/weapons/${App.activeWeapon.name}.webp`;
+            iconUrl = `/img/markers/weapons/${App.activeWeapon.image}.webp`;
         }
 
         if (layers.length === 2) {
@@ -377,7 +377,7 @@ export const squadWeaponMarker = squadMarker.extend({
         if (App.activeWeapon.shells.length > 1) name += ` (${$(".dropbtn3 option:selected").text().trim()})`;
 
         // Logo
-        $(".weaponIcon").first().attr("src", `/img/weapons/${App.activeWeapon.name}.webp`);
+        $(".weaponIcon").first().attr("src", `/img/weapons/${App.activeWeapon.image}.webp`);
         $("#dialogWeaponTitle").text(name);
         $(".infRange").first().text(`${App.activeWeapon.minDistance + i18next.t("common:m")} - ${App.activeWeapon.maxDistance.toFixed(0) + i18next.t("common:m")}`);
         $(".infMOA").first().text(`${App.activeWeapon.moa} (${(App.activeWeapon.moa / 60).toFixed(1) + i18next.t("common:°")})`);

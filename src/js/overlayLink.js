@@ -69,10 +69,23 @@ export function syncOverlayLink() {
     }
     if (socket.readyState !== WebSocket.OPEN) return;
 
+    const text = relayText();
+    if (text === lastSent) return;
+    lastSent = text;
+    socket.send(text);
+}
+
+/**
+ * Text sent to the overlay: one line per target (see getTargetLines), then "weapon: <name>"
+ * with the Squad Ballistics name of the selected weapon when it has one, so the overlay solves
+ * the targets for the same weapon. Readers of target lines skip it (it has no "|").
+ * @returns {string}
+ */
+function relayText() {
     const lines = getTargetLines(true);
-    if (lines === lastSent) return;
-    lastSent = lines;
-    socket.send(lines);
+    const weapon = App.activeWeapon?.ballistics;
+    if (!weapon) return lines;
+    return lines === "" ? `weapon: ${weapon}` : `${lines}\nweapon: ${weapon}`;
 }
 
 function renewSessionCode() {
@@ -97,7 +110,7 @@ function connect() {
     socket = relay;
     // A (re)connect must not overwrite the overlay with nothing (a new empty tab), and a hidden tab
     // must not race the visible one after a relay restart: only later changes are sent
-    lastSent = document.hidden ? getTargetLines(true) : "";
+    lastSent = document.hidden || getTargetLines(true) === "" ? relayText() : "";
 
     relay.addEventListener("message", (event) => {
         try {
