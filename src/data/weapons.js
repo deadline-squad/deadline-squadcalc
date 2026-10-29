@@ -100,7 +100,7 @@ export var WEAPONS = [
             moa: 50,
             explosionDamage: 350,
             explosionRadius: [0, 40],
-            explosionDistanceFromImpact: 0.5,
+            explosionDistanceFromImpact: 1,
             damageFallOff: 7,
         }]
     },
@@ -140,6 +140,7 @@ export var WEAPONS = [
         angleType: "low",
         elevationPrecision: 1,
         heightOffset: 3,
+        projectileLifespan: 20,
         shells : [{
             name: "default",
             minDistance: 0,
@@ -228,7 +229,7 @@ export var WEAPONS = [
             moa: 15,
             explosionDamage: 115,
             explosionRadius: [1, 15],
-            explosionDistanceFromImpact: 1,
+            explosionDistanceFromImpact: 0.08,
             damageFallOff: 1,
         }]
     },
@@ -536,8 +537,9 @@ export var WEAPONS = [
         // `holdElevation` and the key lowers it at `elevationRate` deg/s down to its bottom.
         // Fired directly (low trajectory) by aiming through the sight like any direct-fire weapon:
         // `minElevation` is the whole range of the barrel.
-        // Muzzle velocity (185 m/s), gravityScale (1.8) and projectile lifespan (40 s) are read from
-        // the game files (BP_AGS-17_Weapon WeaponConfig, BP_30mm_VOG19_Proj, Squad build 26005357).
+        // Muzzle velocity (185 m/s), gravityScale (1.8), projectile lifespan (40 s), spread (1.5 MOA)
+        // and explosion (1.5-18 m, 0.08 m above the impact) are read from the game files
+        // (BP_AGS-17_Weapon WeaponConfig, BP_30mm_VOG19_Proj, Squad build 26005357).
         // The top angle and rate were fitted by least squares on 67 in-game hold-time/distance
         // measurements (0 s -> 280 m, 4.1 s -> 1930 m, 7 m RMS error); the lowest elevation keeps
         // the longest measured hold (4.19 s).
@@ -555,10 +557,10 @@ export var WEAPONS = [
             name: "default",
             minDistance: 280,
             velocity: 185,
-            moa: 15,
+            moa: 1.5,
             explosionDamage: 115,
-            explosionRadius: [1, 15],
-            explosionDistanceFromImpact: 1,
+            explosionRadius: [1.5, 18],
+            explosionDistanceFromImpact: 0.08,
             damageFallOff: 1,
         }]
     },
