@@ -86,5 +86,7 @@
     "returnToMap": "Passer en mode carte",
     "settings": "Paramètres",
     "openFactionSelection": "Cliquer pour ouvrir la sélection de faction",
-    "coverage": "Zone de tir : où l'arme peut toucher depuis le premier marqueur d'arme, en tenant compte du relief et des bâtiments"
+    "coverage": "Zone de tir : où l'arme peut toucher depuis le premier marqueur d'arme, en tenant compte du relief et des bâtiments",
+    "heightmapFailed": "Pas de données d'altitude",
+    "heightmapFailedDesc": "La carte des hauteurs n'a pas pu être chargée : les solutions de tir supposent un terrain plat (hauteur 0)."
 }

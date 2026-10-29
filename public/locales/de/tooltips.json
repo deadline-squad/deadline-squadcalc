@@ -86,5 +86,7 @@
     "returnToMap": "Zur Kartenansicht wechseln",
     "settings": "Einstellungen",
     "openFactionSelection": "Klicken um die Fraktionsauswahl zu öffnen",
-    "coverage": "Wirkungsbereich: wohin die Waffe vom ersten Waffenmarker trifft, unter Berücksichtigung von Gelände und Gebäuden"
+    "coverage": "Wirkungsbereich: wohin die Waffe vom ersten Waffenmarker trifft, unter Berücksichtigung von Gelände und Gebäuden",
+    "heightmapFailed": "Keine Höhendaten",
+    "heightmapFailedDesc": "Die Höhenkarte konnte nicht geladen werden: die Schusslösungen nehmen flaches Gelände an (Höhe 0)."
 }

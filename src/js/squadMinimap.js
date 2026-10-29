@@ -69,7 +69,7 @@ export const squadMinimap = Map.extend({
         this.activeTargetsMarkers = new LayerGroup().addTo(this);
         this.activeWeaponsMarkers = new LayerGroup().addTo(this);
         this.coverage = new SquadCoverage(this);
-        $(document).on("heightmapPNG:loaded", () => this._handleHeightmapLoaded());
+        $(document).on("heightmap:loaded", () => this._handleHeightmapLoaded());
         this.targetGrids = new LayerGroup().addTo(this);
         this.activeMarkers = new LayerGroup().addTo(this);
         this.activeArrowsGroup = new LayerGroup().addTo(this);
@@ -312,8 +312,9 @@ export const squadMinimap = Map.extend({
 
 
     /**
-     * The heights of the active map arrived (squadHeightmap, `heightmapPNG:loaded`): weapons and targets
-     * placed while they loaded were solved on flat ground, so solve them again with the real heights.
+     * The heights of the active map arrived or failed to load (squadHeightmap, `heightmap:loaded`):
+     * weapons and targets placed while they loaded were solved on flat ground, so solve them again with
+     * the real heights, or mark them as having no height data.
      */
     _handleHeightmapLoaded: function(){
         if (!this.activeWeaponsMarkers.getLayers().length) return;

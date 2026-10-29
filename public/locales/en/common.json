@@ -82,5 +82,6 @@
     "favServers": "Server",
     "coverageLow": "Low trajectory / direct fire",
     "coverageHigh": "High trajectory only",
-    "coverageBlocked": "Blocked (terrain, buildings)"
+    "coverageBlocked": "Blocked (terrain, buildings)",
+    "noHeightData": "no height data"
 }

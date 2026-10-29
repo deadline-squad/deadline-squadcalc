@@ -86,5 +86,7 @@
     "returnToMap": "切换到地图模式",
     "settings": "设置",
     "openFactionSelection": "点击打开派系选择",
-    "coverage": "火力覆盖：从第一个武器标记出发，考虑地形和建筑后武器能命中的区域"
+    "coverage": "火力覆盖：从第一个武器标记出发，考虑地形和建筑后武器能命中的区域",
+    "heightmapFailed": "无高度数据",
+    "heightmapFailedDesc": "此地图的高度图加载失败：射击解算按平地（高度 0）计算。"
 }

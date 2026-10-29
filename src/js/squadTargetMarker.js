@@ -353,6 +353,9 @@ export const squadTargetMarker = squadMarker.extend({
         }
 
         content += formatObstacles(shownArcs);
+        if (!firingSolution.hasHeightData) {
+            content += `<br><span class="calcNoHeight">⚠ <span data-i18n="common:noHeightData">${i18next.t("common:noHeightData")}</span></span>`;
+        }
         content += this.formatRounds(firingSolution, shownArcs);
         if (firingSolution === this.firingSolution1) content += this.formatCorrection();
 

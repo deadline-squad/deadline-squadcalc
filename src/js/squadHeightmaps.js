@@ -1,3 +1,6 @@
+import { App } from "../app.js";
+
+
 /**
  * Squad Heightmap
  * Load an heightmap in memory and calculate heights for given LatLng Points.
@@ -7,6 +10,8 @@
  *   - `heightmapPNG:loaded` when they loaded;
  *   - `heightmap:loaded` after it, also when they failed to load (sessions and imports wait for it
  *     to place their markers).
+ * A failed load shows an error toast and sets `failed`: heights are then 0 everywhere, and the firing
+ * solutions say they have no height data (SquadFiringSolution.hasHeightData).
  * @class squadHeightmap
  */
 export default class SquadHeightmap {
@@ -25,6 +30,8 @@ export default class SquadHeightmap {
         this.rowsPerUnit = 0;
         // Whether `jsonPng` holds the precise game heightmap (mm steps), not the 8-bit one (up to 2 m steps)
         this.precise = false;
+        // Whether both heightmaps failed to load: every height is 0
+        this.failed = false;
         this.worker = null;
         this.loadHeightmapPNG(`${process.env.API_URL}${this.map.activeMap.mapURL}heightmap.png`);
     }
@@ -66,6 +73,8 @@ export default class SquadHeightmap {
         if (data.error) {
             console.error("[HEIGHTMAP] Failed to load PNG heightmap:", data.url);
             console.error("[HEIGHTMAP]   -> ", data.error);
+            this.failed = true;
+            App.openToast("error", "heightmapFailed", "heightmapFailedDesc");
         } else {
             const { levels, width, height } = data;
             const rows = [];

@@ -86,5 +86,7 @@
     "returnToMap": "Switch to map mode",
     "settings": "Settings",
     "openFactionSelection": "Click to open faction selection",
-    "coverage": "Fire coverage: where the weapon can hit from the first weapon marker, past the terrain and buildings"
+    "coverage": "Fire coverage: where the weapon can hit from the first weapon marker, past the terrain and buildings",
+    "heightmapFailed": "No height data",
+    "heightmapFailedDesc": "The heightmap of this map failed to load: firing solutions assume flat ground (height 0)."
 }

@@ -26,6 +26,8 @@ export default class SquadFiringSolution {
         this.velocity = App.activeWeapon.getVelocity(this.distance);
         this.weaponHeight = this.map.heightmap.getHeight(weaponLatLng) + parseFloat(heightPadding);
         this.targetHeight = this.map.heightmap.getHeight(heightLatLng);
+        // False when the heightmap failed to load: both heights are 0, the solution is for flat ground
+        this.hasHeightData = !this.map.heightmap.failed;
         this.heightDiff =  this.targetHeight - this.weaponHeight;
         this.elevation = {low: [], high: []};
         this.elevation.low.rad = this.getElevation(this.distance, true);
