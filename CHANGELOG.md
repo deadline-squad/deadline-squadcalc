@@ -1,3 +1,10 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.8.0** *(2026-10-29)*
+
+</br><img src="https://img.shields.io/badge/-removed-b22">  
+- The device link is removed: the "Link a timer overlay" setting with its session code, the `#link=<code>` pairing link and the relay connection (`/relay/<code>`). Targets no longer go to a second device or monitor; the browser forgets the saved link and code. Squad Ballistics still reads the targets and the weapon of an embedded map through `window.squadBallistics`, and the SquadMortarOverlay connection is unchanged
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.7.0** *(2026-10-29)*
 
 </br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  

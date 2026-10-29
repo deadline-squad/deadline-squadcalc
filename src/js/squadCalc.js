@@ -7,7 +7,6 @@ import { loadLanguage } from "./localization.js";
 import { tooltip_save, createSessionTooltips, leaveSessionTooltips } from "./tooltips.js";
 import { checkApiHealth, fetchLayersByMap, fetchLayerByName } from "./squadCalcAPI.js";
 import { initWebSocket, getTargetData } from "./smcConnector.js";
-import { initOverlayLink, readLinkFragment } from "./overlayLink.js";
 import { LatLng } from "leaflet";
 import SquadServersBrowser from "./squadServersBrowser.js";
 import SquadSession from "./squadSession.js";
@@ -93,7 +92,6 @@ export default class SquadCalc {
         this.loadTheme();
         checkApiHealth();
         initWebSocket();
-        initOverlayLink(this.urlIntent.link);
         // Read by Squad Ballistics (embedded map): it solves the targets for the same weapon
         window.squadBallistics = {
             // 4: targets carry the terrain and building profile to the target
@@ -118,8 +116,6 @@ export default class SquadCalc {
             team1unit: p.get("team1unit"),
             team2:     p.get("team2"),
             team2unit: p.get("team2unit"),
-            // Squad Ballistics' device link (#link=<code>), read now: updateUrlParams drops the fragment
-            link:      readLinkFragment(),
         };
     }
 

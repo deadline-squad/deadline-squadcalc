@@ -130,16 +130,11 @@ function checkCoordinates(socketCoordinates) {
 
 /**
  * Builds the text describing every target for an external overlay, one line per target:
- * "<elevation> | <bearing>°[ | <distance>m[ | <height>m]]" (the elevation is a hold time like "1.20s"
- * for AGS-17, "---" when the target is out of range; the height is the target ground minus the
- * weapon, signed, like "+12.4m"; it is left out when the heightmap failed to load).
- * The overlay relay (forceDistance) gets the distance and the height to 0.1 m, which Squad Ballistics
- * (maplink.parse_target_lines) and the AGS-17 timer read as floats; SquadMortarOverlay keeps whole meters.
- * @param {boolean} [forceDistance=false] - add the distance and the height even if the "show distance"
- *     setting is off (overlay relay); without it the SquadMortarOverlay format is kept
+ * "<elevation> | <bearing>°[ | <distance>m]" (the elevation is a hold time like "1.20s" for AGS-17,
+ * "---" when the target is out of range; the distance only with the "show distance" setting).
  * @returns {string} The lines joined by "\n", empty if there are no targets
  */
-export function getTargetLines(forceDistance = false) {
+function getTargetLines() {
     let coorArray = "";
     if (App.minimap.activeTargetsMarkers) {
         App.minimap.activeTargetsMarkers.eachLayer(function (target) {
@@ -169,14 +164,8 @@ export function getTargetLines(forceDistance = false) {
             }
             coorArray = coorArray + `${elevation} | ${BEARING.toFixed(1)}°`;
 
-            if (forceDistance || App.userSettings.showDistance) {
-                coorArray = coorArray + ` | ${DISTANCE.toFixed(forceDistance ? 1 : 0)}m`;
-            }
-
-            if (forceDistance && target.firingSolution1.hasHeightData) {
-                // -0.04 rounds to -0: written "+0.0"
-                const HEIGHT = Math.round(target.firingSolution1.heightDiff * 10) / 10;
-                coorArray = coorArray + ` | ${HEIGHT >= 0 ? "+" : "-"}${Math.abs(HEIGHT).toFixed(1)}m`;
+            if (App.userSettings.showDistance) {
+                coorArray = coorArray + ` | ${DISTANCE.toFixed(0)}m`;
             }
         });
     }

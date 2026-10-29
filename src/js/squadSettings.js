@@ -1,6 +1,5 @@
 import { animateCSS } from "./animations.js";
 import SquadFactions from "./squadFactions.js";
-import { syncOverlayLink } from "./overlayLink.js";
 import packageInfo from "../../package.json";
 
 
@@ -27,6 +26,7 @@ export default class SquadSettings {
      * Initialize all settings - call after DOM is ready
      */
     init() {
+        this.removeObsoleteStorage();
         this.loadCheckboxes();
         this.loadSliders();
         this.bindCheckboxes();
@@ -37,6 +37,14 @@ export default class SquadSettings {
         this.bindMenuButtons();
         this.applyInitialState();
         $("#appVersion").text(`SquadCalc v${packageInfo.version}`);
+    }
+
+
+    /**
+     * Drops what the removed device link left in the browser's localStorage (its setting and its session code)
+     */
+    removeObsoleteStorage() {
+        ["settings-overlay-link", "overlay-session-code"].forEach((key) => localStorage.removeItem(key));
     }
 
 
@@ -123,12 +131,6 @@ export default class SquadSettings {
                 default: false,
                 selector: "#realMaxRangeSettings",
                 onChange: () => this.app.minimap.updateWeapons()
-            },
-            overlayLink: {
-                key: "settings-overlay-link",
-                default: false,
-                selector: "#overlayLinkSetting",
-                onChange: () => syncOverlayLink()
             },
             experimentalWeapons: {
                 key: "settings-experimental-weapons",
