@@ -1,3 +1,10 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.4.1** *(2026-10-29)*
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- The obstacle check starts the trajectory at the real muzzle (the weapon's height, or the shoulder for direct-fire weapons), so the slope under a weapon is no longer reported as an obstacle a few meters away
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.4.0** *(2026-10-29)*
 
 </br><img src="https://img.shields.io/badge/-new%20features-green">
