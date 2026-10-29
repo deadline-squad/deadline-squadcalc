@@ -122,7 +122,8 @@ export const squadWeaponMarker = squadMarker.extend({
 
 
         this.angleType = App.activeWeapon.angleType;
-        this.heightPadding = options.heightPadding || 0;
+        // Meters above the ground; a number even when a session peer sent it as a string
+        this.heightPadding = parseFloat(options.heightPadding) || 0;
 
         // Create the min/max range markers
         this.minRangeMarker = new Circle(latlng, this.minDistCircleOn).addTo(this.map.markersGroup);
@@ -442,7 +443,7 @@ export const squadWeaponMarker = squadMarker.extend({
                         uid: this.uid,
                         lat: this._latlng.lat,
                         lng: this._latlng.lng,
-                        heightPadding: input.value,
+                        heightPadding: weapon.heightPadding,
                     })
                 );
             }
