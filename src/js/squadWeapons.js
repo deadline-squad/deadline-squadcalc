@@ -6,7 +6,7 @@ import { maxRange } from "./squadBallistics.js";
 const NO_GRAVITY_RANGE = 10000;
 
 export class Weapon {
-    constructor(name, deceleration, decelerationTime, gravityScale, minElevation, unit, logo, marker, type, angleType, elevationPrecision, shells = [], heightOffset = 0, angleOffset = 0, projectileLifespan = 100, mod = null, elevationRate = null, heatmap = true, acceleration = 0, accelerationTime = 0, holdElevation = null, ballistics = null, image = null) {
+    constructor(name, deceleration, decelerationTime, gravityScale, minElevation, unit, logo, marker, type, angleType, elevationPrecision, shells = [], heightOffset = 0, angleOffset = 0, projectileLifespan = 100, mod = null, elevationRate = null, heatmap = true, acceleration = 0, accelerationTime = 0, holdElevation = null, ballistics = null, image = null, muzzle = null) {
         this.name = name;
         this.deceleration = deceleration;
         this.decelerationTime = decelerationTime;
@@ -45,6 +45,9 @@ export class Weapon {
         this.ballistics = ballistics;
         // Image file name in /img/weapons and /img/markers/weapons
         this.image = image || name;
+        // Launch point moving with the elevation, from the weapon's skeleton (weapons.js), or null:
+        // the projectile starts heightOffset above the ground. {pivotHeight, forward, up} in meters
+        this.muzzle = muzzle;
     }
 
 
@@ -98,8 +101,8 @@ export class Weapon {
     /**
      * How the weapon fires, for squadBallistics.js
      * @param {number} [gravity] - m/s², default the world gravity × this weapon's gravity scale
-     * @param {number} [launchHeight] - pivot height above the ground in meters, default heightOffset
-     *   (the obstacle checks launch handheld weapons from the shoulder)
+     * @param {number} [launchHeight] - launch height above the ground in meters for weapons without
+     *   `muzzle`, default heightOffset (the obstacle checks launch handheld weapons from the shoulder)
      * @returns {import("./squadBallistics.js").Shot}
      */
     getShot(gravity = App.gravity * this.gravityScale, launchHeight = this.heightOffset) {
@@ -109,9 +112,9 @@ export class Weapon {
             gravity,
             acceleration: boosted ? this.acceleration : 0,
             boostTime: boosted ? this.accelerationTime : 0,
-            pivotHeight: launchHeight,
-            muzzleForward: 0,
-            muzzleUp: 0,
+            pivotHeight: this.muzzle ? this.muzzle.pivotHeight : launchHeight,
+            muzzleForward: this.muzzle ? this.muzzle.forward : 0,
+            muzzleUp: this.muzzle ? this.muzzle.up : 0,
         };
     }
 
@@ -168,7 +171,9 @@ export class Weapon {
 
         if (gravity === 0) return NO_GRAVITY_RANGE;
 
-        // Boosted rockets: the exact trajectory, from the ground (squadBallistics.maxRange)
+        // Launch point moving with the elevation, or boosted rockets: the exact trajectory
+        // (squadBallistics.maxRange), from the muzzle or else from the ground
+        if (this.muzzle) return maxRange(this.getShot(gravity));
         if (this.hasBoost()) return maxRange(this.getShot(gravity, 0));
 
         // Weapons aimed by key press duration (AGS-17) cannot reach the ideal 45° when

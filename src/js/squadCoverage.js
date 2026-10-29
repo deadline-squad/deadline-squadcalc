@@ -1,6 +1,6 @@
 import { ImageOverlay, LatLngBounds } from "leaflet";
 import { App } from "../app.js";
-import { isParabola, peakAngle, solveElevation, trajectory } from "./squadBallistics.js";
+import { heightAt as projectileHeight, isParabola, peakAngle, solveElevation, trajectory } from "./squadBallistics.js";
 
 /**
  * Fire coverage: where the active weapon can hit from the first weapon marker.
@@ -98,9 +98,20 @@ export function computeCoverageRays(params) {
     // The highest trajectory at a distance does not depend on the target's height: one search per
     // distance for all the rays (squadBallistics.solveElevation)
     const peaks = new Float64Array(stride);
-    if (gravity > 0 && !isParabola(shot)) {
+    const numeric = gravity > 0 && !isParabola(shot);
+    if (numeric) {
         for (let j = 1; j < stride; j++) peaks[j] = peakAngle(shot, j * cell);
     }
+
+    /**
+     * Whether the arc on the `side` of the peak (-1 low, +1 high) lands at an elevation the weapon can
+     * be laid at, `limit` being its lowest (low arc) or highest (high arc) elevation in degrees
+     */
+    const reachesFrom = (limit, distance, height, peak, side) => {
+        const angle = (limit + angleOffset) * toRad;
+        if (side * (peak - angle) > 0) return false;
+        return projectileHeight(shot, angle, distance) <= height;
+    };
 
     /**
      * Whether the trajectory at `angle` (radians) stays above the profile up to `distance`.
@@ -119,8 +130,20 @@ export function computeCoverageRays(params) {
             }
             return true;
         }
+        // Inlined `height` of squadBallistics.trajectory: the boost phase, then the quadratic after it
+        const { x0, y0, perCos, sin, v0, v0Squared, a, g, reach, boostHeight, perCosBoostEnd, climb } = path.boost;
         for (let i = first; i <= end; i++) {
-            if (ground + path.height(i * step) < profile[i]) return false;
+            const x = i * step;
+            let height;
+            if (x <= reach) {
+                const along = (x - x0) * perCos;
+                const t = 2 * along / (v0 + Math.sqrt(Math.max(0, v0Squared + 2 * a * along)));
+                height = y0 + sin * along - 0.5 * g * t * t;
+            } else {
+                const after = (x - reach) * perCosBoostEnd;
+                height = boostHeight + after * (climb - 0.5 * g * after);
+            }
+            if (ground + height < profile[i]) return false;
         }
         return true;
     };
@@ -161,8 +184,16 @@ export function computeCoverageRays(params) {
                 low = Math.atan2(height - shot.pivotHeight, distance);
                 high = NaN;
             } else {
-                ({ low, high } = solveElevation(shot, distance, height, peaks[j] || undefined));
-                if (isNaN(low)) {
+                // The height at the target rises with the elevation up to the peak, then falls: the low
+                // arc is past the lowest elevation the weapon has only if the height there is under the
+                // target, the high one before the highest only if the height there is too. Skips the
+                // search of an arc the weapon cannot be laid at (the mortar's low arc, a lob in direct fire)
+                const wanted = numeric ? {
+                    low: reachesFrom(minElevation, distance, height, peaks[j], -1),
+                    high: !lowOnly && reachesFrom(maxElevation, distance, height, peaks[j], 1),
+                } : undefined;
+                ({ low, high } = solveElevation(shot, distance, height, numeric ? peaks[j] : undefined, wanted));
+                if (isNaN(low) && isNaN(high)) {
                     values[base + j] = COVERAGE.OUT;
                     continue;
                 }
@@ -312,7 +343,7 @@ export default class SquadCoverage {
         const params = {
             heightAt,
             ground: heightAt(0, 0) + Number(weaponMarker.heightPadding || 0),
-            shot: weapon.heightOffset > 0 ? weapon.getShot(gravity) : weapon.getShot(gravity, SHOULDER_HEIGHT),
+            shot: weapon.muzzle || weapon.heightOffset > 0 ? weapon.getShot(gravity) : weapon.getShot(gravity, SHOULDER_HEIGHT),
             range,
             cell,
             rays,

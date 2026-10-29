@@ -21,7 +21,10 @@ export var WEAPONS = [
         type: "deployables",
         angleType: "high",
         elevationPrecision: 0,
-        heightOffset: 1,
+        // The shell starts at the weapon's BarrelSocketName, Attach_Muzzle: 156.9 cm along the tube
+        // (0.2 cm above its axis), which pivots 2.45 cm above the baseplate (m252mortar_tube and
+        // m252mortar_baseplate skeletons, GunMount socket; Squad build 26005357)
+        muzzle: { pivotHeight: 0.0245, forward: 1.569, up: 0.002 },
         shells : [{
             name: "default",
             minDistance: 51,
@@ -44,7 +47,11 @@ export var WEAPONS = [
         type: "deployables",
         angleType: "low",
         elevationPrecision: 1,
-        heightOffset: 1,
+        // The rockets start at BarrelSocketName Attach_Muzzle, 143.0 cm along the pod and 25.1 cm
+        // above its axis; the pod pivots at its WeaponRoot, on the swivel's GunMount socket (126.0 cm,
+        // swivel bone -0.1 cm) of the tripod placed 4.85 cm above the deployable's root (UB-32_Gun and
+        // UB32_Swivel skeletons, BP_EmplacedUB32_Deployable; Squad build 26005357)
+        muzzle: { pivotHeight: 1.3075, forward: 1.430, up: 0.251 },
         projectileLifespan: 20,
         shells : [{
             name: "default",
@@ -68,7 +75,10 @@ export var WEAPONS = [
         type: "deployables",
         angleType: "high",
         elevationPrecision: 1,
-        heightOffset: 1.5,
+        // The shell starts at BarrelSocketName Attach_Muzzle, 237.3 cm along the barrel (0.2 cm above
+        // its axis), which pivots on the tripod's HellCannon_Swivel bone 15.5 cm above the root
+        // (SK_HellCannon_Gun and SK_HellCannon_Tripod skeletons; Squad build 26005357)
+        muzzle: { pivotHeight: 0.155, forward: 2.373, up: 0.002 },
         shells : [{
             name: "default",
             minDistance: 0,

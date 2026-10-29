@@ -24,9 +24,13 @@
  *   1. θ* = argmax y(θ, D) on [−LIMIT, LIMIT], LIMIT = π/2 − 1e-6 rad: golden-section search, stopped
  *      when the bracket is narrower than ANGLE_TOLERANCE = 1e-10 rad (52 steps), at most MAX_ITERATIONS;
  *   2. y(θ*, D) < H: out of range, both elevations NaN;
- *   3. low = bisection of F on [−LIMIT, θ*], high = bisection on [θ*, LIMIT], each stopped when the
- *      bracket is narrower than ANGLE_TOLERANCE (35 steps), at most MAX_ITERATIONS; the root is the
- *      middle of the last bracket.
+ *   3. each root is bracketed from θ*: the low one in [θ* − δ, θ*], the high one in [θ*, θ* + δ], δ =
+ *      BRACKET_STEP = 0.02 rad doubled until F < 0 at the far end (or the end reaches ∓LIMIT);
+ *   4. the bracket [a, b] is narrowed by the Illinois method (regula falsi): c = (a·F(b) − b·F(a)) /
+ *      (F(b) − F(a)) replaces the end whose F has the sign of F(c), and when the same end is replaced
+ *      twice in a row the F kept at the other end is halved; stopped when |F(c)| ≤ HEIGHT_TOLERANCE =
+ *      1e-9 m or the bracket is narrower than ANGLE_TOLERANCE, at most MAX_ITERATIONS; the root is c
+ *      (about 5 expansions and 8 narrowing steps per root).
  * Without boost and muzzle offset y is the textbook parabola from height h, whose roots have the closed
  * form used instead (same result to 1e-10 rad).
  */
@@ -37,7 +41,13 @@ export const ELEVATION_LIMIT = Math.PI / 2 - 1e-6;
 // Width of the last bracket of the searches, radians (1e-10 rad = 0.2 mm at 2 km)
 export const ANGLE_TOLERANCE = 1e-10;
 
-// Iteration cap of each search; the tolerance is reached long before (52 / 35 steps)
+// Height error at the target that ends the root search, meters
+export const HEIGHT_TOLERANCE = 1e-9;
+
+// First half-width of the root brackets around the highest elevation, radians (doubled until they hold the root)
+export const BRACKET_STEP = 0.02;
+
+// Iteration cap of each search; the tolerances are reached long before (52 golden-section steps, ~10 Illinois steps)
 export const MAX_ITERATIONS = 200;
 
 const GOLDEN = (Math.sqrt(5) - 1) / 2;
@@ -87,9 +97,10 @@ export function launchPoint(shot, angle) {
  * muzzle extrapolates the same equations backwards)
  * @param {Shot} shot
  * @param {number} angle - barrel elevation θ, radians, in (−π/2, π/2)
- * @returns {{height: function(number): number, time: function(number): number, parabola: ?Object}} -
+ * @returns {{height: function(number): number, time: function(number): number, parabola: ?Object, boost: ?Object}} -
  *   for a distance in meters: meters above the weapon's ground, seconds since launch; without boost
- *   also `parabola` = {x0, y0, tan, drop}: height = y0 + d·(tan − drop·d), d = distance − x0
+ *   also `parabola` = {x0, y0, tan, drop}: height = y0 + d·(tan − drop·d), d = distance − x0; with
+ *   boost `boost`, the constants of `height`
  */
 export function trajectory(shot, angle) {
     const cos = Math.cos(angle);
@@ -118,30 +129,41 @@ export function trajectory(shot, angle) {
             time: (distance) => (distance - start.x) / (v0 * cos),
             // The coefficients, for loops that evaluate thousands of points (fire coverage)
             parabola: { x0: start.x, y0: start.y, tan, drop },
+            boost: null,
         };
     }
 
     // Seconds since launch at a horizontal distance: L = (x − x0) / c and a·t²/2 + v0·t = L while
-    // boosting (t = 2L / (v0 + √(v0² + 2aL)), also right for a = 0), then τ = (x − x_T) / (c·vT)
+    // boosting (t = 2L / (v0 + √(v0² + 2aL)), also right for a = 0), then τ = (x − x_T) / (c·vT).
+    // The reciprocals are computed once: `height` runs for every sample of the fire coverage.
+    const perCos = 1 / cos;
+    const perCosBoostEnd = 1 / (cos * boostEnd);
+    const v0Squared = v0 * v0;
     const time = (distance) => {
         if (distance <= boostReach) {
-            const along = (distance - start.x) / cos;
-            return 2 * along / (v0 + Math.sqrt(Math.max(0, v0 * v0 + 2 * a * along)));
+            const along = (distance - start.x) * perCos;
+            return 2 * along / (v0 + Math.sqrt(Math.max(0, v0Squared + 2 * a * along)));
         }
-        return boostTime + (distance - boostReach) / (cos * boostEnd);
+        return boostTime + (distance - boostReach) * perCosBoostEnd;
     };
 
     const height = (distance) => {
         if (distance <= boostReach) {
-            const along = (distance - start.x) / cos;
-            const t = 2 * along / (v0 + Math.sqrt(Math.max(0, v0 * v0 + 2 * a * along)));
+            const along = (distance - start.x) * perCos;
+            const t = 2 * along / (v0 + Math.sqrt(Math.max(0, v0Squared + 2 * a * along)));
             return start.y + sin * along - 0.5 * g * t * t;
         }
-        const after = (distance - boostReach) / (cos * boostEnd);
-        return boostHeight + boostClimb * after - 0.5 * g * after * after;
+        const after = (distance - boostReach) * perCosBoostEnd;
+        return boostHeight + after * (boostClimb - 0.5 * g * after);
     };
 
-    return { height, time, parabola: null };
+    return {
+        height,
+        time,
+        parabola: null,
+        // The constants of `height`, for the loops of the fire coverage
+        boost: { x0: start.x, y0: start.y, perCos, sin, v0, v0Squared, a, g, reach: boostReach, boostHeight, perCosBoostEnd, climb: boostClimb },
+    };
 }
 
 
@@ -226,22 +248,46 @@ export function peakAngle(shot, distance) {
 
 
 /**
- * Root of `error` between two elevations where it has opposite signs (bisection, see the top)
- * @param {function(number): number} error
- * @param {number} from - radians
- * @param {number} to - radians
+ * Root of `error` beyond `top`, where error(top) ≥ 0, towards `direction` (-1: lower elevations, +1: higher):
+ * bracket expansion then the Illinois method (steps 3 and 4 at the top)
+ * @param {function(number): number} error - F(θ), meters
+ * @param {number} top - θ*, radians
+ * @param {number} direction - -1 or +1
  * @returns {number} - radians
  */
-function bisect(error, from, to) {
-    let low = from;
-    let high = to;
-    const lowSign = Math.sign(error(low));
-    for (let i = 0; i < MAX_ITERATIONS && high - low > ANGLE_TOLERANCE; i++) {
-        const middle = (low + high) / 2;
-        if (Math.sign(error(middle)) === lowSign) low = middle;
-        else high = middle;
+function findRoot(error, top, direction) {
+    let far = top;
+    let farError = error(far);
+    for (let step = BRACKET_STEP; farError >= 0; step *= 2) {
+        far = Math.min(Math.max(top + direction * step, -ELEVATION_LIMIT), ELEVATION_LIMIT);
+        farError = error(far);
+        if (Math.abs(far) === ELEVATION_LIMIT) break;
     }
-    return (low + high) / 2;
+
+    // Bracket [a, b]: F(a) ≥ 0 at the top side, F(b) < 0 at the far side
+    let a = top;
+    let b = far;
+    let errorA = error(a);
+    let errorB = farError;
+    let kept = 0;
+    let root = b;
+    for (let i = 0; i < MAX_ITERATIONS && Math.abs(b - a) > ANGLE_TOLERANCE; i++) {
+        root = (a * errorB - b * errorA) / (errorB - errorA);
+        const errorRoot = error(root);
+        if (Math.abs(errorRoot) <= HEIGHT_TOLERANCE) break;
+        if (errorRoot < 0) {
+            b = root;
+            errorB = errorRoot;
+            if (kept === -1) errorA /= 2;
+            kept = -1;
+        } else {
+            a = root;
+            errorA = errorRoot;
+            if (kept === 1) errorB /= 2;
+            kept = 1;
+        }
+    }
+    return root;
 }
 
 
@@ -251,9 +297,11 @@ function bisect(error, from, to) {
  * @param {number} distance - horizontal distance from the pivot to the target, meters, > 0
  * @param {number} height - target height above the weapon's ground, meters
  * @param {number} [peak] - peakAngle(shot, distance) when the caller already has it (coverage)
+ * @param {{low: boolean, high: boolean}} [wanted] - which arcs to search for (the fire coverage skips
+ *   the arcs the weapon cannot fire); an arc not wanted is NaN
  * @returns {{low: number, high: number}} - radians, physical barrel angles; NaN out of range
  */
-export function solveElevation(shot, distance, height, peak) {
+export function solveElevation(shot, distance, height, peak, wanted = { low: true, high: true }) {
     const g = shot.gravity;
     const v = shot.velocity;
 
@@ -273,8 +321,8 @@ export function solveElevation(shot, distance, height, peak) {
 
     const error = (angle) => heightAt(shot, angle, distance) - height;
     return {
-        low: bisect(error, -ELEVATION_LIMIT, top),
-        high: bisect(error, top, ELEVATION_LIMIT),
+        low: wanted.low ? findRoot(error, top, -1) : NaN,
+        high: wanted.high ? findRoot(error, top, 1) : NaN,
     };
 }
 

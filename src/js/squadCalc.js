@@ -569,7 +569,8 @@ export default class SquadCalc {
                 weapon.accelerationTime,
                 weapon.holdElevation,
                 weapon.ballistics,
-                weapon.image
+                weapon.image,
+                weapon.muzzle
             );
         });
         

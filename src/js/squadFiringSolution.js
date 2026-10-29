@@ -72,9 +72,9 @@ export default class SquadFiringSolution {
     /**
      * First point where the trajectory to the target passes under the heightmap, which holds the
      * terrain and the buildings: the shell hits it before the target. The trajectory (squadBallistics
-     * pathAt) starts at the real muzzle, `heightOffset` above the weapon or the shoulder for weapons
-     * without one, and is aimed to reach the target from there, like the fire coverage; it skips the
-     * same clearances.
+     * pathAt) starts at the real muzzle (the weapon's `muzzle` model, else `heightOffset` above the
+     * weapon, else the shoulder), and is aimed to reach the target from there, like the fire coverage;
+     * it skips the same clearances.
      * @param {boolean} lowAngle - the low trajectory (else the high one)
      * @returns {{distance: number, height: number}|null} - distance from the weapon and height of the
      * obstacle above the weapon, in meters; null if the trajectory is clear, cannot reach the target
@@ -83,7 +83,8 @@ export default class SquadFiringSolution {
     getObstacle(lowAngle) {
         if (!this.map.heightmap?.jsonPng?.length) return null;
 
-        const shot = App.activeWeapon.heightOffset > 0 ? this.shot : App.activeWeapon.getShot(this.gravity, SHOULDER_HEIGHT);
+        const weapon = App.activeWeapon;
+        const shot = weapon.muzzle || weapon.heightOffset > 0 ? this.shot : weapon.getShot(this.gravity, SHOULDER_HEIGHT);
         let angle;
 
         if (this.gravity === 0) {
