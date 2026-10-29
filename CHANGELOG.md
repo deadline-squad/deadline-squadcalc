@@ -1,3 +1,10 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.4.2** *(2026-10-29)*
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- Spread and damage circles checked against the game files for every artillery weapon: AGS-17 spreads 1.5 MOA (was 15, the circle was ten times too wide) and its grenade hurts 1.5-18 m around the impact (was 1-15 m); AGS-30 / BTR-4 AGS and Technical Mortar use the game's explosion height; BM-21 Grad rockets expire after 20 s like in the game
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.4.1** *(2026-10-29)*
 
 </br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
