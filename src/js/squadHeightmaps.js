@@ -78,7 +78,8 @@ export default class SquadHeightmap {
                 console.debug(`[HEIGHTMAP] Loaded ${url} precision: ${Math.round(heightScale * 100)}cm`);
             }
 
-            $(document).trigger("heightmapPNG:loaded");
+            // A map switched to while this one loaded has its own heightmap: stay silent
+            if (this.map.heightmap === this) $(document).trigger("heightmapPNG:loaded");
         } catch (error) {
             console.error("[HEIGHTMAP] Failed to load PNG heightmap:", url);
             console.error("[HEIGHTMAP]   -> ", error);

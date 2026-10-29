@@ -26,6 +26,10 @@ const COVER_CELL = 0.5;
 const COVER_CELL_COARSE = 1;
 const COARSE_RADIUS = 30;
 
+// Stacking of the damage zone image in the overlay pane: above the map image and the fire coverage
+// (SquadCoverage), which are image overlays too, below the SVG of the markers' circles (z-index 200)
+const COVER_ZONE_Z_INDEX = 3;
+
 // Confidence the rounds-to-kill count is computed for
 const ROUNDS_CONFIDENCE = 0.9;
 
@@ -426,7 +430,7 @@ export const squadTargetMarker = squadMarker.extend({
     disableDamageRadii: function() {
         this.hundredDamageRadius.setStyle(this.spreadOptionsOff);
         this.twentyFiveDamageRadius.setStyle(this.spreadOptionsOff);
-        this.removeCoverZone();
+        this.hideCoverZone();
     },
 
 
@@ -556,7 +560,10 @@ export const squadTargetMarker = squadMarker.extend({
         const explosion = App.activeWeapon.explosion;
         const center = this.getLatLng();
         const signature = [this.map.activeMap.name, center.lat, center.lng, JSON.stringify(explosion)].join("|");
-        if (this.coverOverlay && signature === this.coverSignature) return;
+        if (this.coverOverlay && signature === this.coverSignature) {
+            this.coverOverlay.setOpacity(1);
+            return;
+        }
         this.removeCoverZone();
         this.coverSignature = signature;
 
@@ -576,8 +583,17 @@ export const squadTargetMarker = squadMarker.extend({
         canvas.getContext("2d").putImageData(new ImageData(pixels, field.size, field.size), 0, 0);
         const half = (field.size * cell) / 2 / this.map.mapToGameScale;
         const bounds = new LatLngBounds([center.lat - half, center.lng - half], [center.lat + half, center.lng + half]);
-        this.coverOverlay = new ImageOverlay(canvas.toDataURL(), bounds, { className: "coverZoneOverlay", interactive: false })
+        this.coverOverlay = new ImageOverlay(canvas.toDataURL(), bounds, { className: "coverZoneOverlay", interactive: false, zIndex: COVER_ZONE_Z_INDEX })
             .addTo(this.map.markersGroup);
+    },
+
+
+    /**
+     * Hide the damage zone but keep it for updateCoverZone: hovering a target or dragging a weapon
+     * hides the other targets' zones, and recomputing them all on hover-out froze the page
+     */
+    hideCoverZone: function() {
+        if (this.coverOverlay) this.coverOverlay.setOpacity(0);
     },
 
 
@@ -699,6 +715,7 @@ export const squadTargetMarker = squadMarker.extend({
         const burst = this.polarFrom(weapon.getLatLng(), latlng);
         const impact = {
             latlng,
+            setup: this.getFiringSetup(),
             range: burst.distance - aim.distance,
             bearing: ((burst.bearing - aim.bearing + 540) % 360) - 180,
         };
@@ -731,6 +748,30 @@ export const squadTargetMarker = squadMarker.extend({
     },
 
 
+    /**
+     * What a burst was fired with: the first weapon marker, the weapon and its shell. Bursts only
+     * correct the fire of the setup they were marked with (dropStaleImpacts).
+     * @returns {string}
+     */
+    getFiringSetup: function() {
+        const weaponMarker = this.map.activeWeaponsMarkers.getLayers()[0];
+        return [weaponMarker?.uid, App.activeWeapon.name, App.activeWeapon.velocity, App.activeWeapon.moa].join("|");
+    },
+
+
+    /**
+     * Remove the bursts marked with another weapon, shell or first weapon marker: their error says
+     * nothing about the current fire
+     */
+    dropStaleImpacts: function() {
+        const setup = this.getFiringSetup();
+        const stale = this.impacts.filter((impact) => impact.setup !== setup);
+        if (!stale.length) return;
+        stale.forEach((impact) => this.removeImpactLayers(impact));
+        this.impacts = this.impacts.filter((impact) => impact.setup === setup);
+    },
+
+
     removeImpactLayers: function(impact) {
         this.map.markersGroup.removeLayer(impact.marker);
         this.map.markersGroup.removeLayer(impact.line);
@@ -742,6 +783,7 @@ export const squadTargetMarker = squadMarker.extend({
     */
     updateCalc: function(copy = false){
         let clipboard;
+        this.dropStaleImpacts();
         this.firingSolution1 = new SquadFiringSolution(this.map.activeWeaponsMarkers.getLayers()[0].getLatLng(), this.getAimLatLng(), this.map, this.map.activeWeaponsMarkers.getLayers()[0].heightPadding, this.getLatLng());
         const [html1, clipboard1] = this.getContent(this.firingSolution1, this.map.activeWeaponsMarkers.getLayers()[0].angleType);
         this.calcMarker1.setContent(html1);
