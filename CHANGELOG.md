@@ -1,3 +1,11 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.6.0** *(2026-10-29)*
+
+</br><img src="https://img.shields.io/badge/-new%20features-green">
+- Pairing with Squad Ballistics without a code: its Settings show a link and a QR code (`https://<this site>/#link=<code>`). Opening it here takes over the app's session code, turns the overlay link on and shows a confirmation; the browser remembers both, so later visits reconnect by themselves. The code travels in the URL fragment, which is never sent to the server, and is removed from the address bar at once. Pasting the link into an open tab works too
+- The overlay link accepts session codes of 6 to 16 characters (Squad Ballistics makes 12-character codes) and shows them in groups of four
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.5.1** *(2026-10-29)*
 
 </br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
