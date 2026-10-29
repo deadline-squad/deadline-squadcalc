@@ -180,12 +180,40 @@ export function getTargetLines(forceDistance = false) {
     return coorArray;
 }
 
+// Distance between two heights of a target's profile, in meters (heightmap pixel size)
+const PROFILE_STEP = 1;
+
+/**
+ * Heights of the heightmap (terrain and buildings) along the line from the weapon to the target, so
+ * Squad Ballistics can check its own trajectory against them.
+ * @param {SquadFiringSolution} solution - solution of the first weapon marker
+ * @returns {{step: number, heights: number[]}|null} - heights every `step` meters from the weapon
+ *     (index 0) to the target, relative to the weapon like heightDiff, rounded to the centimeter;
+ *     null before the heightmap is loaded
+ */
+function getProfile(solution) {
+    const heightmap = App.minimap.heightmap;
+    if (!heightmap?.jsonPng?.length || !(solution.distance > 0)) return null;
+
+    const samples = Math.floor(solution.distance / PROFILE_STEP);
+    const latStep = (solution.targetLatLng.lat - solution.weaponLatLng.lat) / solution.distance * PROFILE_STEP;
+    const lngStep = (solution.targetLatLng.lng - solution.weaponLatLng.lng) / solution.distance * PROFILE_STEP;
+    const heights = [];
+
+    for (let i = 0; i <= samples; i++) {
+        const ground = heightmap.getHeight({ lat: solution.weaponLatLng.lat + latStep * i, lng: solution.weaponLatLng.lng + lngStep * i });
+        heights.push(Math.round((ground - solution.weaponHeight) * 100) / 100);
+    }
+    return { step: PROFILE_STEP, heights };
+}
+
 /**
  * Geometry of every target relative to the first weapon marker, for Squad Ballistics: its embedded
  * map polls `window.squadBallistics.targets()` and solves the shot for its own weapon.
- * @returns {{distance: number, heightDiff: number, bearing: number}[]} In the order the targets were
- *     placed; distance in meters (horizontal), heightDiff = target ground minus weapon (with its height
- *     padding) in meters, bearing in degrees. Empty without a weapon marker.
+ * @returns {{distance: number, heightDiff: number, bearing: number, profile: Object|null}[]} In the
+ *     order the targets were placed; distance in meters (horizontal), heightDiff = target ground minus
+ *     weapon (with its height padding) in meters, bearing in degrees, profile from getProfile.
+ *     Empty without a weapon marker.
  */
 export function getTargetData() {
     const targets = [];
@@ -198,6 +226,7 @@ export function getTargetData() {
             distance: solution.distance,
             heightDiff: solution.heightDiff,
             bearing: solution.bearing,
+            profile: getProfile(solution),
         });
     });
     return targets;
