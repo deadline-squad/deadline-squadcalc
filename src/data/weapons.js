@@ -531,20 +531,20 @@ export var WEAPONS = [
         ballistics: "AGS-17 · emplacement",
         deceleration: 0,
         decelerationTime : 0,
-        gravityScale: 2.801,
+        gravityScale: 1.8,
         // Lobbed (high trajectory) by holding the elevation key: the mount starts at the top of
         // `holdElevation` and the key lowers it at `elevationRate` deg/s down to its bottom.
         // Fired directly (low trajectory) by aiming through the sight like any direct-fire weapon:
         // `minElevation` is the whole range of the barrel.
-        // The muzzle velocity (230 m/s) is the in-game one. gravityScale is an effective value:
-        // the grenade only flies 1925 m at most, so it falls 2.801 times faster than plain gravity
-        // (elevation only depends on velocity²/gravity). The top angle is the one that lands at
-        // 280 m (0 s) and the lowest elevation the one that lands at ~1925 m; gravityScale and
-        // rate were fitted by least squares on 67 in-game hold-time/distance measurements
-        // (0 s -> 280 m, 4.1 s -> 1930 m, 6.4 m RMS error).
-        minElevation: [-90, 85.84],
-        holdElevation: [47.4, 85.84],
-        elevationRate: 9.17,
+        // Muzzle velocity (185 m/s), gravityScale (1.8) and projectile lifespan (40 s) are read from
+        // the game files (BP_AGS-17_Weapon WeaponConfig, BP_30mm_VOG19_Proj, Squad build 26005357).
+        // The top angle and rate were fitted by least squares on 67 in-game hold-time/distance
+        // measurements (0 s -> 280 m, 4.1 s -> 1930 m, 7 m RMS error); the lowest elevation keeps
+        // the longest measured hold (4.19 s).
+        minElevation: [-90, 85.87],
+        holdElevation: [47.81, 85.87],
+        elevationRate: 9.08,
+        projectileLifespan: 40,
         heatmap: false,
         unit: "sec",
         type: "deployables",
@@ -554,7 +554,7 @@ export var WEAPONS = [
         shells : [{
             name: "default",
             minDistance: 280,
-            velocity: 230,
+            velocity: 185,
             moa: 15,
             explosionDamage: 115,
             explosionRadius: [1, 15],
@@ -573,8 +573,8 @@ export var WEAPONS = [
      * the elevation shown here is the one the overlay aims at.
      */
     {
-        name: "DF_M203_M320_GP_25_HK79_MKE_MGL",
-        ballistics: "M203 / M320 / GP-25 / HK79 / MKE MGL",
+        name: "DF_M203_M320_GP_25_HK79_SL40",
+        ballistics: "M203 / M320 / GP-25 / HK79 / SL40",
         deceleration: 0,
         decelerationTime: 0,
         gravityScale: 1,
@@ -628,13 +628,13 @@ export var WEAPONS = [
         shells: [{
             name: "default",
             minDistance: 0,
-            velocity: 75,
+            velocity: 76,
             ...NO_EXPLOSION,
         }]
     },
     {
-        name: "DF_MK19_AGS_17_AGS_30",
-        ballistics: "MK19 / AGS-17 / AGS-30",
+        name: "DF_MK19",
+        ballistics: "MK19",
         deceleration: 0,
         decelerationTime: 0,
         gravityScale: 1,
@@ -673,8 +673,8 @@ export var WEAPONS = [
         }]
     },
     {
-        name: "DF_BTR_4_AGS",
-        ballistics: "BTR-4 AGS",
+        name: "DF_AGS_30_BTR_4_AGS",
+        ballistics: "AGS-30 / BTR-4 AGS",
         deceleration: 0,
         decelerationTime: 0,
         gravityScale: 1,
@@ -817,7 +817,7 @@ export var WEAPONS = [
         ballistics: "RPG-7 · PG-7V HEAT / OG-7V",
         deceleration: 0,
         decelerationTime: 0,
-        acceleration: 187.5,
+        acceleration: 150,
         accelerationTime: 0.8,
         gravityScale: 1,
         minElevation: [-90, 90],
@@ -839,8 +839,8 @@ export var WEAPONS = [
         ballistics: "RPG-7 · PG-7VR Tandem",
         deceleration: 0,
         decelerationTime: 0,
-        acceleration: 87.5,
-        accelerationTime: 0.8,
+        acceleration: 45,
+        accelerationTime: 0.6,
         gravityScale: 1,
         minElevation: [-90, 90],
         unit: "deg",
@@ -861,8 +861,8 @@ export var WEAPONS = [
         ballistics: "RPG-7V1 · HEAT",
         deceleration: 0,
         decelerationTime: 0,
-        acceleration: 120,
-        accelerationTime: 1.5,
+        acceleration: 150,
+        accelerationTime: 0.8,
         gravityScale: 1,
         minElevation: [-90, 90],
         unit: "deg",
@@ -879,12 +879,12 @@ export var WEAPONS = [
         }]
     },
     {
-        name: "DF_Carl_Gustav_M3_MAAWS_HEAT",
-        ballistics: "Carl Gustav / M3 MAAWS · HEAT",
+        name: "DF_M3_MAAWS_HEAT_Smoke",
+        ballistics: "M3 MAAWS · HEAT / Smoke",
         deceleration: 0,
         decelerationTime: 0,
-        acceleration: 187.5,
-        accelerationTime: 0.8,
+        acceleration: 230,
+        accelerationTime: 0.7261,
         gravityScale: 1,
         minElevation: [-90, 90],
         unit: "deg",
@@ -896,17 +896,17 @@ export var WEAPONS = [
         shells: [{
             name: "default",
             minDistance: 0,
-            velocity: 110,
+            velocity: 63,
             ...NO_EXPLOSION,
         }]
     },
     {
-        name: "DF_Carl_Gustav_M3_MAAWS_Tandem",
-        ballistics: "Carl Gustav / M3 MAAWS · Tandem",
+        name: "DF_M3_MAAWS_Tandem",
+        ballistics: "M3 MAAWS · Tandem",
         deceleration: 0,
         decelerationTime: 0,
-        acceleration: 214,
-        accelerationTime: 0.7,
+        acceleration: 230,
+        accelerationTime: 0.7261,
         gravityScale: 1,
         minElevation: [-90, 90],
         unit: "deg",
@@ -1065,8 +1065,8 @@ export var WEAPONS = [
         }]
     },
     {
-        name: "DF_Tank_AP_2A46_ZPT98_2A20_M68A2",
-        ballistics: "Tank AP · 2A46 / ZPT98 / 2A20 / M68A2",
+        name: "DF_Tank_AP_2A46_ZPT98_2A20_2A45_KBA3",
+        ballistics: "Tank AP · 2A46 / ZPT98 / 2A20 / 2A45 / KBA3",
         deceleration: 0,
         decelerationTime: 0,
         gravityScale: 2.5,
@@ -1105,8 +1105,8 @@ export var WEAPONS = [
         }]
     },
     {
-        name: "DF_Tank_AP_L30A1_Challenger_2",
-        ballistics: "Tank AP · L30A1 (Challenger 2)",
+        name: "DF_Tank_AP_L30A1_Challenger_2_M68A2",
+        ballistics: "Tank AP · L30A1 (Challenger 2) / M68A2",
         deceleration: 0,
         decelerationTime: 0,
         gravityScale: 2.5,
@@ -1160,7 +1160,7 @@ export var WEAPONS = [
         shells: [{
             name: "default",
             minDistance: 0,
-            velocity: 1000,
+            velocity: 670,
             ...NO_EXPLOSION,
         }]
     },
@@ -1225,8 +1225,8 @@ export var WEAPONS = [
         }]
     },
     {
-        name: "DF_2A42_2A72_30mm_HE",
-        ballistics: "2A42 / 2A72 30mm · HE",
+        name: "DF_2A42_30mm_BMP_2_HE",
+        ballistics: "2A42 30mm (BMP-2) · HE",
         deceleration: 0,
         decelerationTime: 0,
         gravityScale: 2,
@@ -1325,8 +1325,8 @@ export var WEAPONS = [
         }]
     },
     {
-        name: "DF_ZPT99_30mm_AP",
-        ballistics: "ZPT99 30mm · AP",
+        name: "DF_ZPT99_30mm_ZBL_08_APFSDS",
+        ballistics: "ZPT99 30mm (ZBL-08) · APFSDS",
         deceleration: 0,
         decelerationTime: 0,
         gravityScale: 2,
@@ -1345,8 +1345,8 @@ export var WEAPONS = [
         }]
     },
     {
-        name: "DF_ZPT99_30mm_HE",
-        ballistics: "ZPT99 30mm · HE",
+        name: "DF_ZPT99_30mm_ZBD_04A_AP_HE",
+        ballistics: "ZPT99 30mm (ZBD-04A) · AP / HE",
         deceleration: 0,
         decelerationTime: 0,
         gravityScale: 2,
@@ -1441,6 +1441,288 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 850,
+            ...NO_EXPLOSION,
+        }]
+    },
+    {
+        name: "DF_MGL_M32",
+        ballistics: "MGL / M32",
+        deceleration: 0,
+        decelerationTime: 0,
+        gravityScale: 1,
+        minElevation: [-90, 90],
+        unit: "deg",
+        type: "directFire",
+        angleType: "low",
+        elevationPrecision: 2,
+        image: "DirectFire",
+        heatmap: false,
+        shells: [{
+            name: "default",
+            minDistance: 0,
+            velocity: 75,
+            ...NO_EXPLOSION,
+        }]
+    },
+    {
+        name: "DF_AK_40GL_MPT_76",
+        ballistics: "AK-40GL (MPT-76)",
+        deceleration: 0,
+        decelerationTime: 0,
+        gravityScale: 1,
+        minElevation: [-90, 90],
+        unit: "deg",
+        type: "directFire",
+        angleType: "low",
+        elevationPrecision: 2,
+        image: "DirectFire",
+        heatmap: false,
+        shells: [{
+            name: "default",
+            minDistance: 0,
+            velocity: 70,
+            ...NO_EXPLOSION,
+        }]
+    },
+    {
+        name: "DF_MK19_emplacement_C16_L134A1",
+        ballistics: "MK19 · emplacement / C16 / L134A1",
+        deceleration: 0,
+        decelerationTime: 0,
+        gravityScale: 1,
+        minElevation: [-90, 90],
+        unit: "deg",
+        type: "directFire",
+        angleType: "low",
+        elevationPrecision: 2,
+        image: "DirectFire",
+        heatmap: false,
+        shells: [{
+            name: "default",
+            minDistance: 0,
+            velocity: 235,
+            ...NO_EXPLOSION,
+        }]
+    },
+    {
+        name: "DF_RPG_7_TBG_7V_Thermobaric",
+        ballistics: "RPG-7 · TBG-7V Thermobaric",
+        deceleration: 0,
+        decelerationTime: 0,
+        acceleration: 150,
+        accelerationTime: 0.6,
+        gravityScale: 1,
+        minElevation: [-90, 90],
+        unit: "deg",
+        type: "directFire",
+        angleType: "low",
+        elevationPrecision: 2,
+        image: "DirectFire",
+        heatmap: false,
+        shells: [{
+            name: "default",
+            minDistance: 0,
+            velocity: 63,
+            ...NO_EXPLOSION,
+        }]
+    },
+    {
+        name: "DF_Carl_Gustav_M2_FFV551_HEAT",
+        ballistics: "Carl Gustav M2 · FFV551 HEAT",
+        deceleration: 0,
+        decelerationTime: 0,
+        gravityScale: 1,
+        minElevation: [-90, 90],
+        unit: "deg",
+        type: "directFire",
+        angleType: "low",
+        elevationPrecision: 2,
+        image: "DirectFire",
+        heatmap: false,
+        shells: [{
+            name: "default",
+            minDistance: 0,
+            velocity: 310,
+            ...NO_EXPLOSION,
+        }]
+    },
+    {
+        name: "DF_Carl_Gustav_M2_FFV441D_HE",
+        ballistics: "Carl Gustav M2 · FFV441D HE",
+        deceleration: 0,
+        decelerationTime: 0,
+        gravityScale: 1,
+        minElevation: [-90, 90],
+        unit: "deg",
+        type: "directFire",
+        angleType: "low",
+        elevationPrecision: 2,
+        image: "DirectFire",
+        heatmap: false,
+        shells: [{
+            name: "default",
+            minDistance: 0,
+            velocity: 255,
+            ...NO_EXPLOSION,
+        }]
+    },
+    {
+        name: "DF_Carl_Gustav_M2_FFV751_Tandem",
+        ballistics: "Carl Gustav M2 · FFV751 Tandem",
+        deceleration: 0,
+        decelerationTime: 0,
+        gravityScale: 1,
+        minElevation: [-90, 90],
+        unit: "deg",
+        type: "directFire",
+        angleType: "low",
+        elevationPrecision: 2,
+        image: "DirectFire",
+        heatmap: false,
+        shells: [{
+            name: "default",
+            minDistance: 0,
+            velocity: 255,
+            ...NO_EXPLOSION,
+        }]
+    },
+    {
+        name: "DF_ZPL_98A_105mm_ZTD_05_AP",
+        ballistics: "ZPL-98A 105mm (ZTD-05) · AP",
+        deceleration: 0,
+        decelerationTime: 0,
+        gravityScale: 2.5,
+        minElevation: [-90, 90],
+        unit: "deg",
+        type: "directFire",
+        angleType: "low",
+        elevationPrecision: 2,
+        image: "DirectFire",
+        heatmap: false,
+        shells: [{
+            name: "default",
+            minDistance: 0,
+            velocity: 1110,
+            ...NO_EXPLOSION,
+        }]
+    },
+    {
+        name: "DF_ZPL_98A_105mm_ZTD_05_HEAT_HE",
+        ballistics: "ZPL-98A 105mm (ZTD-05) · HEAT / HE",
+        deceleration: 0,
+        decelerationTime: 0,
+        gravityScale: 2,
+        minElevation: [-90, 90],
+        unit: "deg",
+        type: "directFire",
+        angleType: "low",
+        elevationPrecision: 2,
+        image: "DirectFire",
+        heatmap: false,
+        shells: [{
+            name: "default",
+            minDistance: 0,
+            velocity: 730,
+            ...NO_EXPLOSION,
+        }]
+    },
+    {
+        name: "DF_2A72_30mm_BMD_4M_HE",
+        ballistics: "2A72 30mm (BMD-4M) · HE",
+        deceleration: 0,
+        decelerationTime: 0,
+        gravityScale: 2,
+        minElevation: [-90, 90],
+        unit: "deg",
+        type: "directFire",
+        angleType: "low",
+        elevationPrecision: 2,
+        image: "DirectFire",
+        heatmap: false,
+        shells: [{
+            name: "default",
+            minDistance: 0,
+            velocity: 1004,
+            ...NO_EXPLOSION,
+        }]
+    },
+    {
+        name: "DF_2A72_30mm_BMP_3M_AP_HE",
+        ballistics: "2A72 30mm (BMP-3M) · AP / HE",
+        deceleration: 0,
+        decelerationTime: 0,
+        gravityScale: 2,
+        minElevation: [-90, 90],
+        unit: "deg",
+        type: "directFire",
+        angleType: "low",
+        elevationPrecision: 2,
+        image: "DirectFire",
+        heatmap: false,
+        shells: [{
+            name: "default",
+            minDistance: 0,
+            velocity: 970,
+            ...NO_EXPLOSION,
+        }]
+    },
+    {
+        name: "DF_ZPT99_30mm_ZBL_08_ZBD_05_AP_HE",
+        ballistics: "ZPT99 30mm (ZBL-08 / ZBD-05) · AP / HE",
+        deceleration: 0,
+        decelerationTime: 0,
+        gravityScale: 2,
+        minElevation: [-90, 90],
+        unit: "deg",
+        type: "directFire",
+        angleType: "low",
+        elevationPrecision: 2,
+        image: "DirectFire",
+        heatmap: false,
+        shells: [{
+            name: "default",
+            minDistance: 0,
+            velocity: 950,
+            ...NO_EXPLOSION,
+        }]
+    },
+    {
+        name: "DF_M2A1_50_ACOG_emplacement",
+        ballistics: "M2A1 .50 · ACOG emplacement",
+        deceleration: 0,
+        decelerationTime: 0,
+        gravityScale: 3,
+        minElevation: [-90, 90],
+        unit: "deg",
+        type: "directFire",
+        angleType: "low",
+        elevationPrecision: 2,
+        image: "DirectFire",
+        heatmap: false,
+        shells: [{
+            name: "default",
+            minDistance: 0,
+            velocity: 890,
+            ...NO_EXPLOSION,
+        }]
+    },
+    {
+        name: "DF_Kord_SPP_emplacement",
+        ballistics: "Kord · SPP emplacement",
+        deceleration: 0,
+        decelerationTime: 0,
+        gravityScale: 3,
+        minElevation: [-90, 90],
+        unit: "deg",
+        type: "directFire",
+        angleType: "low",
+        elevationPrecision: 2,
+        image: "DirectFire",
+        heatmap: false,
+        shells: [{
+            name: "default",
+            minDistance: 0,
+            velocity: 860,
             ...NO_EXPLOSION,
         }]
     },
