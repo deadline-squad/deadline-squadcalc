@@ -1,4 +1,4 @@
-# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.6.0** *(2026-10-29)*
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.7.0** *(2026-10-29)*
 
 </br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
 - Skorpo (6849 x 6869 m) and the other non-square maps: distances, bearings, heights, keypads, the coverage and the map assets use the scale of each map axis; the north-south one was 0.3 % off (up to 6 m on a 2 km shot, 19 m off in the heightmap at the south edge)
@@ -9,6 +9,14 @@
 - The overlay relay sends the distance and the height to 0.1 m (were rounded to the metre)
 - A heightmap that fails to load is announced (error message) and the targets say "no height data" instead of silently using flat ground; Squad Ballistics gets an unknown height
 - In a session, a weapon's height set by another member is a number again (its precise range ring was broken)
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.6.0** *(2026-10-29)*
+
+</br><img src="https://img.shields.io/badge/-new%20features-green">
+- Pairing with Squad Ballistics without a code: its Settings show a link and a QR code (`https://<this site>/#link=<code>`). Opening it here takes over the app's session code, turns the overlay link on and shows a confirmation; the browser remembers both, so later visits reconnect by themselves. The code travels in the URL fragment, which is never sent to the server, and is removed from the address bar at once. Pasting the link into an open tab works too
+- The overlay link accepts session codes of 6 to 16 characters (Squad Ballistics makes 12-character codes) and shows them in groups of four
 
 </br></br><!-- CHANGELOG SPLIT MARKER -->
 
