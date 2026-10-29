@@ -21,7 +21,10 @@ export var WEAPONS = [
         type: "deployables",
         angleType: "high",
         elevationPrecision: 0,
-        heightOffset: 1,
+        // The shell starts at the weapon's BarrelSocketName, Attach_Muzzle: 156.9 cm along the tube
+        // (0.2 cm above its axis), which pivots 2.45 cm above the baseplate (m252mortar_tube and
+        // m252mortar_baseplate skeletons, GunMount socket; Squad build 26005357)
+        muzzle: { pivotHeight: 0.0245, forward: 1.569, up: 0.002 },
         shells : [{
             name: "default",
             minDistance: 51,
@@ -44,7 +47,11 @@ export var WEAPONS = [
         type: "deployables",
         angleType: "low",
         elevationPrecision: 1,
-        heightOffset: 1,
+        // The rockets start at BarrelSocketName Attach_Muzzle, 143.0 cm along the pod and 25.1 cm
+        // above its axis; the pod pivots at its WeaponRoot, on the swivel's GunMount socket (126.0 cm,
+        // swivel bone -0.1 cm) of the tripod placed 4.85 cm above the deployable's root (UB-32_Gun and
+        // UB32_Swivel skeletons, BP_EmplacedUB32_Deployable; Squad build 26005357)
+        muzzle: { pivotHeight: 1.3075, forward: 1.430, up: 0.251 },
         projectileLifespan: 20,
         shells : [{
             name: "default",
@@ -68,7 +75,10 @@ export var WEAPONS = [
         type: "deployables",
         angleType: "high",
         elevationPrecision: 1,
-        heightOffset: 1.5,
+        // The shell starts at BarrelSocketName Attach_Muzzle, 237.3 cm along the barrel (0.2 cm above
+        // its axis), which pivots on the tripod's HellCannon_Swivel bone 15.5 cm above the root
+        // (SK_HellCannon_Gun and SK_HellCannon_Tripod skeletons; Squad build 26005357)
+        muzzle: { pivotHeight: 0.155, forward: 2.373, up: 0.002 },
         shells : [{
             name: "default",
             minDistance: 0,
@@ -537,9 +547,15 @@ export var WEAPONS = [
         // `holdElevation` and the key lowers it at `elevationRate` deg/s down to its bottom.
         // Fired directly (low trajectory) by aiming through the sight like any direct-fire weapon:
         // `minElevation` is the whole range of the barrel.
-        // Muzzle velocity (185 m/s), gravityScale (1.8), projectile lifespan (40 s), spread (1.5 MOA)
-        // and explosion (1.5-18 m, 0.08 m above the impact) are read from the game files
-        // (BP_AGS-17_Weapon WeaponConfig, BP_30mm_VOG19_Proj, Squad build 26005357).
+        // Muzzle velocity (185 m/s), gravityScale (1.8), projectile lifespan (40 s) and explosion
+        // (1.5-18 m, 0.08 m above the impact) are read from the game files (BP_AGS-17_Weapon
+        // WeaponConfig, BP_30mm_VOG19_Proj, Squad build 26005357).
+        // Spread: the WeaponConfig sets MOACurve FC_MOACurve_GenericGMG, cubic from 15 MOA at 0 to
+        // 50 MOA at 0.75, over the base MOA of 1.5. Its input is the weapon's dynamic MOA, which grows
+        // with each shot and decays between bursts (DynamicMOAGain/DecayMultiplier); the exact
+        // rule is native code. The vehicle grenade launchers set the same two values as fixed MOA
+        // (BTR-4 KBA-117: 15, M1117 Mk19: 50). Drawn with 50 MOA, the spread of a sustained burst:
+        // the area every grenade can land in (a first, rested shot spreads 15 MOA).
         // The top angle and rate were fitted by least squares on 67 in-game hold-time/distance
         // measurements (0 s -> 280 m, 4.1 s -> 1930 m, 7 m RMS error); the lowest elevation keeps
         // the longest measured hold (4.19 s).
@@ -557,7 +573,7 @@ export var WEAPONS = [
             name: "default",
             minDistance: 280,
             velocity: 185,
-            moa: 1.5,
+            moa: 50,
             explosionDamage: 115,
             explosionRadius: [1.5, 18],
             explosionDistanceFromImpact: 0.08,

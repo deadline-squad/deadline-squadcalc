@@ -1,16 +1,15 @@
 import { App } from "../app.js";
 import { WEAPONS } from "../data/weapons.js";
+import { maxRange } from "./squadBallistics.js";
 
 // Range shown for weapons without gravity (NLAW): they fly straight, beyond the largest map.
 const NO_GRAVITY_RANGE = 10000;
 
 export class Weapon {
-    constructor(name, deceleration, decelerationTime, gravityScale, minElevation, unit, logo, marker, type, angleType, elevationPrecision, shells = [], heightOffset = 0, angleOffset = 0, projectileLifespan = 100, mod = null, elevationRate = null, heatmap = true, acceleration = 0, accelerationTime = 0, holdElevation = null, ballistics = null, image = null) {
+    constructor(name, deceleration, decelerationTime, gravityScale, minElevation, unit, logo, marker, type, angleType, elevationPrecision, shells = [], heightOffset = 0, angleOffset = 0, projectileLifespan = 100, mod = null, elevationRate = null, heatmap = true, acceleration = 0, accelerationTime = 0, holdElevation = null, ballistics = null, image = null, muzzle = null) {
         this.name = name;
-        //this.velocity = velocity;
         this.deceleration = deceleration;
         this.decelerationTime = decelerationTime;
-        //this.decelerationDistance = this.velocity * this.decelerationTime - 0.5 * this.deceleration * Math.pow(this.decelerationTime, 2);
         this.gravityScale = gravityScale;
         this.minElevation = minElevation;
         this.unit = unit;
@@ -31,7 +30,13 @@ export class Weapon {
         this.mod = mod;
         this.elevationRate = elevationRate;
         this.heatmap = heatmap;
-        // Rocket boost (Squad Ballistics model): `acceleration` m/s² during `accelerationTime` s
+        // Rocket boost (Squad Ballistics model): `acceleration` m/s² during `accelerationTime` s.
+        // A deceleration phase (UB-32 S-5 rockets: 50 m/s² for 2 s) is the same model with a negative
+        // acceleration, as in Squad Ballistics' weapons.json and the game (ConstantAcceleration < 0)
+        if (!acceleration && deceleration && decelerationTime) {
+            acceleration = -deceleration;
+            accelerationTime = decelerationTime;
+        }
         this.acceleration = acceleration;
         this.accelerationTime = accelerationTime;
         // [lowest, top] elevations reachable by holding the elevation key (AGS-17)
@@ -40,39 +45,21 @@ export class Weapon {
         this.ballistics = ballistics;
         // Image file name in /img/weapons and /img/markers/weapons
         this.image = image || name;
+        // Launch point moving with the elevation, from the weapon's skeleton (weapons.js), or null:
+        // the projectile starts heightOffset above the ground. {pivotHeight, forward, up} in meters
+        this.muzzle = muzzle;
     }
 
 
     /**
-     * Calculate the weapon velocity based on the distance to the target.
-     * If the projectile has a deceleration phase, the function considers both the deceleration
-     * and the post-deceleration velocity. 
-     * The deceleration code is black magic produced by https://github.com/Devil4ngle
-     * @param {number} [distance] - Distance between the mortar and the target from getDist().
-     * @returns {number} - Calculated velocity of the weapon for the given distance.
+     * Velocity of the weapon over the distance to the target: the muzzle velocity, or for a boosted
+     * or decelerating rocket the equivalent constant velocity (getBoostVelocity).
+     * @param {number} [distance] - Distance between the weapon and the target from getDist().
+     * @returns {number} - Velocity in m/s.
      */
     getVelocity(distance) {
-
         if (this.hasBoost()) return this.getBoostVelocity(distance);
-
-        // If there's no deceleration, return the constant velocity
-        if (this.decelerationDistance === 0) return this.velocity;
-        
-        // If the distance is within the deceleration phase
-        if (distance <= this.decelerationDistance) {
-            const discriminant = Math.sqrt(Math.pow(this.velocity, 2) + 2 * this.deceleration * distance);
-            const t = (-this.velocity + discriminant) / this.deceleration;
-            return this.velocity - this.deceleration * t;
-        } 
-        
-        // If the distance is beyond the deceleration phase
-        const finalVelocity = this.velocity - this.deceleration * this.decelerationTime;
-        const distanceAfterDeceleration = distance - this.decelerationDistance;
-        const timeAfterDeceleration = distanceAfterDeceleration / finalVelocity;
-        const totalTime = this.decelerationTime + timeAfterDeceleration;
-
-        // Calculate the average velocity
-        return distance / totalTime;   
+        return this.velocity;
     }
 
 
@@ -88,8 +75,8 @@ export class Weapon {
     /**
      * Equivalent constant velocity over `distance` for a boosted rocket: it accelerates by
      * `acceleration` m/s² during `accelerationTime` s, then keeps its speed.
-     * Same model as Weapon.velocity_at in Squad Ballistics (ballistics.py), so both apps give
-     * the same elevation.
+     * Same as Weapon.velocity_at in Squad Ballistics (ballistics.py). Only the spread uses it: the
+     * elevation, time of flight and range come from the exact trajectory (getShot, squadBallistics.js).
      * @param {number} distance - Distance to the target in meters.
      * @returns {number} - distance / time of flight, in m/s.
      */
@@ -108,6 +95,27 @@ export class Weapon {
         }
 
         return distance / time;
+    }
+
+
+    /**
+     * How the weapon fires, for squadBallistics.js
+     * @param {number} [gravity] - m/s², default the world gravity × this weapon's gravity scale
+     * @param {number} [launchHeight] - launch height above the ground in meters for weapons without
+     *   `muzzle`, default heightOffset (the obstacle checks launch handheld weapons from the shoulder)
+     * @returns {import("./squadBallistics.js").Shot}
+     */
+    getShot(gravity = App.gravity * this.gravityScale, launchHeight = this.heightOffset) {
+        const boosted = this.hasBoost();
+        return {
+            velocity: this.velocity,
+            gravity,
+            acceleration: boosted ? this.acceleration : 0,
+            boostTime: boosted ? this.accelerationTime : 0,
+            pivotHeight: this.muzzle ? this.muzzle.pivotHeight : launchHeight,
+            muzzleForward: this.muzzle ? this.muzzle.forward : 0,
+            muzzleUp: this.muzzle ? this.muzzle.up : 0,
+        };
     }
 
 
@@ -151,10 +159,7 @@ export class Weapon {
 
 
     /**
-     * Calculate the maximum distance a projectile can travel at a 45° angle.
-     * 
-     * If no deceleration is specified (`decelerationDistance == 0`), the total distance is simply the 
-     * standard maximum range for a projectile with no deceleration, based on the initial velocity.
+     * Calculate the maximum distance a projectile can travel on flat ground (45° without boost).
      *
      * Reference: https://en.wikipedia.org/wiki/Projectile_motion#Maximum_distance_of_projectile
      * 
@@ -166,47 +171,19 @@ export class Weapon {
 
         if (gravity === 0) return NO_GRAVITY_RANGE;
 
-        // Boosted rockets reach a distance while their equivalent velocity v(d) has v(d)² >= g·d
-        // (Weapon.max_range in Squad Ballistics)
-        if (this.hasBoost()) {
-            const reachable = (distance) => this.getBoostVelocity(distance) ** 2 >= gravity * distance;
-            let low = 0;
-            let high = Math.max(this.velocity, this.velocity + this.acceleration * this.accelerationTime) ** 2 / gravity;
+        // Launch point moving with the elevation, or boosted rockets: the exact trajectory
+        // (squadBallistics.maxRange), from the muzzle or else from the ground
+        if (this.muzzle) return maxRange(this.getShot(gravity));
+        if (this.hasBoost()) return maxRange(this.getShot(gravity, 0));
 
-            while (reachable(high)) high *= 2;
-
-            for (let i = 0; i < 60; i++) {
-                const mid = (low + high) / 2;
-                if (reachable(mid)) low = mid;
-                else high = mid;
-            }
-
-            return low;
+        // Weapons aimed by key press duration (AGS-17) cannot reach the ideal 45° when
+        // their mount stops above it: their range is the one of the lowest hold elevation
+        if (this.elevationRate) {
+            const angle = Math.max(45, this.holdElevation[0]) * Math.PI / 180;
+            return (this.velocity ** 2) * Math.sin(2 * angle) / gravity;
         }
 
-        // If there's no deceleration (anything but UB32)
-        if (this.decelerationDistance == 0) {
-
-            // Weapons aimed by key press duration (AGS-17) cannot reach the ideal 45° when
-            // their mount stops above it: their range is the one of the lowest hold elevation
-            if (this.elevationRate) {
-                const angle = Math.max(45, this.holdElevation[0]) * Math.PI / 180;
-                return (this.velocity ** 2) * Math.sin(2 * angle) / gravity;
-            }
-
-            return (this.velocity ** 2) / gravity;
-        }
-
-        // Calculate distance due to deceleration (only the velocity difference part)
-        const velocityDifference = this.velocity - (this.velocity - this.deceleration * this.decelerationTime);
-        const decelerationDistance = velocityDifference * this.decelerationTime;
-
-        // Calculate distance at constant velocity like if the whole trajectory was at cruise speed
-        const finalVelocity = this.velocity - this.deceleration * this.decelerationTime;
-        const cruiseDistance = (finalVelocity ** 2) / App.gravity / this.gravityScale;
-
-        // Add both parts of the distance
-        return decelerationDistance + cruiseDistance;
+        return (this.velocity ** 2) / gravity;
     }
 
 
@@ -240,7 +217,6 @@ export class Weapon {
     
         // Load Shell data into Weapon
         App.activeWeapon.velocity = SHELL_DATA.velocity;
-        App.activeWeapon.decelerationDistance = App.activeWeapon.velocity * App.activeWeapon.decelerationTime - 0.5 * App.activeWeapon.deceleration * Math.pow(App.activeWeapon.decelerationTime, 2);
         App.activeWeapon.minDistance = SHELL_DATA.minDistance;
         App.activeWeapon.moa = SHELL_DATA.moa;
         App.activeWeapon.maxDistance = this.getMaxDistance();

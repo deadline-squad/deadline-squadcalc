@@ -1,5 +1,6 @@
 import { App } from "../app.js";
 import { MUZZLE_CLEARANCE, SHOULDER_HEIGHT, TARGET_CLEARANCE } from "./squadCoverage.js";
+import { pathAt, solveElevation } from "./squadBallistics.js";
 
 // Distance between two heightmap samples when looking for an obstacle, in meters (heightmap pixel size)
 const OBSTACLE_STEP = 1;
@@ -23,9 +24,13 @@ export default class SquadFiringSolution {
         this.gravity = App.gravity * App.activeWeapon.gravityScale;
         this.distance = this.getDist();
         this.bearing = this.getBearing(this.weaponLatLng, this.targetLatLng);
+        // Equivalent constant velocity over the distance, for the spread; the trajectory itself is `shot`
         this.velocity = App.activeWeapon.getVelocity(this.distance);
+        this.shot = App.activeWeapon.getShot(this.gravity);
         this.weaponHeight = this.map.heightmap.getHeight(weaponLatLng) + parseFloat(heightPadding);
         this.targetHeight = this.map.heightmap.getHeight(heightLatLng);
+        // False when the heightmap failed to load: both heights are 0, the solution is for flat ground
+        this.hasHeightData = !this.map.heightmap.failed;
         this.heightDiff =  this.targetHeight - this.weaponHeight;
         this.elevation = {low: [], high: []};
         this.elevation.low.rad = this.getElevation(this.distance, true);
@@ -66,9 +71,10 @@ export default class SquadFiringSolution {
 
     /**
      * First point where the trajectory to the target passes under the heightmap, which holds the
-     * terrain and the buildings: the shell hits it before the target. The trajectory starts at the
-     * real muzzle, `heightOffset` above the weapon or the shoulder for weapons without one, and is
-     * aimed to reach the target from there, like the fire coverage; it skips the same clearances.
+     * terrain and the buildings: the shell hits it before the target. The trajectory (squadBallistics
+     * pathAt) starts at the real muzzle (the weapon's `muzzle` model, else `heightOffset` above the
+     * weapon, else the shoulder), and is aimed to reach the target from there, like the fire coverage;
+     * it skips the same clearances.
      * @param {boolean} lowAngle - the low trajectory (else the high one)
      * @returns {{distance: number, height: number}|null} - distance from the weapon and height of the
      * obstacle above the weapon, in meters; null if the trajectory is clear, cannot reach the target
@@ -77,22 +83,18 @@ export default class SquadFiringSolution {
     getObstacle(lowAngle) {
         if (!this.map.heightmap?.jsonPng?.length) return null;
 
-        const muzzleHeight = App.activeWeapon.heightOffset > 0 ? App.activeWeapon.heightOffset : SHOULDER_HEIGHT;
-        const muzzle = this.weaponHeight + muzzleHeight;
-        const rise = this.targetHeight - muzzle;
+        const weapon = App.activeWeapon;
+        const shot = weapon.muzzle || weapon.heightOffset > 0 ? this.shot : weapon.getShot(this.gravity, SHOULDER_HEIGHT);
         let angle;
 
         if (this.gravity === 0) {
-            angle = Math.atan2(rise, this.distance);
+            angle = Math.atan2(this.heightDiff - shot.pivotHeight, this.distance);
         } else {
-            const discriminant = this.velocity ** 4 - this.gravity * (this.gravity * this.distance ** 2 + 2 * rise * this.velocity ** 2);
-            if (discriminant < 0) return null;
-            const root = lowAngle ? -Math.sqrt(discriminant) : Math.sqrt(discriminant);
-            angle = Math.atan((this.velocity ** 2 + root) / (this.gravity * this.distance));
+            const elevations = solveElevation(shot, this.distance, this.heightDiff);
+            angle = lowAngle ? elevations.low : elevations.high;
+            if (isNaN(angle)) return null;
         }
 
-        const tan = Math.tan(angle);
-        const drop = this.gravity / (2 * this.velocity ** 2 * Math.cos(angle) ** 2);
         const latStep = (this.targetLatLng.lat - this.weaponLatLng.lat) / this.distance;
         const lngStep = (this.targetLatLng.lng - this.weaponLatLng.lng) / this.distance;
 
@@ -101,7 +103,7 @@ export default class SquadFiringSolution {
                 lat: this.weaponLatLng.lat + latStep * x,
                 lng: this.weaponLatLng.lng + lngStep * x,
             });
-            if (muzzle + x * tan - drop * x * x < ground) {
+            if (this.weaponHeight + pathAt(shot, angle, x).height < ground) {
                 return { distance: x, height: ground - this.weaponHeight };
             }
         }
@@ -110,14 +112,14 @@ export default class SquadFiringSolution {
 
 
     /**
-     * Calculate ingame distance between weapon & target
+     * Calculate ingame distance between weapon & target, each map axis with its own scale
+     * (squadMinimap.toMeters)
      * https://github.com/sh4rkman/SquadCalc/wiki/Deducing-distance-and-bearing#finding-distance
-     * @return {number} - distance in meter
+     * @return {number} - horizontal distance in meters
      */
     getDist(){
-        const latDelta = (this.targetLatLng.lat - this.weaponLatLng.lat) * -this.map.mapToGameScale;
-        const lngDelta = (this.targetLatLng.lng - this.weaponLatLng.lng) * this.map.mapToGameScale;
-        return Math.hypot(latDelta, lngDelta);
+        const { east, north } = this.map.toMeters(this.weaponLatLng, this.targetLatLng);
+        return Math.hypot(east, north);
     }
 
     /**
@@ -129,7 +131,6 @@ export default class SquadFiringSolution {
      * @returns {number || NaN} radian angle if target in range, NaN otherwise
     */
     getElevation(dist = 0, lowangle = false) {
-        let angleFactor;
         let elevation;
 
         if (this.gravity === 0) {
@@ -138,10 +139,9 @@ export default class SquadFiringSolution {
             return this.isInElevationRange(elevation) ? elevation : NaN;
         }
 
-        const P1 = Math.sqrt(this.velocity ** 4 - this.gravity * (this.gravity * dist ** 2 + 2 * (this.heightDiff - App.activeWeapon.heightOffset) * this.velocity ** 2));
-        angleFactor = lowangle ? -P1 : P1;
-
-        elevation = Math.atan((this.velocity ** 2 + angleFactor) / (this.gravity * dist)) - this.degToRad(App.activeWeapon.angleOffset);
+        // Exact trajectory: the closed-form parabola, or the boost model solved numerically
+        const { low, high } = solveElevation(this.shot, dist, this.heightDiff);
+        elevation = (lowangle ? low : high) - this.degToRad(App.activeWeapon.angleOffset);
 
         return this.isInElevationRange(elevation) ? elevation : NaN;
     }
@@ -173,14 +173,14 @@ export default class SquadFiringSolution {
 
 
     /**
-     * Calculates the bearing required to see point B from point A.
+     * Calculates the bearing required to see the target from the weapon, each map axis with its own
+     * scale (squadMinimap.toMeters).
      * https://github.com/sh4rkman/SquadCalc/wiki/Deducing-distance-and-bearing#finding-bearing
-     * @returns {number} - bearing required to see B from A
+     * @returns {number} - bearing in degrees, clockwise from north, in [0, 360)
      */
     getBearing() {
-        const latDelta = (this.targetLatLng.lat - this.weaponLatLng.lat) * -this.map.mapToGameScale;
-        const lngDelta = (this.targetLatLng.lng - this.weaponLatLng.lng) * this.map.mapToGameScale;
-        let bearing = Math.atan2(latDelta, lngDelta) * 180 / Math.PI + 90;
+        const { east, north } = this.map.toMeters(this.weaponLatLng, this.targetLatLng);
+        let bearing = Math.atan2(east, north) * 180 / Math.PI;
         if (bearing < 0) { bearing += 360; } // Avoid Negative Angle by adding a whole rotation
         return bearing;
     }
@@ -291,10 +291,12 @@ export default class SquadFiringSolution {
 
 
     /**
-     * Calculate the time of flight of the projectile
+     * Calculate the time of flight of the projectile to the target: the time the exact trajectory
+     * (squadBallistics pathAt) takes to cover the distance, on the way up for a direct shot at a
+     * target above, on the way down for a lob
      * https://github.com/sh4rkman/SquadCalc/wiki/Deducing-Time-Of-Flight
-     * @param {number} [angle] - angle of the initial shot in radian
-     * @returns {number} - time of flight in seconds
+     * @param {number} [angle] - elevation of the solution in radians (angleOffset subtracted)
+     * @returns {number} - time of flight in seconds, NaN for a NaN angle
      */
     getTimeOfFlight(angle){
         // Without gravity the projectile flies the straight line of sight
@@ -303,17 +305,7 @@ export default class SquadFiringSolution {
             return path / App.activeWeapon.getVelocity(path);
         }
 
-        // Direct fire hits on the way up when the target is above: the formula below would give
-        // the time the projectile comes back down to the target's height
-        if (App.activeWeapon.type === "directFire") {
-            return this.distance / (this.velocity * Math.cos(angle + this.degToRad(App.activeWeapon.angleOffset)));
-        }
-
-        // In extreme cases ToF can be NaN (low angle, high heights)
-        // if it does just aproximate without taking heights in account this time
-        let t = this.velocity * Math.sin(angle) + Math.sqrt( (Math.pow(this.velocity, 2) * Math.pow(Math.sin(angle), 2)) + (2 * this.gravity * -this.heightDiff));
-        if (isNaN(t))  t = this.velocity * Math.sin(angle) + Math.sqrt( (Math.pow(this.velocity, 2) * Math.pow(Math.sin(angle), 2)));
-        return t / this.gravity;
+        return pathAt(this.shot, angle + this.degToRad(App.activeWeapon.angleOffset), this.distance).time;
     }
 
 

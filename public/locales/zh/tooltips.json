@@ -19,6 +19,10 @@
     "howFar": "打多远",
     "save": "保存",
     "copied": "已复制到剪贴板 📋",
+    "overlayLinked": "已连接 Squad Ballistics",
+    "overlayLinkedText": "在此放置的目标会发送到该程序。此浏览器会记住该连接。",
+    "overlayLinkInvalid": "链接无效",
+    "overlayLinkInvalidText": "此链接中的代码无效。请在 Squad Ballistics 中重新复制链接或扫描二维码。",
     "resultLater": "等待结果...",
     "spreadDesc": "由于武器的角分 (MOA) 不精确性和弹道长度，射击会在椭圆形的模式下散布。",
     "moaDesc": "角分 (MOA) 在炮兵中衡量武器的不精确性，表示射击的散布范围。一角分等于1/60度。",
@@ -87,5 +91,7 @@
     "returnToMap": "切换到地图模式",
     "settings": "设置",
     "openFactionSelection": "点击打开派系选择",
-    "coverage": "火力覆盖：从第一个武器标记出发，考虑地形和建筑后武器能命中的区域"
+    "coverage": "火力覆盖：从第一个武器标记出发，考虑地形和建筑后武器能命中的区域",
+    "heightmapFailed": "无高度数据",
+    "heightmapFailedDesc": "此地图的高度图加载失败：射击解算按平地（高度 0）计算。"
 }

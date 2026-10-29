@@ -78,5 +78,6 @@
     "favServers": "Сервер",
     "coverageLow": "Настильно / прямой наводкой",
     "coverageHigh": "Только навесом",
-    "coverageBlocked": "Закрыто (рельеф, здания)"
+    "coverageBlocked": "Закрыто (рельеф, здания)",
+    "noHeightData": "нет данных о высотах"
 }

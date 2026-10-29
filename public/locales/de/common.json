@@ -78,5 +78,6 @@
     "favServers": "Server",
     "coverageLow": "Flache Flugbahn / Direktfeuer",
     "coverageHigh": "Nur Steilfeuer",
-    "coverageBlocked": "Verdeckt (Gelände, Gebäude)"
+    "coverageBlocked": "Verdeckt (Gelände, Gebäude)",
+    "noHeightData": "keine Höhendaten"
 }

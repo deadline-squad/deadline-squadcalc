@@ -82,5 +82,6 @@
     "favServers": "服务器",
     "coverageLow": "低弹道 / 直瞄",
     "coverageHigh": "仅高弹道",
-    "coverageBlocked": "被遮挡（地形、建筑）"
+    "coverageBlocked": "被遮挡（地形、建筑）",
+    "noHeightData": "无高度数据"
 }

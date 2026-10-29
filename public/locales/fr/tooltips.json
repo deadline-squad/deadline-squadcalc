@@ -19,6 +19,10 @@
     "howFar": "(A quelle distance ça tirera)",
     "save": "Sauvegarder",
     "copied": "Ajouté au presse-papiers 📋",
+    "overlayLinked": "Lié à Squad Ballistics",
+    "overlayLinkedText": "Les cibles placées ici sont envoyées à l'application. Ce navigateur se souvient du lien.",
+    "overlayLinkInvalid": "Lien invalide",
+    "overlayLinkInvalidText": "Le code de ce lien n'est pas valide. Copiez à nouveau le lien ou scannez le QR code dans Squad Ballistics.",
     "resultLater": "(les résultats pour plus tard)",
     "spreadDesc": "En raison de l'imprécision de la minute d'angle (MOA) de l'arme et de la longueur du projectile, les tirs peuvent se disperser selon un schéma elliptique.",
     "moaDesc": "Une minute d'angle (MOA) en artillerie mesure l'imprécision de l'arme, indiquant la dispersion des tirs. Une MOA équivaut à 1/60e de degré.",
@@ -87,5 +91,7 @@
     "returnToMap": "Passer en mode carte",
     "settings": "Paramètres",
     "openFactionSelection": "Cliquer pour ouvrir la sélection de faction",
-    "coverage": "Zone de tir : où l'arme peut toucher depuis le premier marqueur d'arme, en tenant compte du relief et des bâtiments"
+    "coverage": "Zone de tir : où l'arme peut toucher depuis le premier marqueur d'arme, en tenant compte du relief et des bâtiments",
+    "heightmapFailed": "Pas de données d'altitude",
+    "heightmapFailedDesc": "La carte des hauteurs n'a pas pu être chargée : les solutions de tir supposent un terrain plat (hauteur 0)."
 }

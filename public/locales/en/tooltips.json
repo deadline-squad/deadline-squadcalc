@@ -19,6 +19,10 @@
     "howFar": "(how far it will shoot)",
     "save": "Save",
     "copied": "Added to clipboard 📋",
+    "overlayLinked": "Linked with Squad Ballistics",
+    "overlayLinkedText": "Targets placed here go to the app. This browser remembers the link.",
+    "overlayLinkInvalid": "Invalid link",
+    "overlayLinkInvalidText": "The code in this link is not valid. Copy the link or scan the QR code in Squad Ballistics again.",
     "resultLater": "(the results for later)",
     "spreadDesc": "Due to the weapon's minute of angle (MOA) imprecision and the length of the projectile, shots can spread in an elliptical pattern.",
     "moaDesc": "A minute of angle (MOA) in artillery measures weapon imprecision, indicating the spread of shots. One MOA equals 1/60th of a degree.",
@@ -87,5 +91,7 @@
     "returnToMap": "Switch to map mode",
     "settings": "Settings",
     "openFactionSelection": "Click to open faction selection",
-    "coverage": "Fire coverage: where the weapon can hit from the first weapon marker, past the terrain and buildings"
+    "coverage": "Fire coverage: where the weapon can hit from the first weapon marker, past the terrain and buildings",
+    "heightmapFailed": "No height data",
+    "heightmapFailedDesc": "The heightmap of this map failed to load: firing solutions assume flat ground (height 0)."
 }
