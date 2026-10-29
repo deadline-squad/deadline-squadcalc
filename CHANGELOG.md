@@ -1,3 +1,12 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.5.0** *(2026-10-29)*
+
+</br><img src="https://img.shields.io/badge/-new%20features-green">
+- Damage zone with cover: inside the damage circles the map colors where a round on the target kills (red), wounds (orange), or would wound a soldier hidden behind a wall, a building or a ridge (blue). Unreal only damages what the explosion can see, so the cover is the line from the explosion to the soldier's body passing under the game heightmap (terrain and buildings)
+- Rounds to kill: the target popup shows `☠ 6 · 🩸 2`, the rounds to fire so that one kills, or at least wounds, a soldier standing on the target with 90 % confidence, from the weapon's spread (the ellipse on the map), its explosion and the cover around the target
+- Fire correction: Ctrl + double-click where a round burst marks it for the nearest target; the weapon's aim moves against the mean error of the marked bursts (in range and bearing, so it holds when the target moves), the popup shows `↻2 −12m +0.4°` and Squad Ballistics gets the corrected solution. Right-click a burst to remove it
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.4.2** *(2026-10-29)*
 
 </br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  

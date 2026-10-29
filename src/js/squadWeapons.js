@@ -247,6 +247,14 @@ export class Weapon {
         App.activeWeapon.hundredDamageRadius = App.activeWeapon.calculateDistanceForDamage(...explosionParams, 100);
         App.activeWeapon.twentyFiveDamageRadius = App.activeWeapon.calculateDistanceForDamage(...explosionParams, 25);
         App.activeWeapon.moa = SHELL_DATA.moa;
+        // Raw explosion of the shell for the damage with cover (squadDamage.js); radii in meters
+        App.activeWeapon.explosion = {
+            damage: SHELL_DATA.explosionDamage,
+            inner: SHELL_DATA.explosionRadius[0],
+            outer: SHELL_DATA.explosionRadius[1],
+            falloff: SHELL_DATA.damageFallOff,
+            distanceFromImpact: SHELL_DATA.explosionDistanceFromImpact,
+        };
 
         // Update Existsing Targets on Minimap
         App.minimap.updateTargets();

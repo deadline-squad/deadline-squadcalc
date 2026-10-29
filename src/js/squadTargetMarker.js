@@ -1,16 +1,33 @@
 
 import { App } from "../app.js";
-import { CircleMarker, Polyline, Polygon, Popup, Icon } from "leaflet";
+import { CircleMarker, Polyline, Polygon, Popup, Icon, ImageOverlay, LatLngBounds } from "leaflet";
 import SquadSimulation from "./squadSimulation.js";
 import SquadFiringSolution from "./squadFiringSolution.js";
 import TargetGrid from "./squadTargetGrid.js";
 import { sendTargetData } from "./squadCalcAPI.js";
 import { Ellipse } from "./libs/leaflet-ellipse.js";
 import { squadMarker } from "./squadMarker.js";
+import { damageField, hitProbability, roundsNeeded, KILL_DAMAGE, WOUND_DAMAGE } from "./squadDamage.js";
 import i18next from "i18next";
 
 const CARPET_MAX_TARGETS = 10;
 const GRID_MAX_SIDE = 5;
+
+// Damage zone with cover: RGBA of the cells where a round on the target kills, wounds, or would
+// wound a soldier hidden by the terrain or a building
+const COVER_COLORS = {
+    kill: [231, 76, 60, 120],
+    wound: [243, 156, 18, 80],
+    covered: [52, 152, 219, 140],
+};
+
+// Grid step of the damage zone, in meters: finer for small explosions, coarser above COARSE_RADIUS
+const COVER_CELL = 0.5;
+const COVER_CELL_COARSE = 1;
+const COARSE_RADIUS = 30;
+
+// Confidence the rounds-to-kill count is computed for
+const ROUNDS_CONFIDENCE = 0.9;
 
 export const squadTargetMarker = squadMarker.extend({
 
@@ -19,6 +36,11 @@ export const squadTargetMarker = squadMarker.extend({
         squadMarker.prototype.initialize.call(this, latlng, options, map);
 
         if (options.uid) this.fromSession = true;
+
+        // Bursts marked to correct the fire of the first weapon (addImpact), and the damage zone image
+        this.impacts = [];
+        this.coverOverlay = null;
+        this.coverSignature = null;
         
         let popUpOptions_weapon1 = {
             autoPan: false,
@@ -85,7 +107,7 @@ export const squadTargetMarker = squadMarker.extend({
         // Create marker
         this.addTo(this.map.activeTargetsMarkers);
         this.miniCircle = new CircleMarker(latlng, this.miniCircleOptions).addTo(this.map.markersGroup);
-        this.firingSolution1 = new SquadFiringSolution(this.map.activeWeaponsMarkers.getLayers()[0].getLatLng(), this.getLatLng(), this.map, this.map.activeWeaponsMarkers.getLayers()[0].heightPadding);
+        this.firingSolution1 = new SquadFiringSolution(this.map.activeWeaponsMarkers.getLayers()[0].getLatLng(), this.getAimLatLng(), this.map, this.map.activeWeaponsMarkers.getLayers()[0].heightPadding, this.getLatLng());
 
         // Report target to squadcalc API
         if (!options.uid && !options.skipApiReport && App.activeWeapon.heatmap) {
@@ -198,6 +220,8 @@ export const squadTargetMarker = squadMarker.extend({
         this.hundredDamageRadius.removeFrom(this.map.markersGroup).remove();
         this.twentyFiveDamageRadius.removeFrom(this.map.markersGroup).remove();
         this.posPopUp.removeFrom(this.map.markersGroup).remove();
+        this.impacts.forEach((impact) => this.removeImpactLayers(impact));
+        this.removeCoverZone();
 
         this.grid.clear();
         this.removeLineToTarget();
@@ -325,6 +349,8 @@ export const squadTargetMarker = squadMarker.extend({
         }
 
         content += formatObstacles(shownArcs);
+        content += this.formatRounds(firingSolution, shownArcs);
+        if (firingSolution === this.firingSolution1) content += this.formatCorrection();
 
         if (App.userSettings.showBearing) content += `<br><span class=bearingUiCalc>${BEARING.toFixed(1)}<span data-i18n="common:°">${i18next.t("common:°")}</span></span>`;
         if (App.userSettings.showTimeOfFlight) content += `<br><span class=bearingUiCalc>${timeOfFlight}</span>`;
@@ -400,6 +426,7 @@ export const squadTargetMarker = squadMarker.extend({
     disableDamageRadii: function() {
         this.hundredDamageRadius.setStyle(this.spreadOptionsOff);
         this.twentyFiveDamageRadius.setStyle(this.spreadOptionsOff);
+        this.removeCoverZone();
     },
 
 
@@ -487,6 +514,226 @@ export const squadTargetMarker = squadMarker.extend({
         this.twentyFiveDamageRadius.setStyle(this.twentyFiveDamageCircleOn);
         this.hundredDamageRadius.setTilt(baseBearing);
         this.twentyFiveDamageRadius.setTilt(baseBearing);
+        this.updateCoverZone();
+    },
+
+
+    /**
+     * Heights around a point, for squadDamage.js: `(east, north)` meters from `center` -> meters.
+     * Flat ground without the precise game heightmap: the 8-bit one (steps up to 2 m) would make cover up.
+     * @param {LatLng} center
+     * @returns {function(number, number): number}
+     */
+    heightAround: function(center) {
+        const heightmap = this.map.heightmap;
+        if (!heightmap?.precise) return () => 0;
+        const scale = this.map.mapToGameScale;
+        return (east, north) => heightmap.getHeight({ lat: center.lat + north / scale, lng: center.lng + east / scale });
+    },
+
+
+    /**
+     * Whether the active weapon's explosion is shown on targets (damage zone, rounds to kill)
+     * @returns {boolean}
+     */
+    showsExplosion: function() {
+        const explosion = App.activeWeapon.explosion;
+        return Boolean(App.userSettings.damageRadius && explosion && explosion.outer > 0 && App.activeWeapon.type !== "directFire");
+    },
+
+
+    /**
+     * Draw where a round on the target kills, wounds, or is stopped by cover (squadDamage.damageField),
+     * inside the damage circles. Needs the precise heightmap; recomputed only when the target, the
+     * shell or the map changed, and hidden while the target is dragged.
+     */
+    updateCoverZone: function() {
+        if (!this.showsExplosion() || this.isDragging || !this.map.heightmap?.precise) {
+            this.removeCoverZone();
+            return;
+        }
+
+        const explosion = App.activeWeapon.explosion;
+        const center = this.getLatLng();
+        const signature = [this.map.activeMap.name, center.lat, center.lng, JSON.stringify(explosion)].join("|");
+        if (this.coverOverlay && signature === this.coverSignature) return;
+        this.removeCoverZone();
+        this.coverSignature = signature;
+
+        const cell = explosion.outer > COARSE_RADIUS ? COVER_CELL_COARSE : COVER_CELL;
+        const field = damageField(this.heightAround(center), explosion, cell);
+        const pixels = new Uint8ClampedArray(field.size * field.size * 4);
+        for (let i = 0; i < field.damage.length; i++) {
+            let color = null;
+            if (field.damage[i] >= KILL_DAMAGE) color = COVER_COLORS.kill;
+            else if (field.damage[i] >= WOUND_DAMAGE) color = COVER_COLORS.wound;
+            else if (field.exposed[i] >= WOUND_DAMAGE) color = COVER_COLORS.covered;
+            if (color) pixels.set(color, i * 4);
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = field.size;
+        canvas.getContext("2d").putImageData(new ImageData(pixels, field.size, field.size), 0, 0);
+        const half = (field.size * cell) / 2 / this.map.mapToGameScale;
+        const bounds = new LatLngBounds([center.lat - half, center.lng - half], [center.lat + half, center.lng + half]);
+        this.coverOverlay = new ImageOverlay(canvas.toDataURL(), bounds, { className: "coverZoneOverlay", interactive: false })
+            .addTo(this.map.markersGroup);
+    },
+
+
+    removeCoverZone: function() {
+        if (this.coverOverlay) this.map.markersGroup.removeLayer(this.coverOverlay);
+        this.coverOverlay = null;
+        this.coverSignature = null;
+    },
+
+
+    /**
+     * Popup line with the rounds to fire so that one kills (☠), or at least wounds (🩸), a soldier
+     * standing on the target with ROUNDS_CONFIDENCE, given the spread and the cover around it
+     * @param {SquadFiringSolution} firingSolution
+     * @param {string[]} arcs - "low" / "high" in the order they are shown; the first one that reaches counts
+     * @returns {string} - HTML line, empty when the weapon's explosion is not shown
+     */
+    formatRounds: function(firingSolution, arcs) {
+        if (!this.showsExplosion()) return "";
+        const arc = arcs.find((angle) => !isNaN(firingSolution.elevation[angle]?.rad));
+        if (!arc) return "";
+
+        // The spread ellipse has half the axes of getSpreadParameter (updateSpread draws it so), shown or not
+        const spread = firingSolution.spreadParameters[arc];
+        const lateral = (spread.semiMajorAxis || 0) / 2;
+        const along = (spread.semiMinorAxis || 0) / 2;
+        const { kill, wound } = hitProbability(this.heightAround(this.getLatLng()), App.activeWeapon.explosion, lateral, along, firingSolution.bearing);
+        const rounds = (probability) => {
+            const count = roundsNeeded(probability, ROUNDS_CONFIDENCE);
+            return Number.isFinite(count) ? count : "—";
+        };
+        return `<br><span class="calcRounds">☠ ${rounds(kill)} · 🩸 ${rounds(wound)}</span>`;
+    },
+
+
+    /**
+     * Popup line of the fire correction: bursts marked and how far the aim moved off the target
+     * @returns {string} - HTML line, empty without marked bursts
+     */
+    formatCorrection: function() {
+        if (!this.impacts.length) return "";
+        const { range, bearing } = this.getCorrection();
+        const signed = (value, digits) => `${value >= 0 ? "+" : "−"}${Math.abs(value).toFixed(digits)}`;
+        const meters = `<span data-i18n="common:m">${i18next.t("common:m")}</span>`;
+        return `<br><span class="calcCorrection">↻${this.impacts.length} ${signed(-range, 0)}${meters} ${signed(-bearing, 1)}°</span>`;
+    },
+
+
+    /**
+     * Distance in meters and bearing in degrees (clockwise from north) from one point to another
+     * @param {LatLng} origin
+     * @param {LatLng} latlng
+     * @returns {{distance: number, bearing: number}}
+     */
+    polarFrom: function(origin, latlng) {
+        const north = (latlng.lat - origin.lat) * this.map.mapToGameScale;
+        const east = (latlng.lng - origin.lng) * this.map.mapToGameScale;
+        let bearing = Math.atan2(east, north) * 180 / Math.PI;
+        if (bearing < 0) bearing += 360;
+        return { distance: Math.hypot(east, north), bearing };
+    },
+
+
+    /**
+     * Point at a distance and bearing from another
+     * @param {LatLng} origin
+     * @param {number} distance - meters
+     * @param {number} bearing - degrees clockwise from north
+     * @returns {{lat: number, lng: number}}
+     */
+    latLngAt: function(origin, distance, bearing) {
+        const rad = bearing * Math.PI / 180;
+        return {
+            lat: origin.lat + (distance * Math.cos(rad)) / this.map.mapToGameScale,
+            lng: origin.lng + (distance * Math.sin(rad)) / this.map.mapToGameScale,
+        };
+    },
+
+
+    /**
+     * Mean error of the marked bursts in range and bearing from the first weapon: where its rounds
+     * land relative to where it aims. Averaging the bursts cancels most of the spread.
+     * @returns {{range: number, bearing: number}} - meters (+ = long), degrees (+ = clockwise)
+     */
+    getCorrection: function() {
+        const count = this.impacts.length;
+        return {
+            range: this.impacts.reduce((sum, impact) => sum + impact.range, 0) / count,
+            bearing: this.impacts.reduce((sum, impact) => sum + impact.bearing, 0) / count,
+        };
+    },
+
+
+    /**
+     * Point the first weapon aims at: the target moved against the mean error of the marked bursts,
+     * in range and bearing from the weapon, so the correction still holds when the target moves
+     * @returns {LatLng|{lat: number, lng: number}}
+     */
+    getAimLatLng: function() {
+        const weapon = this.map.activeWeaponsMarkers.getLayers()[0];
+        if (!this.impacts.length || !weapon) return this.getLatLng();
+        const { range, bearing } = this.getCorrection();
+        const target = this.polarFrom(weapon.getLatLng(), this.getLatLng());
+        return this.latLngAt(weapon.getLatLng(), target.distance - range, target.bearing - bearing);
+    },
+
+
+    /**
+     * Mark where a round of the first weapon burst (Ctrl + double-click on the map, squadMinimap):
+     * its error from the point aimed at is added to the correction and the solution is recomputed.
+     * Right-click on the burst removes it.
+     * @param {LatLng} latlng - where the round burst
+     */
+    addImpact: function(latlng) {
+        const weapon = this.map.activeWeaponsMarkers.getLayers()[0];
+        if (!weapon) return;
+
+        const aim = this.polarFrom(weapon.getLatLng(), this.getAimLatLng());
+        const burst = this.polarFrom(weapon.getLatLng(), latlng);
+        const impact = {
+            latlng,
+            range: burst.distance - aim.distance,
+            bearing: ((burst.bearing - aim.bearing + 540) % 360) - 180,
+        };
+        impact.marker = new CircleMarker(latlng, {
+            radius: 5, color: "#f39c12", weight: 2, fillOpacity: 0.6, bubblingPointerEvents: false,
+        }).addTo(this.map.markersGroup);
+        impact.line = new Polyline([latlng, this.getLatLng()], {
+            color: "#f39c12", weight: 1.5, opacity: 0.8, dashArray: "4 4", interactive: false, showMeasurements: false,
+        }).addTo(this.map.markersGroup);
+        impact.marker.on("contextmenu", (event) => {
+            event.originalEvent.preventDefault();
+            this.removeImpact(impact);
+        });
+
+        this.impacts.push(impact);
+        this.updateCalc(true);
+        this.updateIcon();
+    },
+
+
+    /**
+     * Remove a marked burst and recompute the correction without it
+     * @param {object} impact - an entry of `impacts`
+     */
+    removeImpact: function(impact) {
+        this.removeImpactLayers(impact);
+        this.impacts = this.impacts.filter((other) => other !== impact);
+        this.updateCalc(true);
+        this.updateIcon();
+    },
+
+
+    removeImpactLayers: function(impact) {
+        this.map.markersGroup.removeLayer(impact.marker);
+        this.map.markersGroup.removeLayer(impact.line);
     },
 
 
@@ -495,7 +742,7 @@ export const squadTargetMarker = squadMarker.extend({
     */
     updateCalc: function(copy = false){
         let clipboard;
-        this.firingSolution1 = new SquadFiringSolution(this.map.activeWeaponsMarkers.getLayers()[0].getLatLng(), this.getLatLng(), this.map, this.map.activeWeaponsMarkers.getLayers()[0].heightPadding);
+        this.firingSolution1 = new SquadFiringSolution(this.map.activeWeaponsMarkers.getLayers()[0].getLatLng(), this.getAimLatLng(), this.map, this.map.activeWeaponsMarkers.getLayers()[0].heightPadding, this.getLatLng());
         const [html1, clipboard1] = this.getContent(this.firingSolution1, this.map.activeWeaponsMarkers.getLayers()[0].angleType);
         this.calcMarker1.setContent(html1);
         clipboard = clipboard1;
@@ -652,6 +899,7 @@ export const squadTargetMarker = squadMarker.extend({
         this.miniCircle.setLatLng(event.latlng);
         this.hundredDamageRadius.setLatLng(event.latlng);
         this.twentyFiveDamageRadius.setLatLng(event.latlng);
+        this.impacts.forEach((impact) => impact.line.setLatLngs([impact.latlng, event.latlng]));
         this.grid.clear();
 
         // Update Position PopUp Content
