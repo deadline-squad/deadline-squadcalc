@@ -121,7 +121,9 @@ export default async (env) => {
                     vendor: {
                         test: /[\\/]node_modules[\\/]/,
                         name: 'vendors',
-                        chunks: 'all',
+                        // The page only: the heightmap worker (src/js/heightmapWorker.js) keeps its few
+                        // modules in its own chunk instead of importing every vendor chunk of the page
+                        chunks: (chunk) => chunk.name === 'main',
                         maxSize: env.WEBPACK_BUILD ? 50000 : Infinity,
                     },
                 },
