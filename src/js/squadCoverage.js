@@ -280,14 +280,12 @@ export default class SquadCoverage {
     compute(weaponMarker, weapon) {
         const generation = ++this.generation;
         const map = this.map;
-        const scale = map.mapToGameScale;
         const origin = weaponMarker.getLatLng();
 
-        const heightAt = (east, north) => map.heightmap.getHeight({ lat: origin.lat + north / scale, lng: origin.lng + east / scale });
+        const heightAt = (east, north) => map.heightmap.getHeight(map.fromMeters(origin, east, north));
         // The map spans lat [-pixelSize, 0] and lng [0, pixelSize]
         const inside = (east, north) => {
-            const lat = origin.lat + north / scale;
-            const lng = origin.lng + east / scale;
+            const { lat, lng } = map.fromMeters(origin, east, north);
             return lat <= 0 && lat >= -map.pixelSize && lng >= 0 && lng <= map.pixelSize;
         };
 
@@ -338,8 +336,8 @@ export default class SquadCoverage {
         canvas.width = canvas.height = size;
         canvas.getContext("2d").putImageData(new ImageData(pixels, size, size), 0, 0);
 
-        const half = (size * cell) / 2 / this.map.mapToGameScale;
-        const bounds = new LatLngBounds([origin.lat - half, origin.lng - half], [origin.lat + half, origin.lng + half]);
+        const half = (size * cell) / 2;
+        const bounds = new LatLngBounds(this.map.fromMeters(origin, -half, -half), this.map.fromMeters(origin, half, half));
 
         if (this.overlay) this.overlay.remove();
         this.overlay = new ImageOverlay(canvas.toDataURL(), bounds, { className: "coverageOverlay", interactive: false, zIndex: COVERAGE_Z_INDEX }).addTo(this.map);

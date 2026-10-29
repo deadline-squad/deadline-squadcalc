@@ -1501,8 +1501,8 @@ export default class SquadCalc {
             return 1;
         }
 
-        aPos = {lat: -aPos.lng * this.minimap.gameToMapScale, lng: aPos.lat * this.minimap.gameToMapScale};
-        bPos = {lat: -bPos.lng * this.minimap.gameToMapScale, lng: bPos.lat * this.minimap.gameToMapScale};
+        aPos = {lat: -aPos.lng * this.minimap.gameToMapScaleY, lng: aPos.lat * this.minimap.gameToMapScale};
+        bPos = {lat: -bPos.lng * this.minimap.gameToMapScaleY, lng: bPos.lat * this.minimap.gameToMapScale};
 
         let firingSolution = new SquadFiringSolution(aPos, bPos, this.minimap, 0);
 

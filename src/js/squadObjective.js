@@ -212,7 +212,7 @@ export class SquadObjective {
 
         // Capzone location whatever shape it has
         let location_x = -(cap.location_x - this.layer.offset_x) / 100 * -this.layer.map.gameToMapScale;
-        let location_y = (cap.location_y - this.layer.offset_y) / 100 * -this.layer.map.gameToMapScale;
+        let location_y = (cap.location_y - this.layer.offset_y) / 100 * -this.layer.map.gameToMapScaleY;
 
         // Capzone is a Sphere
         if (cap.isSphere) {
@@ -245,11 +245,11 @@ export class SquadObjective {
             // Cap radiis
             if (cap.isBox) {
                 rectangleRadiusX = (cap.boxExtent.extent_x / 100) * cap.boxExtent.scaling_x * -this.layer.map.gameToMapScale;
-                rectangleRadiusY = (cap.boxExtent.extent_y / 100) * cap.boxExtent.scaling_y * -this.layer.map.gameToMapScale;
+                rectangleRadiusY = (cap.boxExtent.extent_y / 100) * cap.boxExtent.scaling_y * -this.layer.map.gameToMapScaleY;
             }
             else if (cap.isCapsule) {
                 rectangleRadiusX = cap.capsuleRadius / 100 * -this.layer.map.gameToMapScale;
-                rectangleRadiusY = (cap.capsuleLength - cap.capsuleRadius) / 100 * -this.layer.map.gameToMapScale;
+                rectangleRadiusY = (cap.capsuleLength - cap.capsuleRadius) / 100 * -this.layer.map.gameToMapScaleY;
             }
 
             // Cap Zone bounds

@@ -246,7 +246,6 @@ export const squadWeaponMarker = squadMarker.extend({
         const weaponPos = this.getLatLng();
         const G = App.gravity * App.activeWeapon.gravityScale;
         const estimatedMaxDistance = App.activeWeapon.getMaxDistance();
-        const degreesPerMeter = this.map.gameToMapScale;
         const weaponHeight = this.map.heightmap.getHeight(weaponPos) + this.heightPadding;
         const points = [];
 
@@ -285,10 +284,9 @@ export const squadWeaponMarker = squadMarker.extend({
             while (right - left > maxRangeTreshold) {
                 const mid = Math.floor((left + right) / 2);
                 const currentVelocity = App.activeWeapon.getVelocity(mid);
-                const deltaLat = mid * Math.cos(angle) * degreesPerMeter;
-                const deltaLng = mid * Math.sin(angle) * degreesPerMeter;
-                let landingX = weaponPos.lat + deltaLat;
-                let landingY = weaponPos.lng + deltaLng;
+                const landing = this.map.fromMeters(weaponPos, mid * Math.sin(angle), mid * Math.cos(angle));
+                let landingX = landing.lat;
+                let landingY = landing.lng;
                 const landingHeight = this.map.heightmap.getHeight({ lat: landingX, lng: landingY });
                 let hitObstacle = false;
                 let noHit = false;
@@ -324,8 +322,7 @@ export const squadWeaponMarker = squadMarker.extend({
                 }
             }
             if (!foundMaxDistance) {
-                let finalLat = weaponPos.lat + right * Math.cos(angle) * degreesPerMeter;
-                let finalLng = weaponPos.lng + right * Math.sin(angle) * degreesPerMeter;
+                let { lat: finalLat, lng: finalLng } = this.map.fromMeters(weaponPos, right * Math.sin(angle), right * Math.cos(angle));
                 if (finalLat < -this.map.pixelSize) {finalLat = -this.map.pixelSize;}
                 if (finalLat > 0) {finalLat = 0;}
                 if (finalLng > this.map.pixelSize) {finalLng = this.map.pixelSize;}
@@ -550,7 +547,7 @@ export const squadWeaponMarker = squadMarker.extend({
         const pos = App.getPos(kp);
         if (Number.isNaN(pos.lat) || Number.isNaN(pos.lng)) return false;
 
-        let latlng = { lat: -pos.lng * this.map.gameToMapScale, lng: pos.lat * this.map.gameToMapScale };
+        let latlng = { lat: -pos.lng * this.map.gameToMapScaleY, lng: pos.lat * this.map.gameToMapScale };
         latlng = this.keepOnMap({ latlng }).latlng;
 
         this.setLatLng(latlng);

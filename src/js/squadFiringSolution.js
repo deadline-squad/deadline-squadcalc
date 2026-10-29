@@ -110,14 +110,14 @@ export default class SquadFiringSolution {
 
 
     /**
-     * Calculate ingame distance between weapon & target
+     * Calculate ingame distance between weapon & target, each map axis with its own scale
+     * (squadMinimap.toMeters)
      * https://github.com/sh4rkman/SquadCalc/wiki/Deducing-distance-and-bearing#finding-distance
-     * @return {number} - distance in meter
+     * @return {number} - horizontal distance in meters
      */
     getDist(){
-        const latDelta = (this.targetLatLng.lat - this.weaponLatLng.lat) * -this.map.mapToGameScale;
-        const lngDelta = (this.targetLatLng.lng - this.weaponLatLng.lng) * this.map.mapToGameScale;
-        return Math.hypot(latDelta, lngDelta);
+        const { east, north } = this.map.toMeters(this.weaponLatLng, this.targetLatLng);
+        return Math.hypot(east, north);
     }
 
     /**
@@ -173,14 +173,14 @@ export default class SquadFiringSolution {
 
 
     /**
-     * Calculates the bearing required to see point B from point A.
+     * Calculates the bearing required to see the target from the weapon, each map axis with its own
+     * scale (squadMinimap.toMeters).
      * https://github.com/sh4rkman/SquadCalc/wiki/Deducing-distance-and-bearing#finding-bearing
-     * @returns {number} - bearing required to see B from A
+     * @returns {number} - bearing in degrees, clockwise from north, in [0, 360)
      */
     getBearing() {
-        const latDelta = (this.targetLatLng.lat - this.weaponLatLng.lat) * -this.map.mapToGameScale;
-        const lngDelta = (this.targetLatLng.lng - this.weaponLatLng.lng) * this.map.mapToGameScale;
-        let bearing = Math.atan2(latDelta, lngDelta) * 180 / Math.PI + 90;
+        const { east, north } = this.map.toMeters(this.weaponLatLng, this.targetLatLng);
+        let bearing = Math.atan2(east, north) * 180 / Math.PI;
         if (bearing < 0) { bearing += 360; } // Avoid Negative Angle by adding a whole rotation
         return bearing;
     }
