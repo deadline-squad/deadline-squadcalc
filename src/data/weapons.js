@@ -547,9 +547,15 @@ export var WEAPONS = [
         // `holdElevation` and the key lowers it at `elevationRate` deg/s down to its bottom.
         // Fired directly (low trajectory) by aiming through the sight like any direct-fire weapon:
         // `minElevation` is the whole range of the barrel.
-        // Muzzle velocity (185 m/s), gravityScale (1.8), projectile lifespan (40 s), spread (1.5 MOA)
-        // and explosion (1.5-18 m, 0.08 m above the impact) are read from the game files
-        // (BP_AGS-17_Weapon WeaponConfig, BP_30mm_VOG19_Proj, Squad build 26005357).
+        // Muzzle velocity (185 m/s), gravityScale (1.8), projectile lifespan (40 s) and explosion
+        // (1.5-18 m, 0.08 m above the impact) are read from the game files (BP_AGS-17_Weapon
+        // WeaponConfig, BP_30mm_VOG19_Proj, Squad build 26005357).
+        // Spread: the WeaponConfig sets MOACurve FC_MOACurve_GenericGMG, cubic from 15 MOA at 0 to
+        // 50 MOA at 0.75, over the base MOA of 1.5. Its input is the weapon's dynamic MOA, which grows
+        // with each shot and decays between bursts (DynamicMOAGain/DecayMultiplier); the exact
+        // rule is native code. The vehicle grenade launchers set the same two values as fixed MOA
+        // (BTR-4 KBA-117: 15, M1117 Mk19: 50). Drawn with 50 MOA, the spread of a sustained burst:
+        // the area every grenade can land in (a first, rested shot spreads 15 MOA).
         // The top angle and rate were fitted by least squares on 67 in-game hold-time/distance
         // measurements (0 s -> 280 m, 4.1 s -> 1930 m, 7 m RMS error); the lowest elevation keeps
         // the longest measured hold (4.19 s).
@@ -567,7 +573,7 @@ export var WEAPONS = [
             name: "default",
             minDistance: 280,
             velocity: 185,
-            moa: 1.5,
+            moa: 50,
             explosionDamage: 115,
             explosionRadius: [1.5, 18],
             explosionDistanceFromImpact: 0.08,
