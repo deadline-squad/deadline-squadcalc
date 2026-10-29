@@ -1,3 +1,19 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.5.1** *(2026-10-29)*
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- Weapons and targets placed while the map's heightmap was still loading kept a solution computed on flat ground (wrong elevation, no damage zone) until moved; they are now solved again as soon as the heights arrive. Sessions and imported maps also wait for these heights
+- Turning the damage radius off now also removes the rounds-to-kill line from the popups
+- Bursts marked for fire correction are cleared when the weapon, its shell or the first weapon marker changes, instead of correcting a weapon that never fired them
+- The damage zone and the fire coverage no longer disappear under the map after switching the map layer with standard-quality images
+- No more missing marker-icon.png / marker-shadow.png requests (404) when placing weapons and targets
+
+</br><img src="https://img.shields.io/badge/-%20improv%20-orange"> 
+- Switching maps no longer freezes the page while the heightmap is decoded (up to 3.5 s on Yehorivka, now done in the background) and the heights take half the memory
+- Hovering a target no longer recomputes the damage zones of all the others when the mouse leaves it
+- The old 8-bit heightmap.json (2.2 MB per map) is no longer downloaded
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.5.0** *(2026-10-29)*
 
 </br><img src="https://img.shields.io/badge/-new%20features-green">
