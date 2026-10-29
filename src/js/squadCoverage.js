@@ -25,7 +25,7 @@ const COLORS = {
 };
 
 // Muzzle height of handheld weapons (shoulder), for weapons without heightOffset
-const SHOULDER_HEIGHT = 1.5;
+export const SHOULDER_HEIGHT = 1.5;
 
 // The terrain this close to the muzzle is the weapon's own spot (heightmap noise, the wall it leans on)
 export const MUZZLE_CLEARANCE = 3;
