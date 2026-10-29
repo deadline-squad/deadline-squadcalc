@@ -2,6 +2,7 @@
     "basemode": "基础地图",
     "terrainmode": "地势图",
     "topographicmode": "地形图",
+    "detailedmode": "详细地图",
     "helpmode": "显示大家都在用的武器位置",
     "focusMode": "专注模式",
     "enterToExit": "按 'Enter' 退出",

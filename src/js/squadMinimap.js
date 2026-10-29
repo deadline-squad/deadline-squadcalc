@@ -22,6 +22,12 @@ import "./libs/leaflet-imageoverlay-rotated.js";
 // Ctrl + double-click marks a burst for the nearest target within this distance, in meters
 const IMPACT_MAX_DISTANCE = 200;
 
+// Deepest zoom of the map images served by the upstream API
+const DEFAULT_MAX_ZOOM = 8;
+
+// Zoom levels the detailed layer allows beyond its finest tiles (Leaflet scales those up)
+const DETAILED_EXTRA_ZOOM = 2;
+
 /**
  * Squad Minimap
  * Custom Leaflet Map for Squad, managing basemaps, mouse behaviours, and more
@@ -46,7 +52,7 @@ export const squadMinimap = Map.extend({
             closePopupOnClick: false,
             crs: CRS.Simple,
             doubleClickZoom: false,
-            maxZoom: 8,
+            maxZoom: DEFAULT_MAX_ZOOM,
             minZoom: 1,
             renderer: new SVG({ padding: 3}),
             zoom: 2,
@@ -81,6 +87,9 @@ export const squadMinimap = Map.extend({
         this.activeCircles = [];
         this.activePolylines = [];
         this.layerGroup = new LayerGroup().addTo(this);
+        // Requests for the detailed tiles' meta.json by map folder, and the number of the latest layer change
+        this.detailedTiles = {};
+        this.layerRequest = 0;
         this.markersGroup = new LayerGroup().addTo(this);
         this.history = [];
         this.mouseLocationPopup = new Popup({
@@ -150,57 +159,25 @@ export const squadMinimap = Map.extend({
 
 
     /**
-     * remove existing layer and replace it
+     * Remove the existing map image and replace it with the one of the layer selected in #mapLayerMenu:
+     * an upstream image (basemap, terrainmap, topomap) or the detailed tactical tiles of this deployment
+     * (see showDetailedLayer)
+     * @param {boolean} [changemap] - the map changed: also redraw the grid and the heatmap
      */
     changeLayer: function(changemap = false) {
         const LAYERMODE = $("#mapLayerMenu .active").attr("value");
         const OLDLAYER = this.activeLayer;
+        const request = ++this.layerRequest;
 
         // Show spinner
         this.spin(true, this.spinOptions);
 
-        let imagePath = `${this.activeMap.mapURL}${LAYERMODE}`;
-
-        if (App.userSettings.highQualityImages) {
-            // Use TileLayer for high-quality images
-            let tilePath = `${process.env.API_URL}${imagePath}_hq/{z}_{x}_{y}.webp`;
-            this.activeLayer = new TileLayer(tilePath, {
-                bounds: this.imageBounds,
-                minNativeZoom: 0,
-                maxNativeZoom : 5,
-                edgeBufferTiles: 4,
-                tileSize: 256,
-            });
-            this.activeLayer.addTo(this.layerGroup);
+        if (LAYERMODE === "detailed") {
+            this.showDetailedLayer(OLDLAYER, request);
         } else {
-            // Use ImageOverlay for standard images
-            imagePath = `${process.env.API_URL}${imagePath}.webp`;
-            this.activeLayer = new ImageOverlay(imagePath, this.imageBounds);
-            this.activeLayer.addTo(this.layerGroup);
-            $(this.activeLayer.getElement()).css("opacity", 0);
+            this.setMaxZoom(DEFAULT_MAX_ZOOM);
+            this.showMapImage(this.upstreamLayer(LAYERMODE), OLDLAYER);
         }
-    
-
-        this.activeLayer.once("load", () => {
-            if (App.userSettings.highQualityImages) {
-                if (OLDLAYER) OLDLAYER.remove();
-                this.spin(false);
-            }
-            else {
-                // Animate the opacity of the new layer
-                $(this.activeLayer.getElement()).fadeTo(700, 1, () => {
-                    if (OLDLAYER) OLDLAYER.remove();
-                    this.spin(false);
-                });
-            }
-        });
-
-        this.activeLayer.once("error", (e) => {
-            console.error("Error loading", e.sourceTarget._url);
-            if (OLDLAYER) OLDLAYER.remove();
-            this.spin(false);
-        });
-
 
         // Show grid and heatmap
         if (changemap) {
@@ -208,6 +185,96 @@ export const squadMinimap = Map.extend({
             this.toggleHeatmap();
         }
 
+    },
+
+
+    /**
+     * Map image of an upstream layer from the SquadCalc API
+     * @param {string} layerMode - basemap, terrainmap or topomap
+     * @returns {TileLayer|ImageOverlay} - 256 px tiles (zoom 0..5) in high quality mode, else one image
+     */
+    upstreamLayer: function(layerMode) {
+        const imagePath = `${process.env.API_URL}${this.activeMap.mapURL}${layerMode}`;
+        if (App.userSettings.highQualityImages) {
+            return new TileLayer(`${imagePath}_hq/{z}_{x}_{y}.webp`, {
+                bounds: this.imageBounds,
+                minNativeZoom: 0,
+                maxNativeZoom : 5,
+                edgeBufferTiles: 4,
+                tileSize: 256,
+            });
+        }
+        return new ImageOverlay(`${imagePath}.webp`, this.imageBounds);
+    },
+
+
+    /**
+     * Show the detailed tactical map of the active map: 256 px webp tiles generated from the game files
+     * (terrain cover, hillshade, contours, foliage, buildings; tools/maptiles in the deployment repository),
+     * served by this deployment in /maptiles/<map>/ with their meta.json ({maxNativeZoom, generated, ...}).
+     * The map may then zoom DETAILED_EXTRA_ZOOM levels past the finest tiles. A map without tiles shows the
+     * upstream topographic map instead.
+     * @param {TileLayer|ImageOverlay} [oldLayer] - layer to remove once the new one loaded
+     * @param {number} request - number of this layer change; a later change or map switch wins
+     */
+    showDetailedLayer: function(oldLayer, request) {
+        const mapName = this.activeMap.mapURL.split("/").filter(Boolean).pop();
+        if (!this.detailedTiles[mapName]) {
+            this.detailedTiles[mapName] = fetch(`/maptiles/${mapName}/meta.json`, { cache: "no-cache" })
+                .then((response) => response.ok ? response.json() : null)
+                .catch(() => null);
+        }
+        this.detailedTiles[mapName].then((meta) => {
+            if (request !== this.layerRequest) return;
+            if (!meta) {
+                console.warn(`[MAP] No detailed tiles for ${mapName}, showing the topographic map`);
+                this.setMaxZoom(DEFAULT_MAX_ZOOM);
+                this.showMapImage(this.upstreamLayer("topomap"), oldLayer);
+                return;
+            }
+            const version = encodeURIComponent(meta.generated);
+            this.setMaxZoom(Math.max(DEFAULT_MAX_ZOOM, meta.maxNativeZoom + DETAILED_EXTRA_ZOOM));
+            this.showMapImage(new TileLayer(`/maptiles/${mapName}/{z}/{x}_{y}.webp?v=${version}`, {
+                bounds: this.imageBounds,
+                minNativeZoom: meta.minNativeZoom,
+                maxNativeZoom: meta.maxNativeZoom,
+                edgeBufferTiles: 2,
+                tileSize: meta.tileSize,
+            }), oldLayer);
+        });
+    },
+
+
+    /**
+     * Add a map image under the markers and remove the previous one once it loaded; a single image fades in
+     * @param {TileLayer|ImageOverlay} layer - new map image
+     * @param {TileLayer|ImageOverlay} [oldLayer] - previous map image
+     */
+    showMapImage: function(layer, oldLayer) {
+        this.activeLayer = layer;
+        layer.addTo(this.layerGroup);
+        const tiled = layer instanceof TileLayer;
+        if (!tiled) $(layer.getElement()).css("opacity", 0);
+
+        layer.once("load", () => {
+            if (tiled) {
+                if (oldLayer) oldLayer.remove();
+                this.spin(false);
+            }
+            else {
+                // Animate the opacity of the new layer
+                $(layer.getElement()).fadeTo(700, 1, () => {
+                    if (oldLayer) oldLayer.remove();
+                    this.spin(false);
+                });
+            }
+        });
+
+        layer.once("error", (e) => {
+            console.error("Error loading", e.sourceTarget._url);
+            if (oldLayer) oldLayer.remove();
+            this.spin(false);
+        });
     },
 
 
