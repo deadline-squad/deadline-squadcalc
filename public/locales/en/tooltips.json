@@ -2,6 +2,7 @@
     "basemode": "Base Map",
     "terrainmode": "Terrain Map",
     "topographicmode": "Topographic Map",
+    "detailedmode": "Detailed Map",
     "helpmode": "Show frequent weapon locations",
     "focusMode": "Focus Mode",
     "enterToExit": "Press 'ENTER' to exit",
