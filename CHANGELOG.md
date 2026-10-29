@@ -1,3 +1,13 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.4.0** *(2026-10-29)*
+
+</br><img src="https://img.shields.io/badge/-new%20features-green">
+- Precise heightmaps built from the game itself (Squad build 26005357): the terrain is the landscape collision read from the game files (0.3 mm steps, every landscape tile) and the buildings, rocks, walls, bridges and road embankments are the collision of every static mesh placed on the map, fused with SquadHeight's trace of the Squad SDK. Heights are 16-bit (about 1.6 cm) instead of 8-bit (up to 2.1 m), and the villages the SDK lacks on some maps are there
+- The target popup strikes through a trajectory that hits the terrain or a building before the target, and shows where (`⛔ 230m (+8m)`): fire the other trajectory or move
+- Weapon ballistics read from the game files: velocity, gravity scale, rocket boost and lifespan of every weapon. AGS-17 185 m/s with gravity ×1.8 (its hold rate refitted on 67 in-game measurements), Challenger 2 HESH 670 m/s, M3 MAAWS 63 m/s boosted to 230 m/s, RPG-7 boosts; weapons that shared an entry but fly differently are split (MGL/M32, AK-40GL, Carl Gustav M2 rounds, ZTD-05, BMD-4M / BMP-3M 30 mm, ZPT99 variants, emplaced M2 / Kord)
+- Squad Ballistics gets the terrain and building profile to each target (bridge version 4) and warns in its overlay when the shot is blocked
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.3.1** *(2026-10-28)*
 
 </br><img src="https://img.shields.io/badge/-new%20features-green">
