@@ -1,5 +1,6 @@
 import { App } from "../app.js";
 import { WEAPONS } from "../data/weapons.js";
+import { maxRange } from "./squadBallistics.js";
 
 // Range shown for weapons without gravity (NLAW): they fly straight, beyond the largest map.
 const NO_GRAVITY_RANGE = 10000;
@@ -71,8 +72,8 @@ export class Weapon {
     /**
      * Equivalent constant velocity over `distance` for a boosted rocket: it accelerates by
      * `acceleration` m/s² during `accelerationTime` s, then keeps its speed.
-     * Same model as Weapon.velocity_at in Squad Ballistics (ballistics.py), so both apps give
-     * the same elevation.
+     * Same as Weapon.velocity_at in Squad Ballistics (ballistics.py). Only the spread uses it: the
+     * elevation, time of flight and range come from the exact trajectory (getShot, squadBallistics.js).
      * @param {number} distance - Distance to the target in meters.
      * @returns {number} - distance / time of flight, in m/s.
      */
@@ -91,6 +92,27 @@ export class Weapon {
         }
 
         return distance / time;
+    }
+
+
+    /**
+     * How the weapon fires, for squadBallistics.js
+     * @param {number} [gravity] - m/s², default the world gravity × this weapon's gravity scale
+     * @param {number} [launchHeight] - pivot height above the ground in meters, default heightOffset
+     *   (the obstacle checks launch handheld weapons from the shoulder)
+     * @returns {import("./squadBallistics.js").Shot}
+     */
+    getShot(gravity = App.gravity * this.gravityScale, launchHeight = this.heightOffset) {
+        const boosted = this.hasBoost();
+        return {
+            velocity: this.velocity,
+            gravity,
+            acceleration: boosted ? this.acceleration : 0,
+            boostTime: boosted ? this.accelerationTime : 0,
+            pivotHeight: launchHeight,
+            muzzleForward: 0,
+            muzzleUp: 0,
+        };
     }
 
 
@@ -146,23 +168,8 @@ export class Weapon {
 
         if (gravity === 0) return NO_GRAVITY_RANGE;
 
-        // Boosted rockets reach a distance while their equivalent velocity v(d) has v(d)² >= g·d
-        // (Weapon.max_range in Squad Ballistics)
-        if (this.hasBoost()) {
-            const reachable = (distance) => this.getBoostVelocity(distance) ** 2 >= gravity * distance;
-            let low = 0;
-            let high = Math.max(this.velocity, this.velocity + this.acceleration * this.accelerationTime) ** 2 / gravity;
-
-            while (reachable(high)) high *= 2;
-
-            for (let i = 0; i < 60; i++) {
-                const mid = (low + high) / 2;
-                if (reachable(mid)) low = mid;
-                else high = mid;
-            }
-
-            return low;
-        }
+        // Boosted rockets: the exact trajectory, from the ground (squadBallistics.maxRange)
+        if (this.hasBoost()) return maxRange(this.getShot(gravity, 0));
 
         // Weapons aimed by key press duration (AGS-17) cannot reach the ideal 45° when
         // their mount stops above it: their range is the one of the lowest hold elevation

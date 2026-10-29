@@ -5,6 +5,7 @@ import i18next from "i18next";
 import { sendMarkerData } from "./squadCalcAPI.js";
 import { v4 as uuidv4 } from "uuid";
 import { animateCSS } from "./animations.js";
+import { heightAt } from "./squadBallistics.js";
 
 
 /*
@@ -245,7 +246,7 @@ export const squadWeaponMarker = squadMarker.extend({
         } = options;
 
         const weaponPos = this.getLatLng();
-        const G = App.gravity * App.activeWeapon.gravityScale;
+        const shot = App.activeWeapon.getShot(App.gravity * App.activeWeapon.gravityScale);
         const estimatedMaxDistance = App.activeWeapon.getMaxDistance();
         const weaponHeight = this.map.heightmap.getHeight(weaponPos) + this.heightPadding;
         const points = [];
@@ -284,7 +285,6 @@ export const squadWeaponMarker = squadMarker.extend({
     
             while (right - left > maxRangeTreshold) {
                 const mid = Math.floor((left + right) / 2);
-                const currentVelocity = App.activeWeapon.getVelocity(mid);
                 const landing = this.map.fromMeters(weaponPos, mid * Math.sin(angle), mid * Math.cos(angle));
                 let landingX = landing.lat;
                 let landingY = landing.lng;
@@ -294,9 +294,7 @@ export const squadWeaponMarker = squadMarker.extend({
                 
                 for (let launchAngle = launchElevation; launchAngle <= maxElevation; launchAngle += turnLaunchAngle) {
                     const launchAngleRadians = ((launchAngle) * Math.PI) / 180;
-                    const time = mid / (currentVelocity * Math.cos(launchAngleRadians));
-                    const yVel = currentVelocity * Math.sin(launchAngleRadians);
-                    const currentHeight = weaponHeight + yVel * time - 0.5 * G * time * time;
+                    const currentHeight = weaponHeight + heightAt(shot, launchAngleRadians, mid);
     
                     if (currentHeight <= landingHeight) {
                         hitObstacle = true;
