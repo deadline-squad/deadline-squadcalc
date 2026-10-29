@@ -20,7 +20,9 @@ export default class SquadHeightmap {
         // One Uint16Array of integer levels per image row (views into one buffer); height = level * step
         this.jsonPng = [];
         this.step = 0;
-        this.scalingPNG = 0;
+        // Heightmap pixels per map unit (LatLng) along X (lng) and Y (lat)
+        this.scalingX = 0;
+        this.scalingY = 0;
         // Whether `jsonPng` holds the precise game heightmap (mm steps), not the 8-bit one (up to 2 m steps)
         this.precise = false;
         this.worker = null;
@@ -70,7 +72,15 @@ export default class SquadHeightmap {
             for (let y = 0; y < height; y++) rows.push(levels.subarray(y * width, (y + 1) * width));
             this.jsonPng = rows;
             this.step = data.step;
-            this.scalingPNG = width / this.map.pixelSize;
+            if (data.precise) {
+                // The precise heightmap samples whole metres from the minimap's corner0 to corner1 (both included):
+                // width = size + 1, height = sizeY + 1, the same scales as the grid (gameToMapScale, gameToMapScaleY)
+                this.scalingX = (width - 1) / this.map.pixelSize;
+                this.scalingY = (height - 1) / this.map.pixelSize;
+            } else {
+                this.scalingX = width / this.map.pixelSize;
+                this.scalingY = this.scalingX;
+            }
             this.precise = data.precise;
             console.debug(`[HEIGHTMAP] Loaded ${data.url} precision: ${(data.step * 100).toFixed(1)}cm`);
             $(document).trigger("heightmapPNG:loaded");
@@ -95,10 +105,10 @@ export default class SquadHeightmap {
      * @returns {number} - height in meters, 0 outside the heightmap or before it loaded
      */
     getHeight(latlng) {
-        if (!this.jsonPng.length || !this.scalingPNG) return 0;
+        if (!this.jsonPng.length || !this.scalingX) return 0;
 
-        const row = Math.round(latlng.lat * -this.scalingPNG);
-        const col = Math.round(latlng.lng * this.scalingPNG);
+        const row = Math.round(latlng.lat * -this.scalingY);
+        const col = Math.round(latlng.lng * this.scalingX);
 
         if (this.jsonPng[row] && typeof this.jsonPng[row][col] !== "undefined") {
             return this.jsonPng[row][col] * this.step;
