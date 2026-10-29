@@ -101,6 +101,15 @@
             .bearingUiCalc {
                 font-size: 0.7em;
             }
+            // A trajectory that hits the terrain or a building before the target
+            .calcBlocked {
+                color: #e74c3c;
+                text-decoration: line-through;
+            }
+            .calcObstacle {
+                font-size: 0.7em;
+                color: #e74c3c;
+            }
             .leaflet-popup-tip,
             .leaflet-popup-content-wrapper {
                 pointer-events: none;

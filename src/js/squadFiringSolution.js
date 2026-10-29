@@ -1,4 +1,8 @@
 import { App } from "../app.js";
+import { MUZZLE_CLEARANCE, TARGET_CLEARANCE } from "./squadCoverage.js";
+
+// Distance between two heightmap samples when looking for an obstacle, in meters (heightmap pixel size)
+const OBSTACLE_STEP = 1;
 
 export default class SquadFiringSolution {
 
@@ -44,6 +48,42 @@ export default class SquadFiringSolution {
         if (App.activeWeapon.elevationRate && isNaN(this.holdTime.high)) {
             this.elevation.high.rad = this.elevation.high.deg = this.elevation.high.mil = NaN;
         }
+
+        this.obstacle = {
+            low: this.getObstacle(this.elevation.low.rad),
+            high: this.getObstacle(this.elevation.high.rad),
+        };
+    }
+
+
+    /**
+     * First point where the trajectory fired at `elevation` passes under the heightmap, which holds the
+     * terrain and the buildings: the shell hits it before the target. Same trajectory as the solution
+     * (muzzle `heightOffset` above the weapon) and the same clearances as the fire coverage.
+     * @param {number} elevation - elevation in radians (NaN: no trajectory)
+     * @returns {{distance: number, height: number}|null} - distance from the weapon and height of the
+     * obstacle above the weapon, in meters; null if the trajectory is clear, NaN or no heightmap loaded
+     */
+    getObstacle(elevation) {
+        if (isNaN(elevation) || !this.map.heightmap?.jsonPng?.length) return null;
+
+        const angle = elevation + this.degToRad(App.activeWeapon.angleOffset);
+        const muzzle = this.weaponHeight + App.activeWeapon.heightOffset;
+        const tan = Math.tan(angle);
+        const drop = this.gravity / (2 * this.velocity ** 2 * Math.cos(angle) ** 2);
+        const latStep = (this.targetLatLng.lat - this.weaponLatLng.lat) / this.distance;
+        const lngStep = (this.targetLatLng.lng - this.weaponLatLng.lng) / this.distance;
+
+        for (let x = MUZZLE_CLEARANCE; x <= this.distance - TARGET_CLEARANCE; x += OBSTACLE_STEP) {
+            const ground = this.map.heightmap.getHeight({
+                lat: this.weaponLatLng.lat + latStep * x,
+                lng: this.weaponLatLng.lng + lngStep * x,
+            });
+            if (muzzle + x * tan - drop * x * x < ground) {
+                return { distance: x, height: ground - this.weaponHeight };
+            }
+        }
+        return null;
     }
 
 

@@ -96,7 +96,8 @@ export default class SquadCalc {
         initOverlayLink();
         // Read by Squad Ballistics (embedded map): it solves the targets for the same weapon
         window.squadBallistics = {
-            version: 3,
+            // 4: targets carry the terrain and building profile to the target
+            version: 4,
             targets: getTargetData,
             // Name of the selected weapon in Squad Ballistics' weapons.json, null if it has none
             weapon: () => this.activeWeapon?.ballistics ?? null,
