@@ -69,7 +69,7 @@ export const squadMinimap = Map.extend({
         this.activeTargetsMarkers = new LayerGroup().addTo(this);
         this.activeWeaponsMarkers = new LayerGroup().addTo(this);
         this.coverage = new SquadCoverage(this);
-        $(document).on("heightmapPNG:loaded", () => this._handleHeightmapLoaded());
+        $(document).on("heightmap:loaded", () => this._handleHeightmapLoaded());
         this.targetGrids = new LayerGroup().addTo(this);
         this.activeMarkers = new LayerGroup().addTo(this);
         this.activeArrowsGroup = new LayerGroup().addTo(this);
@@ -128,9 +128,14 @@ export const squadMinimap = Map.extend({
      */
     draw: function(){
 
+        // The map image is a square of pixelSize units spanning the minimap corners, which are not
+        // square on every map (Skorpo 6849 x 6869 m): lng (world X) and lat (world Y) have their own
+        // scale. A distance in meters is converted with toMeters/fromMeters; the X scale alone only
+        // sizes round shapes (range rings, radii), where the difference is under 0.3 %.
         this.gameToMapScale = this.pixelSize / this.activeMap.size;
         this.gameToMapScaleY = this.pixelSize / this.activeMap.sizeY;
         this.mapToGameScale = this.activeMap.size / this.pixelSize;
+        this.mapToGameScaleY = this.activeMap.sizeY / this.pixelSize;
         this.detailedZoomThreshold = ( 3 + (this.activeMap.size / 7000) ) * 0.8;
        
         // Load Heightmap (stop loading the previous map's one)
@@ -307,8 +312,9 @@ export const squadMinimap = Map.extend({
 
 
     /**
-     * The heights of the active map arrived (squadHeightmap, `heightmapPNG:loaded`): weapons and targets
-     * placed while they loaded were solved on flat ground, so solve them again with the real heights.
+     * The heights of the active map arrived or failed to load (squadHeightmap, `heightmap:loaded`):
+     * weapons and targets placed while they loaded were solved on flat ground, so solve them again with
+     * the real heights, or mark them as having no height data.
      */
     _handleHeightmapLoaded: function(){
         if (!this.activeWeaponsMarkers.getLayers().length) return;
@@ -442,6 +448,35 @@ export const squadMinimap = Map.extend({
 
 
     /**
+     * Offset in meters from one point of the map to another, each axis with its own scale
+     * @param {LatLng|{lat: number, lng: number}} origin
+     * @param {LatLng|{lat: number, lng: number}} latlng
+     * @returns {{east: number, north: number}} - meters towards east (world +X) and north (world -Y)
+     */
+    toMeters: function(origin, latlng) {
+        return {
+            east: (latlng.lng - origin.lng) * this.mapToGameScale,
+            north: (latlng.lat - origin.lat) * this.mapToGameScaleY,
+        };
+    },
+
+
+    /**
+     * Point at an offset in meters from another (inverse of toMeters)
+     * @param {LatLng|{lat: number, lng: number}} origin
+     * @param {number} east - meters towards east (world +X)
+     * @param {number} north - meters towards north (world -Y)
+     * @returns {{lat: number, lng: number}}
+     */
+    fromMeters: function(origin, east, north) {
+        return {
+            lat: origin.lat + north / this.mapToGameScaleY,
+            lng: origin.lng + east / this.mapToGameScale,
+        };
+    },
+
+
+    /**
      * Calculates the keypad coordinates for a given latlng coordinate
      * @param lat - latitude coordinate
      * @param lng - longitude coordinate
@@ -451,7 +486,7 @@ export const squadMinimap = Map.extend({
     getKP: function(lat, lng, precision = Math.round(this.getZoom())) {
         // to minimize confusion
         const x = lng * this.mapToGameScale;
-        const y = lat * this.mapToGameScale;
+        const y = lat * this.mapToGameScaleY;
         const kp = 300 / 3 ** 0; // interval of main keypad, e.g "A5"
         const kpNumber = `0000${Math.floor(y / kp) + 1}`.slice(-2);
         const s1 = 300 / 3 ** 1; // interval of first sub keypad
@@ -689,7 +724,8 @@ export const squadMinimap = Map.extend({
         let nearest = null;
         let best = maxDistance;
         this.activeTargetsMarkers.eachLayer((target) => {
-            const distance = Math.hypot(target.getLatLng().lat - latlng.lat, target.getLatLng().lng - latlng.lng) * this.mapToGameScale;
+            const { east, north } = this.toMeters(latlng, target.getLatLng());
+            const distance = Math.hypot(east, north);
             if (distance <= best) {
                 best = distance;
                 nearest = target;

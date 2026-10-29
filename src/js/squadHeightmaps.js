@@ -1,3 +1,6 @@
+import { App } from "../app.js";
+
+
 /**
  * Squad Heightmap
  * Load an heightmap in memory and calculate heights for given LatLng Points.
@@ -7,6 +10,8 @@
  *   - `heightmapPNG:loaded` when they loaded;
  *   - `heightmap:loaded` after it, also when they failed to load (sessions and imports wait for it
  *     to place their markers).
+ * A failed load shows an error toast and sets `failed`: heights are then 0 everywhere, and the firing
+ * solutions say they have no height data (SquadFiringSolution.hasHeightData).
  * @class squadHeightmap
  */
 export default class SquadHeightmap {
@@ -20,9 +25,13 @@ export default class SquadHeightmap {
         // One Uint16Array of integer levels per image row (views into one buffer); height = level * step
         this.jsonPng = [];
         this.step = 0;
-        this.scalingPNG = 0;
+        // Heightmap pixels per map unit along each axis (see receive)
+        this.colsPerUnit = 0;
+        this.rowsPerUnit = 0;
         // Whether `jsonPng` holds the precise game heightmap (mm steps), not the 8-bit one (up to 2 m steps)
         this.precise = false;
+        // Whether both heightmaps failed to load: every height is 0
+        this.failed = false;
         this.worker = null;
         this.loadHeightmapPNG(`${process.env.API_URL}${this.map.activeMap.mapURL}heightmap.png`);
     }
@@ -64,13 +73,19 @@ export default class SquadHeightmap {
         if (data.error) {
             console.error("[HEIGHTMAP] Failed to load PNG heightmap:", data.url);
             console.error("[HEIGHTMAP]   -> ", data.error);
+            this.failed = true;
+            App.openToast("error", "heightmapFailed", "heightmapFailedDesc");
         } else {
             const { levels, width, height } = data;
             const rows = [];
             for (let y = 0; y < height; y++) rows.push(levels.subarray(y * width, (y + 1) * width));
             this.jsonPng = rows;
             this.step = data.step;
-            this.scalingPNG = width / this.map.pixelSize;
+            // The grid has one sample per meter from the minimap's min corner to its max corner included
+            // (width = map size X + 1, height = size Y + 1: tools/heightmaps meta.json, and SquadCalc's
+            // 8-bit PNGs alike), so its last sample sits on the map's edge, pixelSize units away
+            this.colsPerUnit = (width - 1) / this.map.pixelSize;
+            this.rowsPerUnit = (height - 1) / this.map.pixelSize;
             this.precise = data.precise;
             console.debug(`[HEIGHTMAP] Loaded ${data.url} precision: ${(data.step * 100).toFixed(1)}cm`);
             $(document).trigger("heightmapPNG:loaded");
@@ -89,21 +104,33 @@ export default class SquadHeightmap {
 
 
     /**
-     * Height at a LatLng Point, from the nearest heightmap pixel
+     * Height at a LatLng Point, interpolated bilinearly between the four heightmap samples around it
+     * (row = -lat, col = lng, each scaled to the grid of its axis).
      * https://github.com/sh4rkman/SquadCalc/wiki/Deducing-Altitude
      * @param {LatLng} latlng - LatLng Point
-     * @returns {number} - height in meters, 0 outside the heightmap or before it loaded
+     * @returns {number} - height in meters; 0 more than half a sample outside the heightmap or before
+     *   it loaded (the edge sample within half a sample, like the nearest sample did)
      */
     getHeight(latlng) {
-        if (!this.jsonPng.length || !this.scalingPNG) return 0;
+        const rows = this.jsonPng.length;
+        if (!rows || !this.colsPerUnit) return 0;
+        const cols = this.jsonPng[0].length;
 
-        const row = Math.round(latlng.lat * -this.scalingPNG);
-        const col = Math.round(latlng.lng * this.scalingPNG);
+        let row = latlng.lat * -this.rowsPerUnit;
+        let col = latlng.lng * this.colsPerUnit;
+        if (!(row >= -0.5 && row <= rows - 0.5 && col >= -0.5 && col <= cols - 0.5)) return 0;
+        row = Math.min(Math.max(row, 0), rows - 1);
+        col = Math.min(Math.max(col, 0), cols - 1);
 
-        if (this.jsonPng[row] && typeof this.jsonPng[row][col] !== "undefined") {
-            return this.jsonPng[row][col] * this.step;
-        }
-        return 0;
+        const row0 = Math.min(Math.floor(row), rows - 2);
+        const col0 = Math.min(Math.floor(col), cols - 2);
+        const rowWeight = row - row0;
+        const colWeight = col - col0;
+        const top = this.jsonPng[row0];
+        const bottom = this.jsonPng[row0 + 1];
+        const upper = top[col0] + (top[col0 + 1] - top[col0]) * colWeight;
+        const lower = bottom[col0] + (bottom[col0 + 1] - bottom[col0]) * colWeight;
+        return (upper + (lower - upper) * rowWeight) * this.step;
     }
 
 

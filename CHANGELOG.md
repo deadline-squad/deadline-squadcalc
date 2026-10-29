@@ -1,3 +1,17 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.7.0** *(2026-10-29)*
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- Skorpo (6849 x 6869 m) and the other non-square maps: distances, bearings, heights, keypads, the coverage and the map assets use the scale of each map axis; the north-south one was 0.3 % off (up to 6 m on a 2 km shot, 19 m off in the heightmap at the south edge)
+- Heights are read at the exact point of the heightmap grid (the last sample is on the map edge, the far corner read 0 m) and interpolated between its four neighbours instead of taken from the nearest one
+- Rockets (UB-32, RPG-7, M3 MAAWS) follow their exact trajectory: a UB-32 fired at the old elevation landed 2 / 6 / 13 m short at 800 / 1200 / 1600 m; under 500 m its velocity was also wrong (wrong sign in the deceleration)
+- World gravity 9.80 m/s² from the game files, and the mortar, Hell Cannon and UB-32 fire from their real muzzle, which moves with the elevation: the solutions land within a millimetre in a simulation with the game's values (the UB-32 missed by up to 22 m at short range)
+- AGS-17 spread drawn from the game's MOA curve: 50 MOA in a burst (was 1.5 MOA, a 1.6 m wide spread at 1 km instead of 54 m)
+- The overlay relay sends the distance and the height to 0.1 m (were rounded to the metre)
+- A heightmap that fails to load is announced (error message) and the targets say "no height data" instead of silently using flat ground; Squad Ballistics gets an unknown height
+- In a session, a weapon's height set by another member is a number again (its precise range ring was broken)
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.6.0** *(2026-10-29)*
 
 </br><img src="https://img.shields.io/badge/-new%20features-green">

@@ -1,14 +1,15 @@
 import { ImageOverlay, LatLngBounds } from "leaflet";
 import { App } from "../app.js";
+import { heightAt as projectileHeight, isParabola, peakAngle, solveElevation, trajectory } from "./squadBallistics.js";
 
 /**
  * Fire coverage: where the active weapon can hit from the first weapon marker.
  *
  * The heightmap includes the buildings (about 1 m per pixel), so a cell behind a building or a ridge
  * is only reachable by a trajectory that clears them. Each cell gets one of the COVERAGE values.
- * The trajectory is the same closed-form parabola as SquadFiringSolution (equivalent velocity of the
- * weapon over the distance, gravity scale, elevation limits, AGS-17 hold range, projectile lifespan),
- * started at the muzzle: weapon ground + marker height padding + muzzle height.
+ * The trajectory is the same exact one as SquadFiringSolution (squadBallistics.js: rocket boost, gravity
+ * scale, elevation limits, AGS-17 hold range, projectile lifespan), launched from the weapon's ground
+ * (marker height padding included) at the muzzle height.
  */
 export const COVERAGE = {
     OUT: 0,       // out of range or outside the elevation limits
@@ -55,12 +56,11 @@ const COVERAGE_Z_INDEX = 2;
  * offset in meters from the weapon. Rays start east and turn counter-clockwise (towards north).
  * @param {object} params
  * @param {function(number, number): number} params.heightAt - terrain height at (east, north) meters
- * @param {number} params.muzzle - muzzle height in meters, same reference as heightAt
+ * @param {number} params.ground - weapon's ground in meters (height padding included), same reference as heightAt
+ * @param {import("./squadBallistics.js").Shot} params.shot - how the weapon fires (gravity 0: straight flight)
  * @param {number} params.range - largest distance to classify in meters
  * @param {number} params.cell - distance between two targets along a ray, in meters
  * @param {number} params.rays - number of rays
- * @param {function(number): number} params.velocityAt - equivalent velocity over a distance (m/s)
- * @param {number} params.gravity - gravity in m/s² (0: straight flight)
  * @param {number[]} params.elevationLimits - [min, max] barrel elevation in degrees
  * @param {number[]|null} params.holdElevation - [min, max] of the high trajectory (AGS-17), or null
  * @param {function(number, number): boolean} [params.inside] - whether (east, north) is on the map;
@@ -76,9 +76,10 @@ const COVERAGE_Z_INDEX = 2;
  */
 export function computeCoverageRays(params) {
     const {
-        heightAt, muzzle, range, cell, rays, velocityAt, gravity,
+        heightAt, ground, shot, range, cell, rays,
         elevationLimits, holdElevation, angleOffset, lifespan, lowOnly = false, inside = () => true,
     } = params;
+    const gravity = shot.gravity;
     const firstRay = params.firstRay ?? 0;
     const lastRay = params.lastRay ?? rays;
     const targets = Math.floor(range / cell);
@@ -94,17 +95,55 @@ export function computeCoverageRays(params) {
     const toRad = Math.PI / 180;
     const [minElevation, maxElevation] = elevationLimits;
 
+    // The highest trajectory at a distance does not depend on the target's height: one search per
+    // distance for all the rays (squadBallistics.solveElevation)
+    const peaks = new Float64Array(stride);
+    const numeric = gravity > 0 && !isParabola(shot);
+    if (numeric) {
+        for (let j = 1; j < stride; j++) peaks[j] = peakAngle(shot, j * cell);
+    }
+
     /**
-     * Whether the parabola at `angle` (radians) stays above the profile up to `distance`.
+     * Whether the arc on the `side` of the peak (-1 low, +1 high) lands at an elevation the weapon can
+     * be laid at, `limit` being its lowest (low arc) or highest (high arc) elevation in degrees
+     */
+    const reachesFrom = (limit, distance, height, peak, side) => {
+        const angle = (limit + angleOffset) * toRad;
+        if (side * (peak - angle) > 0) return false;
+        return projectileHeight(shot, angle, distance) <= height;
+    };
+
+    /**
+     * Whether the trajectory at `angle` (radians) stays above the profile up to `distance`.
      * The last cell before the target is not checked: the target point is on the terrain itself.
      */
-    const clears = (angle, velocity, distance) => {
-        const tan = Math.tan(angle);
-        const drop = gravity / (2 * velocity * velocity * Math.cos(angle) ** 2);
+    const clears = (angle, distance) => {
         const end = Math.floor((distance - Math.max(cell, TARGET_CLEARANCE)) / step);
-        for (let i = Math.ceil(MUZZLE_CLEARANCE / step); i <= end; i++) {
+        const path = trajectory(shot, angle);
+        const first = Math.ceil(MUZZLE_CLEARANCE / step);
+        if (path.parabola) {
+            // Inlined: this loop runs for every cell of the coverage
+            const { x0, y0, tan, drop } = path.parabola;
+            for (let i = first; i <= end; i++) {
+                const ahead = i * step - x0;
+                if (ground + y0 + ahead * (tan - drop * ahead) < profile[i]) return false;
+            }
+            return true;
+        }
+        // Inlined `height` of squadBallistics.trajectory: the boost phase, then the quadratic after it
+        const { x0, y0, perCos, sin, v0, v0Squared, a, g, reach, boostHeight, perCosBoostEnd, climb } = path.boost;
+        for (let i = first; i <= end; i++) {
             const x = i * step;
-            if (muzzle + x * tan - drop * x * x < profile[i]) return false;
+            let height;
+            if (x <= reach) {
+                const along = (x - x0) * perCos;
+                const t = 2 * along / (v0 + Math.sqrt(Math.max(0, v0Squared + 2 * a * along)));
+                height = y0 + sin * along - 0.5 * g * t * t;
+            } else {
+                const after = (x - reach) * perCosBoostEnd;
+                height = boostHeight + after * (climb - 0.5 * g * after);
+            }
+            if (ground + height < profile[i]) return false;
         }
         return true;
     };
@@ -113,12 +152,12 @@ export function computeCoverageRays(params) {
      * Whether a trajectory at `angle` can be fired: elevation limits, hold range for the high one,
      * and the projectile must not expire before it lands.
      */
-    const fireable = (angle, velocity, distance, high) => {
+    const fireable = (angle, distance, high) => {
         if (!Number.isFinite(angle) || (high && lowOnly)) return false;
         const degrees = angle / toRad - angleOffset;
         if (degrees < minElevation || degrees > maxElevation) return false;
         if (high && holdElevation && (degrees < holdElevation[0] || degrees > holdElevation[1])) return false;
-        return distance / (velocity * Math.cos(angle)) <= lifespan;
+        return trajectory(shot, angle).time(distance) <= lifespan;
     };
 
     for (let ray = firstRay; ray < lastRay; ray++) {
@@ -137,30 +176,34 @@ export function computeCoverageRays(params) {
                 values[base + j] = COVERAGE.OUT;
                 continue;
             }
-            const rise = targetHeights[j] - muzzle;
-            const velocity = velocityAt(distance);
+            const height = targetHeights[j] - ground;
             let low;
             let high;
 
             if (gravity === 0) {
-                low = Math.atan2(rise, distance);
+                low = Math.atan2(height - shot.pivotHeight, distance);
                 high = NaN;
             } else {
-                const discriminant = velocity ** 4 - gravity * (gravity * distance ** 2 + 2 * rise * velocity ** 2);
-                if (discriminant < 0) {
+                // The height at the target rises with the elevation up to the peak, then falls: the low
+                // arc is past the lowest elevation the weapon has only if the height there is under the
+                // target, the high one before the highest only if the height there is too. Skips the
+                // search of an arc the weapon cannot be laid at (the mortar's low arc, a lob in direct fire)
+                const wanted = numeric ? {
+                    low: reachesFrom(minElevation, distance, height, peaks[j], -1),
+                    high: !lowOnly && reachesFrom(maxElevation, distance, height, peaks[j], 1),
+                } : undefined;
+                ({ low, high } = solveElevation(shot, distance, height, numeric ? peaks[j] : undefined, wanted));
+                if (isNaN(low) && isNaN(high)) {
                     values[base + j] = COVERAGE.OUT;
                     continue;
                 }
-                const root = Math.sqrt(discriminant);
-                low = Math.atan((velocity ** 2 - root) / (gravity * distance));
-                high = Math.atan((velocity ** 2 + root) / (gravity * distance));
             }
 
-            const lowFireable = fireable(low, velocity, distance, false);
-            const highFireable = fireable(high, velocity, distance, true);
+            const lowFireable = fireable(low, distance, false);
+            const highFireable = fireable(high, distance, true);
 
-            if (lowFireable && clears(low, velocity, distance)) values[base + j] = COVERAGE.LOW;
-            else if (highFireable && clears(high, velocity, distance)) values[base + j] = COVERAGE.HIGH;
+            if (lowFireable && clears(low, distance)) values[base + j] = COVERAGE.LOW;
+            else if (highFireable && clears(high, distance)) values[base + j] = COVERAGE.HIGH;
             else if (lowFireable || highFireable) values[base + j] = COVERAGE.BLOCKED;
             else values[base + j] = COVERAGE.OUT;
         }
@@ -280,14 +323,12 @@ export default class SquadCoverage {
     compute(weaponMarker, weapon) {
         const generation = ++this.generation;
         const map = this.map;
-        const scale = map.mapToGameScale;
         const origin = weaponMarker.getLatLng();
 
-        const heightAt = (east, north) => map.heightmap.getHeight({ lat: origin.lat + north / scale, lng: origin.lng + east / scale });
+        const heightAt = (east, north) => map.heightmap.getHeight(map.fromMeters(origin, east, north));
         // The map spans lat [-pixelSize, 0] and lng [0, pixelSize]
         const inside = (east, north) => {
-            const lat = origin.lat + north / scale;
-            const lng = origin.lng + east / scale;
+            const { lat, lng } = map.fromMeters(origin, east, north);
             return lat <= 0 && lat >= -map.pixelSize && lng >= 0 && lng <= map.pixelSize;
         };
 
@@ -297,16 +338,15 @@ export default class SquadCoverage {
         const rays = Math.max(360, Math.min(1440, Math.ceil((2 * Math.PI * range) / (2 * cell))));
         const targets = Math.floor(range / cell);
         const values = new Uint8Array(rays * (targets + 1));
-        const muzzleHeight = weapon.heightOffset > 0 ? weapon.heightOffset : SHOULDER_HEIGHT;
+        const gravity = App.gravity * weapon.gravityScale;
 
         const params = {
             heightAt,
-            muzzle: heightAt(0, 0) + Number(weaponMarker.heightPadding || 0) + muzzleHeight,
+            ground: heightAt(0, 0) + Number(weaponMarker.heightPadding || 0),
+            shot: weapon.muzzle || weapon.heightOffset > 0 ? weapon.getShot(gravity) : weapon.getShot(gravity, SHOULDER_HEIGHT),
             range,
             cell,
             rays,
-            velocityAt: (distance) => weapon.getVelocity(distance),
-            gravity: App.gravity * weapon.gravityScale,
             elevationLimits: weapon.minElevation,
             holdElevation: weapon.holdElevation,
             angleOffset: weapon.angleOffset || 0,
@@ -338,8 +378,8 @@ export default class SquadCoverage {
         canvas.width = canvas.height = size;
         canvas.getContext("2d").putImageData(new ImageData(pixels, size, size), 0, 0);
 
-        const half = (size * cell) / 2 / this.map.mapToGameScale;
-        const bounds = new LatLngBounds([origin.lat - half, origin.lng - half], [origin.lat + half, origin.lng + half]);
+        const half = (size * cell) / 2;
+        const bounds = new LatLngBounds(this.map.fromMeters(origin, -half, -half), this.map.fromMeters(origin, half, half));
 
         if (this.overlay) this.overlay.remove();
         this.overlay = new ImageOverlay(canvas.toDataURL(), bounds, { className: "coverageOverlay", interactive: false, zIndex: COVERAGE_Z_INDEX }).addTo(this.map);

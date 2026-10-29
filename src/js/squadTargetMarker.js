@@ -353,6 +353,9 @@ export const squadTargetMarker = squadMarker.extend({
         }
 
         content += formatObstacles(shownArcs);
+        if (!firingSolution.hasHeightData) {
+            content += `<br><span class="calcNoHeight">⚠ <span data-i18n="common:noHeightData">${i18next.t("common:noHeightData")}</span></span>`;
+        }
         content += this.formatRounds(firingSolution, shownArcs);
         if (firingSolution === this.firingSolution1) content += this.formatCorrection();
 
@@ -531,8 +534,7 @@ export const squadTargetMarker = squadMarker.extend({
     heightAround: function(center) {
         const heightmap = this.map.heightmap;
         if (!heightmap?.precise) return () => 0;
-        const scale = this.map.mapToGameScale;
-        return (east, north) => heightmap.getHeight({ lat: center.lat + north / scale, lng: center.lng + east / scale });
+        return (east, north) => heightmap.getHeight(this.map.fromMeters(center, east, north));
     },
 
 
@@ -581,8 +583,8 @@ export const squadTargetMarker = squadMarker.extend({
         const canvas = document.createElement("canvas");
         canvas.width = canvas.height = field.size;
         canvas.getContext("2d").putImageData(new ImageData(pixels, field.size, field.size), 0, 0);
-        const half = (field.size * cell) / 2 / this.map.mapToGameScale;
-        const bounds = new LatLngBounds([center.lat - half, center.lng - half], [center.lat + half, center.lng + half]);
+        const half = (field.size * cell) / 2;
+        const bounds = new LatLngBounds(this.map.fromMeters(center, -half, -half), this.map.fromMeters(center, half, half));
         this.coverOverlay = new ImageOverlay(canvas.toDataURL(), bounds, { className: "coverZoneOverlay", interactive: false, zIndex: COVER_ZONE_Z_INDEX })
             .addTo(this.map.markersGroup);
     },
@@ -649,8 +651,7 @@ export const squadTargetMarker = squadMarker.extend({
      * @returns {{distance: number, bearing: number}}
      */
     polarFrom: function(origin, latlng) {
-        const north = (latlng.lat - origin.lat) * this.map.mapToGameScale;
-        const east = (latlng.lng - origin.lng) * this.map.mapToGameScale;
+        const { east, north } = this.map.toMeters(origin, latlng);
         let bearing = Math.atan2(east, north) * 180 / Math.PI;
         if (bearing < 0) bearing += 360;
         return { distance: Math.hypot(east, north), bearing };
@@ -666,10 +667,7 @@ export const squadTargetMarker = squadMarker.extend({
      */
     latLngAt: function(origin, distance, bearing) {
         const rad = bearing * Math.PI / 180;
-        return {
-            lat: origin.lat + (distance * Math.cos(rad)) / this.map.mapToGameScale,
-            lng: origin.lng + (distance * Math.sin(rad)) / this.map.mapToGameScale,
-        };
+        return this.map.fromMeters(origin, distance * Math.sin(rad), distance * Math.cos(rad));
     },
 
 
@@ -1195,9 +1193,8 @@ export const squadTargetMarker = squadMarker.extend({
         const dlng = end.lng - start.lng;
         const totalDist = Math.hypot(dlat, dlng);
         if (totalDist === 0) return [];
-        const latDelta = dlat * -this.map.mapToGameScale;
-        const lngDelta = dlng * this.map.mapToGameScale;
-        let dragBearing = Math.atan2(latDelta, lngDelta) * 180 / Math.PI + 90;
+        const { east, north } = this.map.toMeters(start, end);
+        let dragBearing = Math.atan2(east, north) * 180 / Math.PI;
         if (dragBearing < 0) dragBearing += 360;
         const step = this._getStepAtBearing(dragBearing);
         if (step <= 0 || totalDist < step) return [];

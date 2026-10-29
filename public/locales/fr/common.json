@@ -77,5 +77,6 @@
     "favServers": "Serveur",
     "coverageLow": "Trajectoire basse / tir direct",
     "coverageHigh": "Tir courbe uniquement",
-    "coverageBlocked": "Masqué (relief, bâtiments)"
+    "coverageBlocked": "Masqué (relief, bâtiments)",
+    "noHeightData": "pas de données d'altitude"
 }

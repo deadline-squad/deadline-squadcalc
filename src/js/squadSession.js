@@ -336,8 +336,9 @@ export default class SquadSession {
         case "MOVING_WEAPON": {
             App.minimap.activeWeaponsMarkers.eachLayer((weapon) => {
                 if (weapon.uid === data.uid) {
+                    // Before the drag, which solves the range ring with it; older clients send a string
+                    weapon.heightPadding = parseFloat(data.heightPadding) || 0;
                     weapon._handleDrag({ latlng: new LatLng(data.lat, data.lng), session: true });
-                    weapon.heightPadding = data.heightPadding;
                     App.minimap.visualClick.triggerVisualClick(new LatLng(data.lat, data.lng), "cyan");
                     App.minimap.updateTargets();
                 }
