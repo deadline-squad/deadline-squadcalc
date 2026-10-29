@@ -1,5 +1,5 @@
 import { App } from "../app.js";
-import { MUZZLE_CLEARANCE, TARGET_CLEARANCE } from "./squadCoverage.js";
+import { MUZZLE_CLEARANCE, SHOULDER_HEIGHT, TARGET_CLEARANCE } from "./squadCoverage.js";
 
 // Distance between two heightmap samples when looking for an obstacle, in meters (heightmap pixel size)
 const OBSTACLE_STEP = 1;
@@ -50,25 +50,39 @@ export default class SquadFiringSolution {
         }
 
         this.obstacle = {
-            low: this.getObstacle(this.elevation.low.rad),
-            high: this.getObstacle(this.elevation.high.rad),
+            low: isNaN(this.elevation.low.rad) ? null : this.getObstacle(true),
+            high: isNaN(this.elevation.high.rad) ? null : this.getObstacle(false),
         };
     }
 
 
     /**
-     * First point where the trajectory fired at `elevation` passes under the heightmap, which holds the
-     * terrain and the buildings: the shell hits it before the target. Same trajectory as the solution
-     * (muzzle `heightOffset` above the weapon) and the same clearances as the fire coverage.
-     * @param {number} elevation - elevation in radians (NaN: no trajectory)
+     * First point where the trajectory to the target passes under the heightmap, which holds the
+     * terrain and the buildings: the shell hits it before the target. The trajectory starts at the
+     * real muzzle, `heightOffset` above the weapon or the shoulder for weapons without one, and is
+     * aimed to reach the target from there, like the fire coverage; it skips the same clearances.
+     * @param {boolean} lowAngle - the low trajectory (else the high one)
      * @returns {{distance: number, height: number}|null} - distance from the weapon and height of the
-     * obstacle above the weapon, in meters; null if the trajectory is clear, NaN or no heightmap loaded
+     * obstacle above the weapon, in meters; null if the trajectory is clear, cannot reach the target
+     * from the muzzle, or no heightmap is loaded
      */
-    getObstacle(elevation) {
-        if (isNaN(elevation) || !this.map.heightmap?.jsonPng?.length) return null;
+    getObstacle(lowAngle) {
+        if (!this.map.heightmap?.jsonPng?.length) return null;
 
-        const angle = elevation + this.degToRad(App.activeWeapon.angleOffset);
-        const muzzle = this.weaponHeight + App.activeWeapon.heightOffset;
+        const muzzleHeight = App.activeWeapon.heightOffset > 0 ? App.activeWeapon.heightOffset : SHOULDER_HEIGHT;
+        const muzzle = this.weaponHeight + muzzleHeight;
+        const rise = this.targetHeight - muzzle;
+        let angle;
+
+        if (this.gravity === 0) {
+            angle = Math.atan2(rise, this.distance);
+        } else {
+            const discriminant = this.velocity ** 4 - this.gravity * (this.gravity * this.distance ** 2 + 2 * rise * this.velocity ** 2);
+            if (discriminant < 0) return null;
+            const root = lowAngle ? -Math.sqrt(discriminant) : Math.sqrt(discriminant);
+            angle = Math.atan((this.velocity ** 2 + root) / (this.gravity * this.distance));
+        }
+
         const tan = Math.tan(angle);
         const drop = this.gravity / (2 * this.velocity ** 2 * Math.cos(angle) ** 2);
         const latStep = (this.targetLatLng.lat - this.weaponLatLng.lat) / this.distance;
