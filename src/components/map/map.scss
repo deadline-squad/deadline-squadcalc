@@ -110,6 +110,15 @@
                 font-size: 0.7em;
                 color: #e74c3c;
             }
+            // Rounds to kill / wound a soldier on the target, with the spread and the cover
+            .calcRounds {
+                font-size: 0.7em;
+            }
+            // Fire corrected by the marked bursts: their count, then how far the aim moved
+            .calcCorrection {
+                font-size: 0.7em;
+                color: #f39c12;
+            }
             .leaflet-popup-tip,
             .leaflet-popup-content-wrapper {
                 pointer-events: none;

@@ -19,6 +19,9 @@ import "./libs/leaflet-spin.js";
 import "./libs/leaflet-imageoverlay-rotated.js";
 
 
+// Ctrl + double-click marks a burst for the nearest target within this distance, in meters
+const IMPACT_MAX_DISTANCE = 200;
+
 /**
  * Squad Minimap
  * Custom Leaflet Map for Squad, managing basemaps, mouse behaviours, and more
@@ -668,7 +671,33 @@ export const squadMinimap = Map.extend({
             return 0;
         }
 
+        // Ctrl (Cmd) + double-click: a round burst here, correct the fire on the nearest target
+        if (event.originalEvent?.ctrlKey || event.originalEvent?.metaKey) {
+            this.nearestTarget(event.latlng, IMPACT_MAX_DISTANCE)?.addImpact(event.latlng);
+            return 0;
+        }
+
         this.createTarget(event.latlng, event);
+    },
+
+
+    /**
+     * Target marker closest to a point
+     * @param {LatLng} latlng
+     * @param {number} maxDistance - meters; farther targets are ignored
+     * @returns {squadTargetMarker|null}
+     */
+    nearestTarget: function(latlng, maxDistance) {
+        let nearest = null;
+        let best = maxDistance;
+        this.activeTargetsMarkers.eachLayer((target) => {
+            const distance = Math.hypot(target.getLatLng().lat - latlng.lat, target.getLatLng().lng - latlng.lng) * this.mapToGameScale;
+            if (distance <= best) {
+                best = distance;
+                nearest = target;
+            }
+        });
+        return nearest;
     },
 
 

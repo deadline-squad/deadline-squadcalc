@@ -6,7 +6,15 @@ const OBSTACLE_STEP = 1;
 
 export default class SquadFiringSolution {
 
-    constructor(weaponLatLng, targetLatLng, map, heightPadding) {
+    /**
+     * @param {LatLng} weaponLatLng - weapon position
+     * @param {LatLng} targetLatLng - point aimed at
+     * @param {squadMinimap} map
+     * @param {number|string} heightPadding - weapon height above the ground, meters
+     * @param {LatLng} [heightLatLng=targetLatLng] - point whose ground height the shell must land at:
+     *   the target when the aim is moved off it to correct the fire (squadTargetMarker.getAimLatLng)
+     */
+    constructor(weaponLatLng, targetLatLng, map, heightPadding, heightLatLng = targetLatLng) {
         this.map = map;
         this.activeWeapon = App.activeWeapon;
         this.weaponLatLng = weaponLatLng;
@@ -17,7 +25,7 @@ export default class SquadFiringSolution {
         this.bearing = this.getBearing(this.weaponLatLng, this.targetLatLng);
         this.velocity = App.activeWeapon.getVelocity(this.distance);
         this.weaponHeight = this.map.heightmap.getHeight(weaponLatLng) + parseFloat(heightPadding);
-        this.targetHeight = this.map.heightmap.getHeight(targetLatLng);
+        this.targetHeight = this.map.heightmap.getHeight(heightLatLng);
         this.heightDiff =  this.targetHeight - this.weaponHeight;
         this.elevation = {low: [], high: []};
         this.elevation.low.rad = this.getElevation(this.distance, true);

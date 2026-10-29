@@ -20,6 +20,8 @@ export default class SquadHeightmap {
         this.json = [];
         this.jsonPng = [];
         this.scalingPNG = 0;
+        // Whether `jsonPng` holds the precise game heightmap (cm steps), not the 8-bit one (up to 2 m steps)
+        this.precise = false;
         this.loadHeightmapJson(heightmapPath);
         this.loadHeightmapPNG(heightmapPathPNG);
     }
@@ -67,6 +69,7 @@ export default class SquadHeightmap {
 
             if (precise) {
                 this.storeHeights(precise.img, (data, idx) => data[idx] * precise.step);
+                this.precise = true;
                 console.debug(`[HEIGHTMAP] Loaded ${precise.url} precision: ${(precise.step * 100).toFixed(1)}cm`);
             } else {
                 const response = await fetch(url);
