@@ -28,7 +28,10 @@ const COLORS = {
 const SHOULDER_HEIGHT = 1.5;
 
 // The terrain this close to the muzzle is the weapon's own spot (heightmap noise, the wall it leans on)
-const MUZZLE_CLEARANCE = 3;
+export const MUZZLE_CLEARANCE = 3;
+
+// The terrain this close to the target is the target's own spot: the target point is on it
+export const TARGET_CLEARANCE = 3;
 
 // Cells per range radius, and limits of the cell size in meters
 const CELLS_PER_RANGE = 320;
@@ -94,7 +97,7 @@ export function computeCoverageRays(params) {
     const clears = (angle, velocity, distance) => {
         const tan = Math.tan(angle);
         const drop = gravity / (2 * velocity * velocity * Math.cos(angle) ** 2);
-        const end = Math.floor((distance - Math.max(cell, 3)) / step);
+        const end = Math.floor((distance - Math.max(cell, TARGET_CLEARANCE)) / step);
         for (let i = Math.ceil(MUZZLE_CLEARANCE / step); i <= end; i++) {
             const x = i * step;
             if (muzzle + x * tan - drop * x * x < profile[i]) return false;

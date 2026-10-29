@@ -232,7 +232,7 @@ export const squadTargetMarker = squadMarker.extend({
          * @param {Number} timeOfFlight 
          * @returns {[string, string]} - [elevation, timeOfFlight]
          */
-        const formatElevationData = (elevationData, timeOfFlight) => {
+        const formatElevationData = (elevationData, timeOfFlight, arc) => {
             if (isNaN(elevationData?.rad)) return ["---", "---"];
 
             let convertedElevation;
@@ -264,44 +264,74 @@ export const squadTargetMarker = squadMarker.extend({
                 convertedElevation = (App.activeWeapon.type === "directFire" ? firingSolution.getSightAngle(elevationData.rad) : elevationData.deg).toFixed(App.activeWeapon.elevationPrecision);
             }
 
+            // A trajectory that hits the terrain or a building first is shown struck through
+            if (firingSolution.obstacle?.[arc]) convertedElevation = `<span class="calcBlocked">${convertedElevation}</span>`;
+
             return [convertedElevation, formattedTime];
         };
 
-        let elevation, timeOfFlight;
+        /**
+         * Where the shown trajectories hit an obstacle first: distance and height above the weapon
+         * @param {string[]} arcs - "low" / "high", in the order they are shown
+         * @returns {string} - HTML line, empty if every shown trajectory is clear
+         */
+        const formatObstacles = (arcs) => {
+            if (!arcs.some((arc) => firingSolution.obstacle?.[arc])) return "";
+            const meters = `<span data-i18n="common:m">${i18next.t("common:m")}</span>`;
+            const parts = arcs.map((arc) => {
+                const obstacle = firingSolution.obstacle?.[arc];
+                if (!obstacle) return "---";
+                const height = Math.round(obstacle.height);
+                return `${obstacle.distance.toFixed(0)}${meters} (${height >= 0 ? "+" : ""}${height}${meters})`;
+            });
+            return `<br><span class="calcObstacle">⛔ ${parts.join(" / ")}</span>`;
+        };
+
+        let elevation, timeOfFlight, shownArcs;
 
         if (App.activeWeapon.elevationRate) {
             // Weapons laid by holding a key (AGS-17): hold time of the lob, then the angle to aim at in direct fire
-            const [holdTime, timeHigh] = formatElevationData(firingSolution.elevation.high, firingSolution.timeOfFlight.high);
-            const directAngle = isNaN(firingSolution.elevation.low.rad) ? "---" : `${firingSolution.getSightAngle(firingSolution.elevation.low.rad).toFixed(1)}°`;
+            const [holdTime, timeHigh] = formatElevationData(firingSolution.elevation.high, firingSolution.timeOfFlight.high, "high");
+            let directAngle = isNaN(firingSolution.elevation.low.rad) ? "---" : `${firingSolution.getSightAngle(firingSolution.elevation.low.rad).toFixed(1)}°`;
+            if (firingSolution.obstacle?.low) directAngle = `<span class="calcBlocked">${directAngle}</span>`;
             elevation = `${holdTime} / ${directAngle}`;
             timeOfFlight = timeHigh;
+            shownArcs = ["high", "low"];
         } else if (App.userSettings.lowAndHigh && !["Mortar", "UB-32", "M1064M121", "Mk19"].includes(App.activeWeapon.name)) {
-            const [elevationLow, timeLow] = formatElevationData(firingSolution.elevation.low, firingSolution.timeOfFlight.low);
-            const [elevationHigh, timeHigh] = formatElevationData(firingSolution.elevation.high, firingSolution.timeOfFlight.high);
+            const [elevationLow, timeLow] = formatElevationData(firingSolution.elevation.low, firingSolution.timeOfFlight.low, "low");
+            const [elevationHigh, timeHigh] = formatElevationData(firingSolution.elevation.high, firingSolution.timeOfFlight.high, "high");
             elevation = `${elevationLow} / ${elevationHigh}`;
             timeOfFlight = `${timeLow} / ${timeHigh}`;
+            shownArcs = ["low", "high"];
         } else {
-            const selectedElevation = angleType === "high" ? firingSolution.elevation.high : firingSolution.elevation.low;
-            const selectedTimeOfFlight = angleType === "high" ? firingSolution.timeOfFlight.high : firingSolution.timeOfFlight.low;
-            [elevation, timeOfFlight] = formatElevationData(selectedElevation, selectedTimeOfFlight);
+            const arc = angleType === "high" ? "high" : "low";
+            [elevation, timeOfFlight] = formatElevationData(firingSolution.elevation[arc], firingSolution.timeOfFlight[arc], arc);
+            shownArcs = [arc];
         }
 
         let content;
         
         // Checks if last three elevation digits option is enabled and if selected weapon is "Mortar"
         // TODO move this in the previous if statement when other weapons are supported
+        // Text of the elevation without the markup of blocked trajectories (last digits, clipboard)
+        const elevationText = elevation.toString().replace(/<[^>]*>/g, "");
+
         if (App.userSettings.lastDigits && ["Mortar"].includes(App.activeWeapon.name)){
-            content = `<span class=calcNumber></span></br><span>${elevation.toString().slice(-3)}</span>`;
+            const lastDigits = elevationText.slice(-3);
+            const shown = firingSolution.obstacle?.[shownArcs[0]] ? `<span class="calcBlocked">${lastDigits}</span>` : lastDigits;
+            content = `<span class=calcNumber></span></br><span>${shown}</span>`;
         } else {
             content = `<span class="calcNumber"></span><br><span>${elevation}</span>`;
         }
+
+        content += formatObstacles(shownArcs);
 
         if (App.userSettings.showBearing) content += `<br><span class=bearingUiCalc>${BEARING.toFixed(1)}<span data-i18n="common:°">${i18next.t("common:°")}</span></span>`;
         if (App.userSettings.showTimeOfFlight) content += `<br><span class=bearingUiCalc>${timeOfFlight}</span>`;
         if (App.userSettings.showDistance) content += `<br><span class=bearingUiCalc>${DIST.toFixed(0)}<span data-i18n="common:m">${i18next.t("common:m")}</span></span>`;
         if (App.userSettings.showHeight) content += `<br><span class=bearingUiCalc>${heightDiff}<span data-i18n="common:m">${i18next.t("common:m")}</span></span>`;
         const elevationLabel = i18next.t(App.activeWeapon.elevationRate ? "common:holdTime" : "common:elevation");
-        return [content, `${elevationLabel}: ${elevation} - ${i18next.t("common:bearing")}: ${BEARING.toFixed(1)}°`];
+        return [content, `${elevationLabel}: ${elevationText} - ${i18next.t("common:bearing")}: ${BEARING.toFixed(1)}°`];
     },
 
 
