@@ -1,6 +1,6 @@
 import { App } from "../app.js";
 import "./libs/leaflet-visual-click.js";
-import { Marker, Circle, CircleMarker, Popup, Polygon, Icon } from "leaflet";
+import { Marker, Circle, CircleMarker, Popup, Polygon, Icon, DivIcon } from "leaflet";
 import i18next from "i18next";
 import { sendMarkerData } from "./squadCalcAPI.js";
 import { v4 as uuidv4 } from "uuid";
@@ -13,6 +13,9 @@ import { animateCSS } from "./animations.js";
 export const squadMarker = Marker.extend({
 
     options: {
+        // Empty until the subclass sets its icon: Leaflet's default one would request
+        // images/marker-icon.png and marker-shadow.png, which this site does not serve (404)
+        icon: new DivIcon({ className: "", html: "", iconSize: [0, 0] }),
         draggable: true,
         riseOnHover: true,
         keyboard: false,

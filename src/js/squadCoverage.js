@@ -43,6 +43,10 @@ const MAX_COVERAGE_RANGE = 4000;
 // Rays computed per tick: the page stays responsive during the computation
 const RAYS_PER_TICK = 24;
 
+// Stacking of the image in the overlay pane: above the map image (an image overlay of z-index 1 that a
+// layer change adds after this one), below the damage zones of the targets and the markers' SVG
+const COVERAGE_Z_INDEX = 2;
+
 
 /**
  * Classify the cells around a weapon along rays.
@@ -338,7 +342,7 @@ export default class SquadCoverage {
         const bounds = new LatLngBounds([origin.lat - half, origin.lng - half], [origin.lat + half, origin.lng + half]);
 
         if (this.overlay) this.overlay.remove();
-        this.overlay = new ImageOverlay(canvas.toDataURL(), bounds, { className: "coverageOverlay", interactive: false }).addTo(this.map);
+        this.overlay = new ImageOverlay(canvas.toDataURL(), bounds, { className: "coverageOverlay", interactive: false, zIndex: COVERAGE_Z_INDEX }).addTo(this.map);
         $("#coverageLegend").show();
     }
 }

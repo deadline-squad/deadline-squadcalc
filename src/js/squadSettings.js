@@ -92,7 +92,8 @@ export default class SquadSettings {
                 key: "settings-damage-radius",
                 default: true,
                 selector: "#damageRadiusSetting",
-                onChange: () => this.app.minimap.updateTargetsSpreads()
+                // The popups show the rounds to kill only with the damage radius: rebuild them too
+                onChange: () => this.app.minimap.updateTargets()
             },
             targetGrid: {
                 key: "settings-target-grid",
