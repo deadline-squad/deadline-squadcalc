@@ -5,6 +5,7 @@
 - The direct-fire weapons on mounts and turrets have the elevation limits of the game files (SPG-9 tripod +-10°, MK19 tripod -35..20°, AGS-17 -12..86°); targets past them show as out of range
 - New Squad Ballistics weapons: "MK19 · emplacement / C16 / L134A1 · no sights" (fired without RMB) and "AGS-30 (BMP-1TS)"; "AGS-30 / BTR-4 AGS" now has the BTR-4's own 1.6° sight
 - The UB-32's S-5 keeps its 300 m/s cap and its motor along the pod's axis
+- The machine guns and autocannons that only SquadCalc has get their projectile's top speed too: the .50 cal, NSV, Kord and DShK (850-890 m/s) fly at 800 m/s from the first step, the KPVT at 900, the CTAS40 at 1385 / 1000 and the RARDEN and 2A72 HE at 1000
 
 </br></br><!-- CHANGELOG SPLIT MARKER -->
 
