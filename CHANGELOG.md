@@ -1,3 +1,14 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.11.0** *(2026-10-30)*
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- The page no longer freezes while the fire coverage, the damage zones or a dragged target are computed. Fire coverage: the highest trajectories are searched once instead of in every chunk, each root starts from the previous cell's, the terrain along a ray is cleared with a sparse range-maximum table instead of sample by sample, and the cells are classified in two workers while the page only samples the terrain (in chunks of 8 ms, started by a `MessageChannel`; the PNG is encoded by `toBlob`). Without workers the same chunks run on the page. Every cell is the same as before (111 weapons on a real heightmap, three positions). A weapon now takes 0.5-0.8 s to draw (UB-32 2.9 s, SPG-9 2.4 s, Tank HE 2.0 s before) and the longest task of the page went from 83-144 ms to 10-46 ms
+- Damage zones: cover is read from a horizon sweep of the impact (a pass along 2π·radius/0.5 directions instead of a line walked for every cell; 0-0.2 % of the cells change class), zones are drawn one 8 ms task at a time and kept per map, position and shell, and the hit probability is cached. Dragging a target updates once per frame and leaves the rounds line out until it is dropped
+- The firing solution solves once and traces on one trajectory (2-8x faster, same elevations, times, spreads and obstacles); `getMaxDistance()` is cached; the 4096 px map image is decoded off the main thread (230-710 ms before on every map switch)
+- A solution is for flat ground until the precise heightmap has loaded: the popups show "no height data" and the bridge sends `heightDiff: null`, then both follow `heightmap:loaded`. A target on the weapon, or at an unknown height, shows as out of range
+- Squad Ballistics bridge, version 5: `window.squadBallistics.lastTarget()` (the newest target alone, shaped like one element of `targets()`, or `null`) and `window.squadBallistics.revision()` (a number that changes when a target, the weapon or the heights change; `console.info("sb:changed")` is logged at the same moment). The profile of a target is computed once per solution. `targets()`, `weapon()` and `selectWeapon()` are unchanged
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.10.0** *(2026-10-30)*
 
 </br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  

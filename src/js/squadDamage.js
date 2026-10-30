@@ -102,31 +102,91 @@ export function impactDamage(heightAt, explosion, impact, soldier) {
 
 
 /**
- * Damage around an impact on a square grid centred on it
+ * The horizon of the explosion in every direction: the largest slope, seen from the explosion, of the
+ * terrain that can hide a soldier farther away. Along each of `rays` rays from the impact the heightmap is
+ * sampled at the cover trace's own distances (EXPLOSION_CLEARANCE, then every TRACE_STEP) and `horizon[k]`
+ * is the largest of (height - COVER_TOLERANCE - explosionZ) / distance over the samples up to the k-th.
+ * A line from the explosion to a body centre `top` above a point at `length` meters passes under the
+ * heightmap at distance d when (height(d) - tolerance - explosionZ) / d > (top - explosionZ) / length, so
+ * one prefix maximum per ray answers the cover question of every soldier along the ray, where `isCovered`
+ * walks the whole line for each soldier.
+ * @param {function(number, number): number} heightAt - height at (east, north) meters from the impact
+ * @param {number} explosionZ - height of the explosion
+ * @param {number} radius - farthest soldier, meters
+ * @param {number} rays - number of directions, counter-clockwise from east
+ * @returns {{horizon: Float64Array, samples: number}} - horizon[ray * samples + k]
+ */
+function sweepHorizon(heightAt, explosionZ, radius, rays) {
+    const samples = Math.max(0, Math.ceil((radius - SOLDIER_CLEARANCE - EXPLOSION_CLEARANCE) / TRACE_STEP));
+    const horizon = new Float64Array(rays * samples);
+    for (let ray = 0; ray < rays; ray++) {
+        const east = Math.cos((2 * Math.PI * ray) / rays);
+        const north = Math.sin((2 * Math.PI * ray) / rays);
+        let largest = -Infinity;
+        for (let k = 0; k < samples; k++) {
+            const distance = EXPLOSION_CLEARANCE + k * TRACE_STEP;
+            largest = Math.max(largest, (heightAt(east * distance, north * distance) - COVER_TOLERANCE - explosionZ) / distance);
+            horizon[ray * samples + k] = largest;
+        }
+    }
+    return { horizon, samples };
+}
+
+
+/**
+ * Damage around an impact on a square grid centred on it. Cover is read from a horizon sweep of the
+ * impact (sweepHorizon) in the direction nearest to each soldier, at most half a trace step to the side of
+ * his own line; the heightmap's resolution is one meter. A caller that must not block the page computes
+ * the rows in several calls, each one given the result of the previous (`firstRow` = its `nextRow`) and a
+ * `deadline`.
  * @param {function(number, number): number} heightAt - height at (east, north) meters from the impact
  * @param {object} explosion - see impactDamage
  * @param {number} cell - grid step in meters
- * @returns {{damage: Float32Array, exposed: Float32Array, size: number, cell: number}} - damage
- *   with and without cover, row-major, row 0 is the northernmost; the impact is in the middle cell
+ * @param {object} [progress] - the result of the previous call, to continue it
+ * @param {number} [progress.firstRow=0] - first row to compute
+ * @param {number} [progress.deadline] - `performance.now()` after which no new row is started
+ * @returns {{damage: Float32Array, exposed: Float32Array, size: number, cell: number, nextRow: number, sweep: object}} -
+ *   damage with and without cover, row-major, row 0 is the northernmost; the impact is in the middle cell;
+ *   nextRow is the first row not computed yet, `size` when the field is complete
  */
-export function damageField(heightAt, explosion, cell) {
+export function damageField(heightAt, explosion, cell, progress = {}) {
     const radius = Math.ceil(explosion.outer / cell);
     const size = 2 * radius + 1;
-    const damage = new Float32Array(size * size);
-    const exposed = new Float32Array(size * size);
-    const impact = { east: 0, north: 0 };
+    const damage = progress.damage ?? new Float32Array(size * size);
+    const exposed = progress.exposed ?? new Float32Array(size * size);
+    const deadline = progress.deadline ?? Infinity;
+    const explosionZ = heightAt(0, 0) + explosion.distanceFromImpact;
 
-    for (let row = 0; row < size; row++) {
+    // Directions a trace step apart at the outer radius
+    const rays = Math.max(8, Math.ceil((2 * Math.PI * explosion.outer) / TRACE_STEP));
+    const sweep = progress.sweep ?? sweepHorizon(heightAt, explosionZ, explosion.outer, rays);
+
+    let row = progress.firstRow ?? 0;
+    for (; row < size && !(performance.now() >= deadline); row++) {
         const north = (radius - row) * cell;
         for (let col = 0; col < size; col++) {
             const east = (col - radius) * cell;
-            if (Math.hypot(east, north) > explosion.outer) continue;
-            const result = impactDamage(heightAt, explosion, impact, { east, north });
-            damage[row * size + col] = result.damage;
-            exposed[row * size + col] = result.exposed;
+            const length = Math.hypot(east, north);
+            if (length > explosion.outer) continue;
+
+            const feet = heightAt(east, north);
+            const value = damageAtDistance(explosion, Math.hypot(length, explosionZ - (feet + PLAYER_HEIGHT)));
+            exposed[row * size + col] = value;
+            if (value <= 0) continue;
+
+            // The trace samples are those closer than length - SOLDIER_CLEARANCE
+            const lastSample = Math.ceil((length - SOLDIER_CLEARANCE - EXPLOSION_CLEARANCE) / TRACE_STEP) - 1;
+            let covered = false;
+            if (lastSample >= 0) {
+                let heading = Math.atan2(north, east);
+                if (heading < 0) heading += 2 * Math.PI;
+                const ray = Math.round((heading / (2 * Math.PI)) * rays) % rays;
+                covered = sweep.horizon[ray * sweep.samples + Math.min(lastSample, sweep.samples - 1)] > (feet + BODY_CENTER - explosionZ) / length;
+            }
+            damage[row * size + col] = covered ? 0 : value;
         }
     }
-    return { damage, exposed, size, cell };
+    return { damage, exposed, size, cell, nextRow: row, sweep };
 }
 
 

@@ -58,7 +58,7 @@ export default class Simulation {
         this.div.find(".infDistance").first().text(this.firingSolution.distance.toFixed(1)+i18next.t("common:m"));
         this.div.find(".infWHeight").first().text(this.firingSolution.weaponHeight.toFixed(1)+i18next.t("common:m"));
         this.div.find(".infTHeight").first().text(this.firingSolution.targetHeight.toFixed(1)+i18next.t("common:m"));
-        this.div.find(".infDHeight").first().text(this.firingSolution.heightDiff.toFixed(1)+i18next.t("common:m"));
+        this.div.find(".infDHeight").first().text(Number.isFinite(this.firingSolution.heightDiff) ? this.firingSolution.heightDiff.toFixed(1)+i18next.t("common:m") : "---");
 
 
         if (isNaN(this.firingSolution.elevation.high.rad) && isNaN(this.firingSolution.elevation.low.rad)) {

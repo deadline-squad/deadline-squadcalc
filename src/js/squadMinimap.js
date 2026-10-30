@@ -17,6 +17,7 @@ import "tippy.js/dist/tippy.css";
 import "./libs/leaflet-edgebuffer.js";
 import "./libs/leaflet-spin.js";
 import "./libs/leaflet-imageoverlay-rotated.js";
+import { notifyBridgeChange } from "./smcConnector.js";
 
 
 // Ctrl + double-click marks a burst for the nearest target within this distance, in meters
@@ -209,7 +210,9 @@ export const squadMinimap = Map.extend({
                 tileSize: 256,
             });
         }
-        return new ImageOverlay(`${imagePath}.webp`, this.imageBounds);
+        // Decoded off the main thread: the 4096 px webp blocked it for 230-710 ms when the browser decoded
+        // it as the image joined the page
+        return new ImageOverlay(`${imagePath}.webp`, this.imageBounds, { decoding: "async" });
     },
 
 
@@ -375,6 +378,7 @@ export const squadMinimap = Map.extend({
         });
         // Weapon moved, deleted or raised: recomputed only if its inputs changed
         this.coverage.update();
+        notifyBridgeChange();
     },
 
 
