@@ -2,7 +2,7 @@
 
 </br><img src="https://img.shields.io/badge/-%20improv%20-orange">  
 - Switching to a map downloads and decodes the precise heightmap faster: it is a lossless WebP the browser decodes itself (Yehorivka 30.7 MB to 20.5 MB, Al Basrah 14.1 MB to 6.6 MB; 326 MB to 171 MB for the 25 maps), with the heights rounded to 1 cm (5 mm from the old ones at most; Chora and Skorpo are unchanged). A heightmap is requested only once its `meta.json` was found, so a site without precise heightmaps no longer downloads the PNG for nothing, and with a `generated` date in `meta.json` the file is requested as `?v=<date>` and can stay in the browser's cache. The PNG of older deployments is decoded with the browser's own inflate instead of JavaScript's, and is used when the WebP cannot be
-- The first visit downloads 21.5 MB less: the 220 vehicle images (15.7 MB) and the README screenshots are no longer precached; a vehicle image is saved the first time it is shown, then served from the cache for 30 days
+- The first visit downloads about 19 MB less (the service worker's precache falls from 20.8 MB to 1.9 MB on the wire): the 220 vehicle images (15.7 MB) and the README screenshots are no longer precached; a vehicle image is saved the first time it is shown, then served from the cache for 30 days
 - The detailed map layer keeps one tile beyond the screen instead of two, so a zoom step or a pan requests fewer tiles
 
 </br></br><!-- CHANGELOG SPLIT MARKER -->
