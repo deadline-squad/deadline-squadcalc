@@ -1,3 +1,10 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.14.0** *(2026-10-30)*
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- The Squad Ballistics weapons with an RMB optic are named by their view. "QLZ87" was the entry for the ×3 optic, and fired from the normal view (no RMB) its mark put the shot hundreds of metres past the target (FOV 120: a target at 300 m, a shot at ~830 m). Now "QLZ87 · optic (RMB ×3)" and "QLZ87 · no optic" say which view they are for, and so do the QLZ87 on the Lynx / CSK131, the AGS-17 ("AGS-17 · optic (RMB ×2.5)", "AGS-17 · emplacement · no optic"), the SPG-9 scope and the ZiS-3. The entries keep their place in the list and their saved selection; only the names change. Squad Ballistics 1.6.0 shows the same names and says in the weapon header, the overlay and the how-to steps whether to hold RMB; an older Squad Ballistics still selects the weapons by their old names (`legacyBallistics`)
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.13.0** *(2026-10-30)*
 
 </br><img src="https://img.shields.io/badge/-%20improv%20-orange">  
