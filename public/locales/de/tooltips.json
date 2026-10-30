@@ -89,5 +89,7 @@
     "openFactionSelection": "Klicken um die Fraktionsauswahl zu öffnen",
     "coverage": "Wirkungsbereich: wohin die Waffe vom ersten Waffenmarker trifft, unter Berücksichtigung von Gelände und Gebäuden",
     "heightmapFailed": "Keine Höhendaten",
-    "heightmapFailedDesc": "Die Höhenkarte konnte nicht geladen werden: die Schusslösungen nehmen flaches Gelände an (Höhe 0)."
+    "heightmapFailedDesc": "Die Höhenkarte konnte nicht geladen werden: die Schusslösungen nehmen flaches Gelände an (Höhe 0).",
+    "heightmapCoarse": "Ungenaue Höhen",
+    "heightmapCoarseDesc": "Die genaue Höhenkarte konnte nicht heruntergeladen werden (Netzwerk): die Höhen stammen aus der groben 8-Bit-Höhenkarte, bis zu 2 m Abweichung. Lade die Seite neu, um es erneut zu versuchen."
 }

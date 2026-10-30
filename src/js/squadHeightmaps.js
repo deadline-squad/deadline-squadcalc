@@ -12,6 +12,8 @@ import { App } from "../app.js";
  *     to place their markers).
  * A failed load shows an error toast and sets `failed`: heights are then 0 everywhere, and the firing
  * solutions say they have no height data (SquadFiringSolution.hasHeightData).
+ * When the network kept dropping the precise heightmap (the worker tries each request again first),
+ * the 8-bit one is used and a warning toast says the heights are coarse.
  * @class squadHeightmap
  */
 export default class SquadHeightmap {
@@ -64,7 +66,7 @@ export default class SquadHeightmap {
 
     /**
      * Store the worker's result and announce it
-     * @param {{levels: Uint16Array, width: number, height: number, step: number, precise: boolean, url: string}|{error: string, url: string}} data
+     * @param {{levels: Uint16Array, width: number, height: number, step: number, precise: boolean, preciseLost: boolean, url: string}|{error: string, url: string}} data
      */
     receive(data) {
         this.dispose();
@@ -88,6 +90,10 @@ export default class SquadHeightmap {
             this.rowsPerUnit = (height - 1) / this.map.pixelSize;
             this.precise = data.precise;
             console.debug(`[HEIGHTMAP] Loaded ${data.url} precision: ${(data.step * 100).toFixed(1)}cm`);
+            if (data.preciseLost) {
+                console.warn("[HEIGHTMAP] The precise heightmap could not be downloaded, using the 8-bit one:", data.url);
+                App.openToast("warning", "heightmapCoarse", "heightmapCoarseDesc");
+            }
             $(document).trigger("heightmapPNG:loaded");
         }
         $(document).trigger("heightmap:loaded");

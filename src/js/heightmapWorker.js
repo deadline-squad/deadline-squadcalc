@@ -7,21 +7,39 @@
  *   - preciseBase: URL of this deployment's /heightmaps/<map>/ (heightmap.png + meta.json)
  *   - fallbackUrl: SquadCalc's 8-bit R/B heightmap.png, used when there is no precise one
  *   - fallbackScale: metres per level of the 8-bit heightmap (SDK_data.heightmapPNG.scale[2])
- * Message out: {levels, width, height, step, precise, url}, `levels` a Uint16Array (transferred) of
- * width x height integer levels, row-major, height in metres = level * step; or {error, url}.
+ * Message out: {levels, width, height, step, precise, preciseLost, url}, `levels` a Uint16Array
+ * (transferred) of width x height integer levels, row-major, height in metres = level * step;
+ * `preciseLost` when the precise heightmap could not be fetched (network) and the 8-bit one is used
+ * instead; or {error, url}.
+ *
+ * Requests the network drops (connection lost, a server error) are tried again, RETRY_DELAYS_MS
+ * apart, before giving up; an HTTP client error (404: this deployment has no precise heightmap)
+ * is final at once.
  */
 import { decode } from "fast-png";
 
 
+// Waits before each new attempt of a failed request: 4 attempts over about 7 s
+const RETRY_DELAYS_MS = [1000, 2000, 4000];
+
+
 /**
- * Fetch a URL as bytes
+ * Fetch a URL as bytes, trying again after a network error or an HTTP server error (5xx)
  * @param {string} url
- * @returns {Promise<Uint8Array|null>} - null on an HTTP error
+ * @returns {Promise<Uint8Array|null>} - null on an HTTP client error (404), or a server error on the last attempt
+ * @throws {TypeError} - the network error of the last attempt
  */
 async function fetchBytes(url) {
-    const response = await fetch(url);
-    if (!response.ok) return null;
-    return new Uint8Array(await response.arrayBuffer());
+    for (let attempt = 0; ; attempt++) {
+        try {
+            const response = await fetch(url);
+            if (response.ok) return new Uint8Array(await response.arrayBuffer());
+            if (response.status < 500 || attempt === RETRY_DELAYS_MS.length) return null;
+        } catch (error) {
+            if (attempt === RETRY_DELAYS_MS.length) throw error;
+        }
+        await new Promise((resolve) => setTimeout(resolve, RETRY_DELAYS_MS[attempt]));
+    }
 }
 
 
@@ -31,12 +49,13 @@ async function fetchBytes(url) {
  * @param {string} base - URL of /heightmaps/<map>/
  * @returns {Promise<{levels: Uint16Array, width: number, height: number, step: number}|null>} -
  *   null when this deployment has none for the map (or the dev server answers with index.html)
+ * @throws {TypeError} - when the network kept failing (fetchBytes)
  */
 async function loadPrecise(base) {
+    const [metaBytes, bytes] = await Promise.all([fetchBytes(`${base}meta.json`), fetchBytes(`${base}heightmap.png`)]);
+    if (!metaBytes || !bytes) return null;
     try {
-        const [metaResponse, bytes] = await Promise.all([fetch(`${base}meta.json`), fetchBytes(`${base}heightmap.png`)]);
-        if (!metaResponse.ok || !bytes) return null;
-        const meta = await metaResponse.json();
+        const meta = JSON.parse(new TextDecoder().decode(metaBytes));
         const img = decode(bytes);
         if (img.depth !== 16 || img.channels !== 1 || !(meta.z_step_m > 0)) return null;
         return { levels: img.data, width: img.width, height: img.height, step: meta.z_step_m };
@@ -51,6 +70,7 @@ async function loadPrecise(base) {
  * @param {string} url
  * @param {number} scale - metres per level
  * @returns {Promise<{levels: Uint16Array, width: number, height: number, step: number}>}
+ * @throws {Error} - when it cannot be fetched
  */
 async function loadFallback(url, scale) {
     const bytes = await fetchBytes(url);
@@ -63,11 +83,17 @@ async function loadFallback(url, scale) {
 
 
 self.onmessage = async ({ data: { preciseBase, fallbackUrl, fallbackScale } }) => {
+    let precise = null;
+    let preciseLost = false;
     try {
-        const precise = await loadPrecise(preciseBase);
+        precise = await loadPrecise(preciseBase);
+    } catch {
+        preciseLost = true;
+    }
+    try {
         const result = precise || await loadFallback(fallbackUrl, fallbackScale);
         const url = precise ? `${preciseBase}heightmap.png` : fallbackUrl;
-        self.postMessage({ ...result, precise: Boolean(precise), url }, [result.levels.buffer]);
+        self.postMessage({ ...result, precise: Boolean(precise), preciseLost, url }, [result.levels.buffer]);
     } catch (error) {
         self.postMessage({ error: String(error), url: fallbackUrl });
     }
