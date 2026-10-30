@@ -76,5 +76,11 @@
         "DF_2A72_30mm_BMP_3M_AP_HE": "2A72 30mm (BMP-3M) · бронебійний / фугасний",
         "DF_ZPT99_30mm_ZBL_08_ZBD_05_AP_HE": "ZPT99 30mm (ZBL-08 / ZBD-05) · бронебійний / фугасний",
         "DF_M2A1_50_ACOG_emplacement": "M2A1 .50 · ACOG станковий",
-        "DF_Kord_SPP_emplacement": "Kord · SPP станковий"
+        "DF_Kord_SPP_emplacement": "Kord · SPP станковий",
+        "DF_AGS_17_emplacement_no_optic": "AGS-17 · станковий · без оптики",
+        "DF_QLZ87_no_optic": "QLZ87 · без оптики",
+        "DF_QLZ87_Lynx_CSK131_no_optic": "QLZ87 · Lynx / CSK131 · без оптики",
+        "DF_SPG_9_HEAT_scope_no_optic": "SPG-9 · кумулятивний · приціл · без оптики",
+        "DF_SPG_9_FRAG_scope_no_optic": "SPG-9 · осколковий · приціл · без оптики",
+        "DF_ZiS_3_no_optic": "ZiS-3 · без оптики"
 }

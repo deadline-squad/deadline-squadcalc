@@ -1,3 +1,10 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.8.1** *(2026-10-30)*
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- Squad Ballistics' "· no optic" weapons (QLZ87, QLZ87 · Lynx / CSK131, AGS-17 · emplacement, SPG-9 · HEAT / FRAG · scope, ZiS-3), for aiming from the normal view without the optic, are in the "Direct fire (Squad Ballistics)" group, so an embedded map selects them instead of keeping the previous weapon. They fly like their optic entries; the AGS-17 one is direct fire (low arc) only. The saved weapon selection is unchanged
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.8.0** *(2026-10-29)*
 
 </br><img src="https://img.shields.io/badge/-removed-b22">  

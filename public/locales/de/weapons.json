@@ -76,5 +76,11 @@
         "DF_2A72_30mm_BMP_3M_AP_HE": "2A72 30mm (BMP-3M) · AP / HE",
         "DF_ZPT99_30mm_ZBL_08_ZBD_05_AP_HE": "ZPT99 30mm (ZBL-08 / ZBD-05) · AP / HE",
         "DF_M2A1_50_ACOG_emplacement": "M2A1 .50 · ACOG emplacement",
-        "DF_Kord_SPP_emplacement": "Kord · SPP emplacement"
+        "DF_Kord_SPP_emplacement": "Kord · SPP emplacement",
+        "DF_AGS_17_emplacement_no_optic": "AGS-17 · emplacement · no optic",
+        "DF_QLZ87_no_optic": "QLZ87 · no optic",
+        "DF_QLZ87_Lynx_CSK131_no_optic": "QLZ87 · Lynx / CSK131 · no optic",
+        "DF_SPG_9_HEAT_scope_no_optic": "SPG-9 · HEAT · scope · no optic",
+        "DF_SPG_9_FRAG_scope_no_optic": "SPG-9 · FRAG · scope · no optic",
+        "DF_ZiS_3_no_optic": "ZiS-3 · no optic"
 }
