@@ -1,6 +1,6 @@
 import { App } from "../app.js";
 import { MUZZLE_CLEARANCE, SHOULDER_HEIGHT, TARGET_CLEARANCE } from "./squadCoverage.js";
-import { pathAt, solveElevation } from "./squadBallistics.js";
+import { pathAt, solveElevation, trajectory } from "./squadBallistics.js";
 
 // Distance between two heightmap samples when looking for an obstacle, in meters (heightmap pixel size)
 const OBSTACLE_STEP = 1;
@@ -29,9 +29,12 @@ export default class SquadFiringSolution {
         this.shot = App.activeWeapon.getShot(this.gravity);
         this.weaponHeight = this.map.heightmap.getHeight(weaponLatLng) + parseFloat(heightPadding);
         this.targetHeight = this.map.heightmap.getHeight(heightLatLng);
-        // False when the heightmap failed to load: both heights are 0, the solution is for flat ground
-        this.hasHeightData = !this.map.heightmap.failed;
+        // False while the heightmap loads and when it failed to load: both heights are 0, the solution is
+        // for flat ground
+        this.hasHeightData = this.map.heightmap.jsonPng.length > 0 && !this.map.heightmap.failed;
         this.heightDiff =  this.targetHeight - this.weaponHeight;
+        // Both elevations of the trajectory of `shot`, found once
+        this.roots = this.gravity === 0 ? null : solveElevation(this.shot, this.distance, this.heightDiff);
         this.elevation = {low: [], high: []};
         this.elevation.low.rad = this.getElevation(this.distance, true);
         this.elevation.low.deg = this.radToDeg(this.elevation.low.rad);
@@ -84,13 +87,16 @@ export default class SquadFiringSolution {
         if (!this.map.heightmap?.jsonPng?.length) return null;
 
         const weapon = App.activeWeapon;
-        const shot = weapon.muzzle || weapon.heightOffset > 0 ? this.shot : weapon.getShot(this.gravity, SHOULDER_HEIGHT);
+        const shouldered = !weapon.muzzle && !(weapon.heightOffset > 0);
+        const shot = shouldered ? weapon.getShot(this.gravity, SHOULDER_HEIGHT) : this.shot;
         let angle;
 
         if (this.gravity === 0) {
             angle = Math.atan2(this.heightDiff - shot.pivotHeight, this.distance);
         } else {
-            const elevations = solveElevation(shot, this.distance, this.heightDiff);
+            // The shoulder-high muzzle is another trajectory: solved here, once for the two arcs
+            if (shouldered && !this.shoulderRoots) this.shoulderRoots = solveElevation(shot, this.distance, this.heightDiff);
+            const elevations = shouldered ? this.shoulderRoots : this.roots;
             angle = lowAngle ? elevations.low : elevations.high;
             if (isNaN(angle)) return null;
         }
@@ -98,12 +104,14 @@ export default class SquadFiringSolution {
         const latStep = (this.targetLatLng.lat - this.weaponLatLng.lat) / this.distance;
         const lngStep = (this.targetLatLng.lng - this.weaponLatLng.lng) / this.distance;
 
+        const path = trajectory(shot, angle);
+
         for (let x = MUZZLE_CLEARANCE; x <= this.distance - TARGET_CLEARANCE; x += OBSTACLE_STEP) {
             const ground = this.map.heightmap.getHeight({
                 lat: this.weaponLatLng.lat + latStep * x,
                 lng: this.weaponLatLng.lng + lngStep * x,
             });
-            if (this.weaponHeight + pathAt(shot, angle, x).height < ground) {
+            if (this.weaponHeight + path.height(x) < ground) {
                 return { distance: x, height: ground - this.weaponHeight };
             }
         }
@@ -125,6 +133,7 @@ export default class SquadFiringSolution {
     /**
      * Calculates the angle the mortar needs to be set in order
      * to hit the target at the desired distance and vertical delta.
+     * NaN also for a target on the weapon (no distance) or at an unknown height.
      * https://github.com/sh4rkman/SquadCalc/wiki/Deducing-Elevation
      * @param {number} [dist] - distance between mortar and target from getDist()
      * @param {boolean} [lowangle] - "high" or "low" angle
@@ -135,12 +144,14 @@ export default class SquadFiringSolution {
 
         if (this.gravity === 0) {
             // No gravity (NLAW): straight at the target, both "arcs" are the line of sight
+            if (!(dist > 0) || !Number.isFinite(this.heightDiff)) return NaN;
             elevation = Math.atan2(this.heightDiff - App.activeWeapon.heightOffset, dist) - this.degToRad(App.activeWeapon.angleOffset);
             return this.isInElevationRange(elevation) ? elevation : NaN;
         }
 
-        // Exact trajectory: the closed-form parabola, or the boost model solved numerically
-        const { low, high } = solveElevation(this.shot, dist, this.heightDiff);
+        // Exact trajectory: the closed-form parabola, or the boost model solved numerically (the solution of
+        // the constructor's target, else a new one)
+        const { low, high } = dist === this.distance && this.roots ? this.roots : solveElevation(this.shot, dist, this.heightDiff);
         elevation = (lowangle ? low : high) - this.degToRad(App.activeWeapon.angleOffset);
 
         return this.isInElevationRange(elevation) ? elevation : NaN;

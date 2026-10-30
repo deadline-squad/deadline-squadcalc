@@ -175,6 +175,11 @@ function getTargetLines() {
 // Distance between two heights of a target's profile, in meters (heightmap pixel size)
 const PROFILE_STEP = 1;
 
+// The profile of each firing solution: a solution is never changed, a new one replaces it whenever the
+// target, the weapon or the heights change, so the profile is computed once per solution however often
+// Squad Ballistics polls
+const profiles = new WeakMap();
+
 /**
  * Heights of the heightmap (terrain and buildings) along the line from the weapon to the target, so
  * Squad Ballistics can check its own trajectory against them.
@@ -186,6 +191,7 @@ const PROFILE_STEP = 1;
 function getProfile(solution) {
     const heightmap = App.minimap.heightmap;
     if (!heightmap?.jsonPng?.length || !(solution.distance > 0)) return null;
+    if (profiles.has(solution)) return profiles.get(solution);
 
     const samples = Math.floor(solution.distance / PROFILE_STEP);
     const latStep = (solution.targetLatLng.lat - solution.weaponLatLng.lat) / solution.distance * PROFILE_STEP;
@@ -196,7 +202,37 @@ function getProfile(solution) {
         const ground = heightmap.getHeight({ lat: solution.weaponLatLng.lat + latStep * i, lng: solution.weaponLatLng.lng + lngStep * i });
         heights.push(Math.round((ground - solution.weaponHeight) * 100) / 100);
     }
-    return { step: PROFILE_STEP, heights };
+    const profile = { step: PROFILE_STEP, heights };
+    profiles.set(solution, profile);
+    return profile;
+}
+
+/**
+ * The bridge's description of one target
+ * @param {SquadFiringSolution} solution - solution of the first weapon marker for the target
+ * @returns {{distance: number, heightDiff: number|null, bearing: number, profile: Object|null}}
+ */
+function describeTarget(solution) {
+    return {
+        distance: solution.distance,
+        heightDiff: solution.hasHeightData && Number.isFinite(solution.heightDiff) ? solution.heightDiff : null,
+        bearing: solution.bearing,
+        profile: getProfile(solution),
+    };
+}
+
+/**
+ * The firing solutions of the targets of the first weapon marker, in the order the targets were placed
+ * @returns {SquadFiringSolution[]} - empty without a weapon marker
+ */
+function getSolutions() {
+    const solutions = [];
+    if (!App.minimap.activeTargetsMarkers || !App.minimap.activeWeaponsMarkers.getLayers().length) return solutions;
+
+    App.minimap.activeTargetsMarkers.eachLayer(function (target) {
+        if (target.firingSolution1) solutions.push(target.firingSolution1);
+    });
+    return solutions;
 }
 
 /**
@@ -204,25 +240,52 @@ function getProfile(solution) {
  * map polls `window.squadBallistics.targets()` and solves the shot for its own weapon.
  * @returns {{distance: number, heightDiff: number|null, bearing: number, profile: Object|null}[]} In the
  *     order the targets were placed; distance in meters (horizontal), heightDiff = target ground minus
- *     weapon (with its height padding) in meters, null when the heightmap failed to load (unknown
- *     height), bearing in degrees, profile from getProfile.
+ *     weapon (with its height padding) in meters, null while the heightmap loads or when it failed to
+ *     load (unknown height), bearing in degrees, profile from getProfile.
  *     Empty without a weapon marker.
  */
 export function getTargetData() {
-    const targets = [];
-    if (!App.minimap.activeTargetsMarkers || !App.minimap.activeWeaponsMarkers.getLayers().length) return targets;
+    return getSolutions().map(describeTarget);
+}
 
-    App.minimap.activeTargetsMarkers.eachLayer(function (target) {
-        const solution = target.firingSolution1;
-        if (!solution) return;
-        targets.push({
-            distance: solution.distance,
-            heightDiff: solution.hasHeightData ? solution.heightDiff : null,
-            bearing: solution.bearing,
-            profile: getProfile(solution),
-        });
+/**
+ * The newest target alone (the one Squad Ballistics solves), without describing the others
+ * @returns {{distance: number, heightDiff: number|null, bearing: number, profile: Object|null}|null} -
+ *     the last entry of getTargetData(); null without a target or a weapon marker
+ */
+export function getLastTarget() {
+    const solutions = getSolutions();
+    return solutions.length ? describeTarget(solutions[solutions.length - 1]) : null;
+}
+
+// The state `getRevision` last saw, and the number it gave for it
+let revisionState = "";
+let revision = 0;
+
+// Identifier of each firing solution, for the revision's state
+const solutionIds = new WeakMap();
+let nextSolutionId = 1;
+
+/**
+ * Counter that changes whenever what the bridge reports changes: a target added, moved or removed, the
+ * first weapon marker moved, raised or removed, the weapon or its shell switched, the heights loaded.
+ * Every one of those makes the page solve the targets again into new firing solutions, so the state is
+ * the weapon's name and the identity of the solutions; the counter goes up when it differs from the last
+ * call's. Squad Ballistics polls it and asks for `lastTarget()` only when it changed.
+ * @returns {number} - increases by at least one per change; the same between two calls without change
+ */
+export function getRevision() {
+    const weapon = App.activeWeapon?.ballistics ?? "";
+    const ids = getSolutions().map((solution) => {
+        if (!solutionIds.has(solution)) solutionIds.set(solution, nextSolutionId++);
+        return solutionIds.get(solution);
     });
-    return targets;
+    const state = `${weapon}|${ids.join(",")}`;
+    if (state !== revisionState) {
+        revisionState = state;
+        revision++;
+    }
+    return revision;
 }
 
 /**

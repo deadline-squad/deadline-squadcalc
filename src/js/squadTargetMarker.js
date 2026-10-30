@@ -33,6 +33,70 @@ const COVER_ZONE_Z_INDEX = 3;
 // Confidence the rounds-to-kill count is computed for
 const ROUNDS_CONFIDENCE = 0.9;
 
+// Milliseconds of main-thread work per task when the damage zones are computed
+const COVER_ZONE_BUDGET_MS = 8;
+
+// Damage zone images and hit probabilities kept by (map, position, shell, spread): a target that goes
+// back to a place it has been (undo, a weapon or shell switched back and forth) does not compute again
+const COVER_CACHE_SIZE = 64;
+const coverZoneImages = new Map();
+const hitProbabilities = new Map();
+
+// Damage zones waiting to be computed, one task of COVER_ZONE_BUDGET_MS at a time (a MessageChannel
+// message starts each, so input and rendering run between them): redrawing every target when the weapon
+// or shell changes no longer freezes the page
+const coverQueue = [];
+let coverChannel = null;
+let coverScheduled = false;
+
+/**
+ * Remember a value in a bounded cache, the least recently used entry going first
+ * @param {Map} cache
+ * @param {string} key
+ * @param {*} value
+ */
+function remember(cache, key, value) {
+    cache.delete(key);
+    cache.set(key, value);
+    if (cache.size > COVER_CACHE_SIZE) cache.delete(cache.keys().next().value);
+}
+
+/**
+ * Ask for the next task of the damage zone queue
+ */
+function scheduleCoverQueue() {
+    if (coverScheduled || !coverQueue.length) return;
+    if (!coverChannel) {
+        coverChannel = new MessageChannel();
+        coverChannel.port1.onmessage = () => {
+            coverScheduled = false;
+            processCoverQueue();
+        };
+    }
+    coverScheduled = true;
+    coverChannel.port2.postMessage(null);
+}
+
+/**
+ * Compute the queued damage zones for COVER_ZONE_BUDGET_MS, then give the page back. A zone whose target
+ * moved on or was deleted meanwhile (its `coverPending` is no longer the job's signature) is dropped.
+ */
+function processCoverQueue() {
+    const deadline = performance.now() + COVER_ZONE_BUDGET_MS;
+    while (coverQueue.length && performance.now() < deadline) {
+        const job = coverQueue[0];
+        if (job.target.coverPending !== job.signature) {
+            coverQueue.shift();
+            continue;
+        }
+        job.field = damageField(job.heightAt, job.explosion, job.cell, { ...job.field, firstRow: job.field?.nextRow ?? 0, deadline });
+        if (job.field.nextRow < job.field.size) break;
+        coverQueue.shift();
+        job.target.finishCoverZone(job);
+    }
+    scheduleCoverQueue();
+}
+
 export const squadTargetMarker = squadMarker.extend({
 
     initialize: function (latlng, options, map) {
@@ -45,6 +109,11 @@ export const squadTargetMarker = squadMarker.extend({
         this.impacts = [];
         this.coverOverlay = null;
         this.coverSignature = null;
+        // Signature of the damage zone in the queue, null when none waits; hidden while other targets are hovered
+        this.coverPending = null;
+        this.coverHidden = false;
+        // Pending frame of the popups and spread when the target is dragged
+        this.calcFrame = null;
         
         let popUpOptions_weapon1 = {
             autoPan: false,
@@ -210,6 +279,8 @@ export const squadTargetMarker = squadMarker.extend({
 
         // Unbind all custom event handlers
         this.off();
+        cancelAnimationFrame(this.calcFrame);
+        this.calcFrame = null;
 
         // Remove the marker from targets array history
         this.map.history = this.map.history.filter(object => object !== this);
@@ -247,10 +318,10 @@ export const squadTargetMarker = squadMarker.extend({
     getContent: function (firingSolution, angleType) {
         const DIST = firingSolution.distance;
         const BEARING = firingSolution.bearing;
-        let heightDiff = firingSolution.heightDiff.toFixed(0);
+        let heightDiff = Number.isFinite(firingSolution.heightDiff) ? firingSolution.heightDiff.toFixed(0) : "---";
 
         // Avoid "-0"
-        if (heightDiff == -0 || Math.sign(heightDiff) === 1) {
+        if (heightDiff !== "---" && (heightDiff == -0 || Math.sign(heightDiff) === 1)) {
             heightDiff = `+${Math.abs(heightDiff)}`;
         }
 
@@ -551,7 +622,8 @@ export const squadTargetMarker = squadMarker.extend({
     /**
      * Draw where a round on the target kills, wounds, or is stopped by cover (squadDamage.damageField),
      * inside the damage circles. Needs the precise heightmap; recomputed only when the target, the
-     * shell or the map changed, and hidden while the target is dragged.
+     * shell or the map changed, and hidden while the target is dragged. A zone seen before is drawn from
+     * the cache at once; a new one is queued and drawn when its turn comes (processCoverQueue).
      */
     updateCoverZone: function() {
         if (!this.showsExplosion() || this.isDragging || !this.map.heightmap?.precise) {
@@ -562,15 +634,35 @@ export const squadTargetMarker = squadMarker.extend({
         const explosion = App.activeWeapon.explosion;
         const center = this.getLatLng();
         const signature = [this.map.activeMap.name, center.lat, center.lng, JSON.stringify(explosion)].join("|");
+        this.coverHidden = false;
         if (this.coverOverlay && signature === this.coverSignature) {
             this.coverOverlay.setOpacity(1);
             return;
         }
+        if (this.coverPending === signature) return;
         this.removeCoverZone();
         this.coverSignature = signature;
 
         const cell = explosion.outer > COARSE_RADIUS ? COVER_CELL_COARSE : COVER_CELL;
-        const field = damageField(this.heightAround(center), explosion, cell);
+        const cached = coverZoneImages.get(signature);
+        if (cached) {
+            remember(coverZoneImages, signature, cached);
+            this.showCoverZone(cached, center);
+            return;
+        }
+
+        this.coverPending = signature;
+        coverQueue.push({ target: this, signature, center, explosion, cell, heightAt: this.heightAround(center), field: null });
+        scheduleCoverQueue();
+    },
+
+
+    /**
+     * The queue computed this target's damage zone: draw it and keep it in the cache
+     * @param {object} job - the queue entry: `signature`, `center`, `cell` and the finished `field`
+     */
+    finishCoverZone: function(job) {
+        const { field } = job;
         const pixels = new Uint8ClampedArray(field.size * field.size * 4);
         for (let i = 0; i < field.damage.length; i++) {
             let color = null;
@@ -583,9 +675,22 @@ export const squadTargetMarker = squadMarker.extend({
         const canvas = document.createElement("canvas");
         canvas.width = canvas.height = field.size;
         canvas.getContext("2d").putImageData(new ImageData(pixels, field.size, field.size), 0, 0);
-        const half = (field.size * cell) / 2;
+        const image = { url: canvas.toDataURL(), size: field.size, cell: job.cell };
+        remember(coverZoneImages, job.signature, image);
+        this.coverPending = null;
+        this.showCoverZone(image, job.center);
+    },
+
+
+    /**
+     * Put a damage zone image on the map, centred on the target
+     * @param {{url: string, size: number, cell: number}} image
+     * @param {LatLng} center
+     */
+    showCoverZone: function(image, center) {
+        const half = (image.size * image.cell) / 2;
         const bounds = new LatLngBounds(this.map.fromMeters(center, -half, -half), this.map.fromMeters(center, half, half));
-        this.coverOverlay = new ImageOverlay(canvas.toDataURL(), bounds, { className: "coverZoneOverlay", interactive: false, zIndex: COVER_ZONE_Z_INDEX })
+        this.coverOverlay = new ImageOverlay(image.url, bounds, { className: "coverZoneOverlay", interactive: false, zIndex: COVER_ZONE_Z_INDEX, opacity: this.coverHidden ? 0 : 1 })
             .addTo(this.map.markersGroup);
     },
 
@@ -595,6 +700,7 @@ export const squadTargetMarker = squadMarker.extend({
      * hides the other targets' zones, and recomputing them all on hover-out froze the page
      */
     hideCoverZone: function() {
+        this.coverHidden = true;
         if (this.coverOverlay) this.coverOverlay.setOpacity(0);
     },
 
@@ -603,18 +709,20 @@ export const squadTargetMarker = squadMarker.extend({
         if (this.coverOverlay) this.map.markersGroup.removeLayer(this.coverOverlay);
         this.coverOverlay = null;
         this.coverSignature = null;
+        this.coverPending = null;
     },
 
 
     /**
      * Popup line with the rounds to fire so that one kills (☠), or at least wounds (🩸), a soldier
-     * standing on the target with ROUNDS_CONFIDENCE, given the spread and the cover around it
+     * standing on the target with ROUNDS_CONFIDENCE, given the spread and the cover around it. Not computed
+     * while the target is dragged (400 cover traces per move): the line comes back when it is dropped.
      * @param {SquadFiringSolution} firingSolution
      * @param {string[]} arcs - "low" / "high" in the order they are shown; the first one that reaches counts
      * @returns {string} - HTML line, empty when the weapon's explosion is not shown
      */
     formatRounds: function(firingSolution, arcs) {
-        if (!this.showsExplosion()) return "";
+        if (!this.showsExplosion() || this.isDragging) return "";
         const arc = arcs.find((angle) => !isNaN(firingSolution.elevation[angle]?.rad));
         if (!arc) return "";
 
@@ -622,7 +730,13 @@ export const squadTargetMarker = squadMarker.extend({
         const spread = firingSolution.spreadParameters[arc];
         const lateral = (spread.semiMajorAxis || 0) / 2;
         const along = (spread.semiMinorAxis || 0) / 2;
-        const { kill, wound } = hitProbability(this.heightAround(this.getLatLng()), App.activeWeapon.explosion, lateral, along, firingSolution.bearing);
+        const explosion = App.activeWeapon.explosion;
+        const center = this.getLatLng();
+        const key = [this.map.activeMap.name, center.lat, center.lng, JSON.stringify(explosion), lateral, along, firingSolution.bearing, this.map.heightmap?.precise].join("|");
+        let probabilities = hitProbabilities.get(key);
+        if (!probabilities) probabilities = hitProbability(this.heightAround(center), explosion, lateral, along, firingSolution.bearing);
+        remember(hitProbabilities, key, probabilities);
+        const { kill, wound } = probabilities;
         const rounds = (probability) => {
             const count = roundsNeeded(probability, ROUNDS_CONFIDENCE);
             return Number.isFinite(count) ? count : "—";
@@ -950,8 +1064,11 @@ export const squadTargetMarker = squadMarker.extend({
         // On mobile save performance
         if (!App.hasMouse) return;
 
-        // Update bearing/elevation/spread marker
-        this.updateCalc();  
+        // Update bearing/elevation/spread marker: once per animation frame, however many drag events came
+        if (this.calcFrame === null) this.calcFrame = requestAnimationFrame(() => {
+            this.calcFrame = null;
+            if (this.isDragging) this.updateCalc();
+        });
     },
 
     
@@ -994,6 +1111,10 @@ export const squadTargetMarker = squadMarker.extend({
         }
 
         if (App.userSettings.keypadUnderCursor) this.map.on("pointermove", this.map._handleMouseMove);
+
+        // The calculation of the last drag event is made below, with the drop position
+        cancelAnimationFrame(this.calcFrame);
+        this.calcFrame = null;
 
         // Hide PositionPopUp & MiniCircle
         this.isDragging = false;

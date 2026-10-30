@@ -47,6 +47,9 @@
  *      twice in a row the F kept at the other end is halved; stopped when |F(c)| ≤ HEIGHT_TOLERANCE =
  *      1e-9 m or the bracket is narrower than ANGLE_TOLERANCE, at most MAX_ITERATIONS; the root is c
  *      (about 5 expansions and 8 narrowing steps per root).
+ * A caller that solves a row of neighbouring targets (the fire coverage, along a ray) passes the previous
+ * root as a guess: step 3 then brackets the root around the guess, from WARM_STEP radians, instead of from
+ * θ*. The root is the same to the tolerances of step 4; it takes about half the evaluations.
  * A plain parabola from the pivot (no boost, no muzzle offset, not fired above its cap, not coming down
  * faster than its cap before the target) has the closed-form roots used instead (same result to 1e-10 rad).
  */
@@ -63,6 +66,10 @@ export const HEIGHT_TOLERANCE = 1e-9;
 // First half-width of the root brackets around the highest elevation, radians (doubled until they hold the root)
 export const BRACKET_STEP = 0.02;
 
+// First half-width of the bracket around the guess of a warm-started root search, radians (doubled until
+// it holds the root): about the change of the root between two cells of the fire coverage
+export const WARM_STEP = 2e-4;
+
 // Iteration cap of each search; the tolerances are reached long before (52 golden-section steps, ~10 Illinois steps)
 export const MAX_ITERATIONS = 200;
 
@@ -73,6 +80,9 @@ export const SUBSTEP = 0.02;
 // Barrel elevations between the nodes of a boost table, radians: the interpolation reproduces the stepped
 // boost to 1e-6 m (to 4e-4 m near the substep where the M3 MAAWS reaches its cap)
 export const BOOST_NODE_SPACING = Math.PI / 180;
+
+// Samples of a stretch of the profile under which `trajectory().above` checks them one by one
+const COAST_LEAF = 8;
 
 const GOLDEN = (Math.sqrt(5) - 1) / 2;
 
@@ -286,6 +296,10 @@ class BoostTable {
         this.steps = boostSteps(shot);
         this.count = Math.round(Math.PI / BOOST_NODE_SPACING) + 1;
         this.nodes = new Array(this.count).fill(null);
+        // Stencil and point buffers the searches (heightAt, firstPhaseAbove) fill and read within one call
+        this.scratch = { w: [0, 0, 0, 0], n: [null, null, null, null] };
+        this.scratchXs = new Float64Array(this.steps + 1);
+        this.scratchYs = new Float64Array(this.steps + 1);
     }
 
     /**
@@ -307,18 +321,29 @@ class BoostTable {
      * @returns {{w: number[], n: Object[]}}
      */
     stencil(angle) {
+        return this.stencilInto(angle, { w: [0, 0, 0, 0], n: [null, null, null, null] });
+    }
+
+    /**
+     * `stencil` written into a buffer, without allocating (the search loops evaluate it thousands of times)
+     * @param {number} angle - radians
+     * @param {{w: number[], n: Object[]}} stencil - buffer of four weights and four nodes
+     * @returns {{w: number[], n: Object[]}} the buffer
+     */
+    stencilInto(angle, stencil) {
         const at = (angle + Math.PI / 2) / BOOST_NODE_SPACING;
         const first = Math.min(Math.max(Math.trunc(at) - 1, 0), this.count - 4);
         const u = at - first;
-        return {
-            w: [
-                -(u - 1) * (u - 2) * (u - 3) / 6,
-                u * (u - 2) * (u - 3) / 2,
-                -u * (u - 1) * (u - 3) / 2,
-                u * (u - 1) * (u - 2) / 6,
-            ],
-            n: [this.node(first), this.node(first + 1), this.node(first + 2), this.node(first + 3)],
-        };
+        const { w, n } = stencil;
+        w[0] = -(u - 1) * (u - 2) * (u - 3) / 6;
+        w[1] = u * (u - 2) * (u - 3) / 2;
+        w[2] = -u * (u - 1) * (u - 3) / 2;
+        w[3] = u * (u - 1) * (u - 2) / 6;
+        n[0] = this.node(first);
+        n[1] = this.node(first + 1);
+        n[2] = this.node(first + 2);
+        n[3] = this.node(first + 3);
+        return stencil;
     }
 
     /**
@@ -518,13 +543,30 @@ export function heightAt(shot, angle, distance) {
     if (fliesBoostInSteps(shot)) {
         if (Number.isNaN(angle)) return NaN;
         const table = boostTable(shot);
-        const stencil = table.stencil(angle);
-        const end = table.end(stencil);
-        if (ahead < end.x) {
-            const { start, end: next } = table.segment(stencil, ahead);
-            return startY + start.y + (next.y - start.y) * (ahead - start.x) / (next.x - start.x);
+        const { w, n } = table.stencilInto(angle, table.scratch);
+        const steps = table.steps;
+        const endX = w[0] * n[0].xs[steps] + w[1] * n[1].xs[steps] + w[2] * n[2].xs[steps] + w[3] * n[3].xs[steps];
+        if (ahead < endX) {
+            // The substep whose segment holds `ahead`, as BoostTable.segment, then the height on it
+            let low = 0;
+            let high = steps;
+            while (high - low > 1) {
+                const mid = (low + high) >> 1;
+                const x = w[0] * n[0].xs[mid] + w[1] * n[1].xs[mid] + w[2] * n[2].xs[mid] + w[3] * n[3].xs[mid];
+                if (x <= ahead) low = mid;
+                else high = mid;
+            }
+            const next = low + 1;
+            const startPointX = w[0] * n[0].xs[low] + w[1] * n[1].xs[low] + w[2] * n[2].xs[low] + w[3] * n[3].xs[low];
+            const startPointY = w[0] * n[0].ys[low] + w[1] * n[1].ys[low] + w[2] * n[2].ys[low] + w[3] * n[3].ys[low];
+            const nextX = w[0] * n[0].xs[next] + w[1] * n[1].xs[next] + w[2] * n[2].xs[next] + w[3] * n[3].xs[next];
+            const nextY = w[0] * n[0].ys[next] + w[1] * n[1].ys[next] + w[2] * n[2].ys[next] + w[3] * n[3].ys[next];
+            return startY + startPointY + (nextY - startPointY) * (ahead - startPointX) / (nextX - startPointX);
         }
-        return startY + coastHeight(shot, end.x, end.y, end.vx, end.vy, ahead);
+        const endY = w[0] * n[0].ys[steps] + w[1] * n[1].ys[steps] + w[2] * n[2].ys[steps] + w[3] * n[3].ys[steps];
+        const endVx = w[0] * n[0].vx + w[1] * n[1].vx + w[2] * n[2].vx + w[3] * n[3].vx;
+        const endVy = w[0] * n[0].vy + w[1] * n[1].vy + w[2] * n[2].vy + w[3] * n[3].vy;
+        return startY + coastHeight(shot, endX, endY, endVx, endVy, ahead);
     }
 
     if (hasBoost(shot)) {
@@ -552,6 +594,49 @@ export function heightAt(shot, angle, distance) {
 
 
 /**
+ * Sparse table of the maximum of a terrain profile over any range of samples: `max(first, last)` in O(1)
+ * after a build in O(n log n). `trajectory().above` uses it to clear a whole stretch of the profile with
+ * one comparison.
+ */
+export class RangeMax {
+    /**
+     * @param {number} length - largest number of samples a profile will have
+     */
+    constructor(length) {
+        this.levels = [];
+        for (let span = 1; span <= Math.max(length, 1); span *= 2) this.levels.push(new Float64Array(length));
+    }
+
+    /**
+     * Index the maxima of a profile
+     * @param {Float64Array} profile - heights, at most the `length` of the constructor
+     * @returns {RangeMax} this
+     */
+    build(profile) {
+        const size = profile.length;
+        this.levels[0].set(profile);
+        for (let level = 1, span = 1; level < this.levels.length && span * 2 <= size; level++, span *= 2) {
+            const previous = this.levels[level - 1];
+            const next = this.levels[level];
+            for (let i = 0; i + span * 2 <= size; i++) next[i] = Math.max(previous[i], previous[i + span]);
+        }
+        return this;
+    }
+
+    /**
+     * Largest height of the samples from `first` to `last`
+     * @param {number} first - index
+     * @param {number} last - index, ≥ first
+     * @returns {number}
+     */
+    max(first, last) {
+        const level = 31 - Math.clz32(last - first + 1);
+        return Math.max(this.levels[level][first], this.levels[level][last - (1 << level) + 1]);
+    }
+}
+
+
+/**
  * The trajectory at one elevation, with its constants computed once: height and time of the projectile
  * when it is a horizontal distance away from the pivot (see the top; a distance behind the muzzle
  * extrapolates the first phase backwards)
@@ -561,7 +646,9 @@ export function heightAt(shot, angle, distance) {
  *   for a distance in meters: meters above the weapon's ground (the numbers of heightAt), seconds since
  *   launch (0 behind the muzzle), and `at` = {height, time, angle} (path angle above the horizontal,
  *   radians; a point the capped coast never reaches is (−∞, ∞, −π/2)); `above(profile, first, last, step,
- *   ground)`: whether ground + height(i·step) ≥ profile[i] for every i from first to last (fire coverage)
+ *   ground, rangeMax)`: whether ground + height(i·step) ≥ profile[i] for every i from first to last (fire
+ *   coverage); `rangeMax`, a RangeMax built on the profile, makes it clear the coast with a few comparisons
+ *   instead of one per sample
  */
 export function trajectory(shot, angle) {
     // An elevation out of range (NaN) gives NaN everywhere, as the closed forms do
@@ -608,13 +695,25 @@ export function trajectory(shot, angle) {
             }
         };
         firstPhaseAbove = (profile, i, last, step, base) => {
-            if (!xs) interpolate();
+            // The substep points are interpolated into the table's buffers as the scan reaches them
+            const { w, n } = stencil;
+            const scanXs = table.scratchXs;
+            const scanYs = table.scratchYs;
+            let filled = -1;
+            const fill = (k) => {
+                while (filled < k) {
+                    filled++;
+                    scanXs[filled] = w[0] * n[0].xs[filled] + w[1] * n[1].xs[filled] + w[2] * n[2].xs[filled] + w[3] * n[3].xs[filled];
+                    scanYs[filled] = w[0] * n[0].ys[filled] + w[1] * n[1].ys[filled] + w[2] * n[2].ys[filled] + w[3] * n[3].ys[filled];
+                }
+            };
             let k = 0;
             for (; i <= last; i++) {
                 const ahead = i * step - start.x;
                 if (ahead >= end.x) break;
-                while (k < table.steps - 1 && xs[k + 1] <= ahead) k++;
-                if (base + ys[k] + (ys[k + 1] - ys[k]) * (ahead - xs[k]) / (xs[k + 1] - xs[k]) < profile[i]) return -1;
+                while (k < table.steps - 1 && (fill(k + 1), scanXs[k + 1] <= ahead)) k++;
+                fill(k + 1);
+                if (base + scanYs[k] + (scanYs[k + 1] - scanYs[k]) * (ahead - scanXs[k]) / (scanXs[k + 1] - scanXs[k]) < profile[i]) return -1;
             }
             return i;
         };
@@ -702,17 +801,74 @@ export function trajectory(shot, angle) {
     };
 
     /**
+     * `above` on a concave stretch of the path (the coast: a parabola, or the capped coast that turns at a
+     * constant speed; also the whole flight when no stepped boost is involved, see `concave`): the heights
+     * `heightAtSample(i)` rise to an apex and fall, so the stretch splits at the apex (a binary search on
+     * the sign of the slope) into two monotone ones. On a monotone stretch the heights of the trajectory
+     * lie between its two ends, so it clears the whole stretch when the highest terrain sample is at or
+     * under the lower end, and none of it when the highest sample is over the higher end (that sample is
+     * over the trajectory); otherwise the stretch is halved. The answer is the one of the
+     * sample-by-sample scan, in O(log n) comparisons when the trajectory is not grazing the terrain.
+     */
+    const concaveAbove = (profile, first, last, rangeMax, heightAtSample) => {
+        const clearsStretch = (from, to, heightFrom, heightTo) => {
+            if (to - from < COAST_LEAF) {
+                for (let i = from + 1; i < to; i++) if (heightAtSample(i) < profile[i]) return false;
+                return !(heightFrom < profile[from] || heightTo < profile[to]);
+            }
+            const highest = rangeMax.max(from, to);
+            if (highest <= Math.min(heightFrom, heightTo)) return true;
+            if (highest > Math.max(heightFrom, heightTo)) return false;
+            const middle = (from + to) >> 1;
+            const heightMiddle = heightAtSample(middle);
+            const heightNext = heightAtSample(middle + 1);
+            return clearsStretch(from, middle, heightFrom, heightMiddle) && clearsStretch(middle + 1, to, heightNext, heightTo);
+        };
+
+        // The last sample of the rising stretch: the first one the next sample falls below
+        let low = first;
+        let high = last;
+        while (low < high) {
+            const middle = (low + high) >> 1;
+            if (heightAtSample(middle + 1) < heightAtSample(middle)) high = middle;
+            else low = middle + 1;
+        }
+        const rising = low;
+        if (!clearsStretch(first, rising, heightAtSample(first), heightAtSample(rising))) return false;
+        return rising === last || clearsStretch(rising + 1, last, heightAtSample(rising + 1), heightAtSample(last));
+    };
+
+    /**
+     * The height above the profile's reference of the coast (see `coast`) at sample i, as `above` computes it
+     */
+    const coastSample = (i, step, base) => {
+        const c = after;
+        const tau = (i * step - start.x - c.x) / c.vx;
+        if (tau <= c.onset) return base + c.y + tau * (c.vy - 0.5 * c.g * tau);
+        const cosTurn = Math.cos(c.acosOnset + (i * step - start.x - c.x - c.reachOnset) / c.radius);
+        return cosTurn > 0 ? base + c.yc - c.radius * Math.log(c.cosOnset) + c.radius * Math.log(cosTurn) : -Infinity;
+    };
+
+    /**
      * Whether the trajectory stays at or above a terrain profile sampled every `step` meters, from sample
      * `first` to `last`, the weapon's ground being `ground` in the profile's reference. The fire coverage
      * runs it for every cell, on hundreds of samples: the first phase is evaluated sample by sample (the
      * stepped boost walking its substeps), the parabola inline, and the capped coast by turning its path angle by step / R per sample (a rotation)
      * and adding up ln(cos γ) (ln(1 + z) by its series while |z| < 1e-3, exact to 1e-16), the same heights
      * as coastHeight to ~1e-9 m without a cos and a log per sample.
+     * With a `rangeMax` of the profile the samples are checked by `concaveAbove` instead.
      */
-    const above = (profile, first, last, step, ground) => {
+    const above = (profile, first, last, step, ground, rangeMax) => {
         const base = ground + start.y;
+        // Without a stepped boost the whole flight is concave: a closed-form boost along the axis has
+        // a concave height over the distance (its slope falls with time), and so do the coast and the
+        // first substep of a shell slowed to its cap, which join with a falling slope
+        if (rangeMax && !fliesBoostInSteps(shot)) {
+            return first > last || concaveAbove(profile, first, last, rangeMax, (i) => base + height(i * step - start.x));
+        }
         let i = firstPhaseAbove(profile, first, last, step, base);
         if (i < 0) return false;
+        if (rangeMax) return i > last || concaveAbove(profile, i, last, rangeMax, (k) => coastSample(k, step, base));
 
         const c = after;
         for (; i <= last; i++) {
@@ -804,23 +960,48 @@ export function peakAngle(shot, distance) {
  * bracket expansion then the Illinois method (steps 3 and 4 at the top)
  * @param {function(number): number} error - F(θ), meters
  * @param {number} top - θ*, radians
+ * @param {number} topError - F(θ*), meters, ≥ 0: evaluated once by the caller
  * @param {number} direction - -1 or +1
+ * @param {number} [guess] - a root found for a neighbouring target, radians: the bracket is built around
+ *   it when it lies beyond `top` in `direction`; NaN or missing: from `top`
  * @returns {number} - radians
  */
-function findRoot(error, top, direction) {
-    let far = top;
-    let farError = error(far);
-    for (let step = BRACKET_STEP; farError >= 0; step *= 2) {
-        far = Math.min(Math.max(top + direction * step, -ELEVATION_LIMIT), ELEVATION_LIMIT);
-        farError = error(far);
-        if (Math.abs(far) === ELEVATION_LIMIT) break;
-    }
-
+function findRoot(error, top, topError, direction, guess = NaN) {
     // Bracket [a, b]: F(a) ≥ 0 at the top side, F(b) < 0 at the far side
     let a = top;
-    let b = far;
-    let errorA = error(a);
-    let errorB = farError;
+    let errorA = topError;
+    let b = top;
+    let errorB = topError;
+
+    if (direction * (guess - top) > 0 && Math.abs(guess) <= ELEVATION_LIMIT) {
+        const guessError = error(guess);
+        a = b = guess;
+        errorA = errorB = guessError;
+        if (guessError >= 0) {
+            for (let step = WARM_STEP; errorB >= 0; step *= 2) {
+                b = Math.min(Math.max(guess + direction * step, -ELEVATION_LIMIT), ELEVATION_LIMIT);
+                errorB = error(b);
+                if (Math.abs(b) === ELEVATION_LIMIT) break;
+            }
+        } else {
+            for (let step = WARM_STEP; errorA < 0; step *= 2) {
+                a = guess - direction * step;
+                if (direction * (a - top) <= 0) {
+                    a = top;
+                    errorA = topError;
+                    break;
+                }
+                errorA = error(a);
+            }
+        }
+    } else {
+        for (let step = BRACKET_STEP; errorB >= 0; step *= 2) {
+            b = Math.min(Math.max(top + direction * step, -ELEVATION_LIMIT), ELEVATION_LIMIT);
+            errorB = error(b);
+            if (Math.abs(b) === ELEVATION_LIMIT) break;
+        }
+    }
+
     let kept = 0;
     let root = b;
     for (let i = 0; i < MAX_ITERATIONS && Math.abs(b - a) > ANGLE_TOLERANCE; i++) {
@@ -851,9 +1032,14 @@ function findRoot(error, top, direction) {
  * @param {number} [peak] - peakAngle(shot, distance) when the caller already has it (coverage)
  * @param {{low: boolean, high: boolean}} [wanted] - which arcs to search for (the fire coverage skips
  *   the arcs the weapon cannot fire); an arc not wanted is NaN
- * @returns {{low: number, high: number}} - radians, physical barrel angles; NaN out of range
+ * @param {{low: number, high: number}} [guess] - the roots of a neighbouring target (coverage, along a ray),
+ *   radians, NaN for an arc without one: the root search starts around them (see the top)
+ * @returns {{low: number, high: number}} - radians, physical barrel angles; NaN out of range, and for a
+ *   distance that is not positive or a height that is not finite (no target to aim at)
  */
-export function solveElevation(shot, distance, height, peak, wanted = { low: true, high: true }) {
+export function solveElevation(shot, distance, height, peak, wanted = { low: true, high: true }, guess = {}) {
+    if (!(distance > 0) || !Number.isFinite(height)) return { low: NaN, high: NaN };
+
     const g = shot.gravity;
     const v = shot.velocity;
 
@@ -869,12 +1055,13 @@ export function solveElevation(shot, distance, height, peak, wanted = { low: tru
     }
 
     const top = peak ?? peakAngle(shot, distance);
-    if (heightAt(shot, top, distance) < height) return { low: NaN, high: NaN };
+    const topError = heightAt(shot, top, distance) - height;
+    if (topError < 0) return { low: NaN, high: NaN };
 
     const error = (angle) => heightAt(shot, angle, distance) - height;
     return {
-        low: wanted.low ? findRoot(error, top, -1) : NaN,
-        high: wanted.high ? findRoot(error, top, 1) : NaN,
+        low: wanted.low ? findRoot(error, top, topError, -1, guess.low) : NaN,
+        high: wanted.high ? findRoot(error, top, topError, 1, guess.high) : NaN,
     };
 }
 

@@ -1,6 +1,6 @@
 import { ImageOverlay, LatLngBounds } from "leaflet";
 import { App } from "../app.js";
-import { heightAt as projectileHeight, isParabola, peakAngle, solveElevation, trajectory } from "./squadBallistics.js";
+import { heightAt as projectileHeight, isParabola, peakAngle, RangeMax, solveElevation, trajectory } from "./squadBallistics.js";
 
 /**
  * Fire coverage: where the active weapon can hit from the first weapon marker.
@@ -41,12 +41,48 @@ const MIN_CELL = 5;
 // Coverage is drawn up to this distance at most (beyond the largest map side)
 const MAX_COVERAGE_RANGE = 4000;
 
-// Rays computed per tick: the page stays responsive during the computation
-const RAYS_PER_TICK = 24;
+// Milliseconds of main-thread work per chunk of the computation: the page stays responsive during it
+// (a frame is 16.7 ms at 60 Hz, input is handled between chunks)
+const TIME_BUDGET_MS = 8;
 
 // Stacking of the image in the overlay pane: above the map image (an image overlay of z-index 1 that a
 // layer change adds after this one), below the damage zones of the targets and the markers' SVG
 const COVERAGE_Z_INDEX = 2;
+
+
+/**
+ * Whether the elevations of a shot are searched numerically (squadBallistics.solveElevation): a parabola
+ * whose shell comes down faster than its cap is searched too
+ * @param {import("./squadBallistics.js").Shot} shot
+ * @returns {boolean}
+ */
+function isNumeric(shot) {
+    return shot.gravity > 0 && (!isParabola(shot) || Boolean(shot.maxSpeed));
+}
+
+
+/**
+ * The highest trajectory at each target distance of a ray (squadBallistics.peakAngle). It depends on the
+ * distance only, not on the ray or the terrain: one search per distance for all the rays. Zero for the
+ * shots without a numeric search (a plain parabola).
+ * @param {object} params - those of computeCoverageRays (`shot`, `cell`, `range` are used)
+ * @param {Float64Array} [peaks] - results, indexed by target (j · cell); allocated when missing
+ * @param {number} [first=1] - first target to compute
+ * @param {number} [deadline] - `performance.now()` after which to stop, when the targets are not all done
+ * @returns {{peaks: Float64Array, next: number}} - `next` is the first target not computed yet, targets + 1
+ *   when all are
+ */
+export function computeCoveragePeaks(params, peaks = new Float64Array(Math.floor(params.range / params.cell) + 1), first = 1, deadline = Infinity) {
+    const { shot, cell } = params;
+    if (!isNumeric(shot)) return { peaks, next: peaks.length };
+
+    let j = first;
+    for (; j < peaks.length; j++) {
+        peaks[j] = peakAngle(shot, j * cell);
+        if (performance.now() >= deadline) return { peaks, next: j + 1 };
+    }
+    return { peaks, next: j };
+}
 
 
 /**
@@ -71,8 +107,12 @@ const COVERAGE_Z_INDEX = 2;
  * @param {number} params.lifespan - projectile lifespan in seconds
  * @param {number} [params.firstRay=0] - first ray to compute
  * @param {number} [params.lastRay=rays] - ray after the last one to compute
+ * @param {Float64Array} [params.peaks] - computeCoveragePeaks, when the caller has them for all the rays
+ * @param {number} [params.deadline] - `performance.now()` after which no new ray is started (the ray in
+ *   progress ends): the caller continues from `nextRay`
  * @param {Uint8Array} [params.out] - results, rays × (targets + 1), filled in place
- * @returns {{values: Uint8Array, targets: number}} - values[ray * (targets + 1) + j] for the target at j·cell
+ * @returns {{values: Uint8Array, targets: number, nextRay: number}} - values[ray * (targets + 1) + j] for the
+ *   target at j·cell; nextRay is the first ray not computed (lastRay, unless the deadline came first)
  */
 export function computeCoverageRays(params) {
     const {
@@ -82,6 +122,7 @@ export function computeCoverageRays(params) {
     const gravity = shot.gravity;
     const firstRay = params.firstRay ?? 0;
     const lastRay = params.lastRay ?? rays;
+    const deadline = params.deadline ?? Infinity;
     const targets = Math.floor(range / cell);
     const stride = targets + 1;
     const values = params.out ?? new Uint8Array(rays * stride);
@@ -96,13 +137,10 @@ export function computeCoverageRays(params) {
     const [minElevation, maxElevation] = elevationLimits;
 
     // The highest trajectory at a distance does not depend on the target's height: one search per
-    // distance for all the rays (squadBallistics.solveElevation; a parabola whose shell comes down
-    // faster than its cap is searched too)
-    const peaks = new Float64Array(stride);
-    const numeric = gravity > 0 && (!isParabola(shot) || Boolean(shot.maxSpeed));
-    if (numeric) {
-        for (let j = 1; j < stride; j++) peaks[j] = peakAngle(shot, j * cell);
-    }
+    // distance for all the rays (computeCoveragePeaks)
+    const peaks = params.peaks ?? computeCoveragePeaks(params).peaks;
+    const numeric = isNumeric(shot);
+    const rangeMax = new RangeMax(samples);
 
     /**
      * Whether the arc on the `side` of the peak (-1 low, +1 high) lands at an elevation the weapon can
@@ -115,41 +153,48 @@ export function computeCoverageRays(params) {
     };
 
     /**
-     * Whether the trajectory at `angle` (radians) stays above the profile up to `distance`.
+     * Whether the trajectory stays above the profile (of the current ray) up to `distance`.
      * The last cell before the target is not checked: the target point is on the terrain itself.
      */
-    const clears = (angle, distance) => {
+    const clears = (path, distance) => {
         const end = Math.floor((distance - Math.max(cell, TARGET_CLEARANCE)) / step);
         const first = Math.ceil(MUZZLE_CLEARANCE / step);
-        return trajectory(shot, angle).above(profile, first, end, step, ground);
+        return path.above(profile, first, end, step, ground, rangeMax);
     };
 
     /**
-     * Whether a trajectory at `angle` can be fired: elevation limits, hold range for the high one,
-     * and the projectile must not expire before it lands.
+     * The trajectory at `angle` (radians) if it can be fired, else null: elevation limits, hold range
+     * for the high one, and the projectile must not expire before it lands.
      */
-    const fireable = (angle, distance, high) => {
-        if (!Number.isFinite(angle) || (high && lowOnly)) return false;
+    const firedPath = (angle, distance, high) => {
+        if (!Number.isFinite(angle) || (high && lowOnly)) return null;
         const degrees = angle / toRad - angleOffset;
-        if (degrees < minElevation || degrees > maxElevation) return false;
-        if (high && holdElevation && (degrees < holdElevation[0] || degrees > holdElevation[1])) return false;
-        return trajectory(shot, angle).time(distance) <= lifespan;
+        if (degrees < minElevation || degrees > maxElevation) return null;
+        if (high && holdElevation && (degrees < holdElevation[0] || degrees > holdElevation[1])) return null;
+        const path = trajectory(shot, angle);
+        return path.time(distance) <= lifespan ? path : null;
     };
 
-    for (let ray = firstRay; ray < lastRay; ray++) {
+    let nextRay = firstRay;
+    while (nextRay < lastRay && !(performance.now() >= deadline)) {
+        const ray = nextRay++;
         const heading = (2 * Math.PI * ray) / rays;
         const east = Math.cos(heading);
         const north = Math.sin(heading);
 
         for (let i = 0; i < samples; i++) profile[i] = heightAt(east * i * step, north * i * step);
         for (let j = 1; j < stride; j++) targetHeights[j] = heightAt(east * j * cell, north * j * cell);
+        rangeMax.build(profile);
 
         const base = ray * stride;
+        // The elevations of the previous cell of this ray start the search of the next one
+        let roots = {};
 
         for (let j = 1; j < stride; j++) {
             const distance = j * cell;
             if (!inside(east * distance, north * distance)) {
                 values[base + j] = COVERAGE.OUT;
+                roots = {};
                 continue;
             }
             const height = targetHeights[j] - ground;
@@ -168,24 +213,27 @@ export function computeCoverageRays(params) {
                     low: reachesFrom(minElevation, distance, height, peaks[j], -1),
                     high: !lowOnly && reachesFrom(maxElevation, distance, height, peaks[j], 1),
                 } : undefined;
-                ({ low, high } = solveElevation(shot, distance, height, numeric ? peaks[j] : undefined, wanted));
+                roots = solveElevation(shot, distance, height, numeric ? peaks[j] : undefined, wanted, roots);
+                ({ low, high } = roots);
                 if (isNaN(low) && isNaN(high)) {
                     values[base + j] = COVERAGE.OUT;
                     continue;
                 }
             }
 
-            const lowFireable = fireable(low, distance, false);
-            const highFireable = fireable(high, distance, true);
-
-            if (lowFireable && clears(low, distance)) values[base + j] = COVERAGE.LOW;
-            else if (highFireable && clears(high, distance)) values[base + j] = COVERAGE.HIGH;
-            else if (lowFireable || highFireable) values[base + j] = COVERAGE.BLOCKED;
+            const lowPath = firedPath(low, distance, false);
+            if (lowPath && clears(lowPath, distance)) {
+                values[base + j] = COVERAGE.LOW;
+                continue;
+            }
+            const highPath = firedPath(high, distance, true);
+            if (highPath && clears(highPath, distance)) values[base + j] = COVERAGE.HIGH;
+            else if (lowPath || highPath) values[base + j] = COVERAGE.BLOCKED;
             else values[base + j] = COVERAGE.OUT;
         }
     }
 
-    return { values, targets };
+    return { values, targets, nextRay };
 }
 
 
@@ -197,15 +245,22 @@ export function computeCoverageRays(params) {
  * @param {number} targets - targets per ray
  * @param {number} cell - cell size in meters
  * @param {number} range - drawn radius in meters
- * @returns {{pixels: Uint8ClampedArray, size: number}}
+ * @param {object} [progress] - to draw in several calls
+ * @param {Uint8ClampedArray} [progress.pixels] - the image of the previous call; allocated when missing
+ * @param {number} [progress.firstRow=0] - first row to draw
+ * @param {number} [progress.deadline] - `performance.now()` after which no new row is started
+ * @returns {{pixels: Uint8ClampedArray, size: number, nextRow: number}} - nextRow is the first row not
+ *   drawn yet, `size` when the image is complete
  */
-export function rasterizeCoverage(values, rays, targets, cell, range) {
+export function rasterizeCoverage(values, rays, targets, cell, range, progress = {}) {
     const radius = Math.ceil(range / cell);
     const size = 2 * radius + 1;
-    const pixels = new Uint8ClampedArray(size * size * 4);
+    const pixels = progress.pixels ?? new Uint8ClampedArray(size * size * 4);
+    const deadline = progress.deadline ?? Infinity;
     const stride = targets + 1;
 
-    for (let row = 0; row < size; row++) {
+    let row = progress.firstRow ?? 0;
+    for (; row < size && !(performance.now() >= deadline); row++) {
         const north = (radius - row) * cell;
         for (let col = 0; col < size; col++) {
             const east = (col - radius) * cell;
@@ -223,12 +278,12 @@ export function rasterizeCoverage(values, rays, targets, cell, range) {
         }
     }
 
-    return { pixels, size };
+    return { pixels, size, nextRow: row };
 }
 
 
 /**
- * Coverage layer of a squadMinimap: computes in the background and draws an image over the map.
+ * Coverage layer of a squadMinimap: computes in the background (in chunks of a few milliseconds) and draws an image over the map.
  * `update()` can be called on every change; it only recomputes when the weapon, its position,
  * height padding or the map changed.
  */
@@ -241,6 +296,7 @@ export default class SquadCoverage {
         this.map = map;
         this.enabled = false;
         this.overlay = null;
+        this.overlayUrl = null;
         this.signature = null;
         // Incremented to abandon a computation in progress
         this.generation = 0;
@@ -286,13 +342,15 @@ export default class SquadCoverage {
     clear() {
         this.generation++;
         this.signature = null;
-        if (this.overlay) this.overlay.remove();
-        this.overlay = null;
+        this.removeOverlay();
         $("#coverageLegend").hide();
     }
 
     /**
-     * Compute the coverage of `weapon` from `weaponMarker` in ticks of RAYS_PER_TICK rays, then draw it
+     * Compute the coverage of `weapon` from `weaponMarker`, then draw it. The work is cut into chunks of
+     * TIME_BUDGET_MS (the highest trajectories, the rays, the image), each one a task of its own that a
+     * MessageChannel message starts: input and rendering are handled between them, which a chain of
+     * setTimeout(0) would delay by its 4 ms minimum.
      * @param {squadWeaponMarker} weaponMarker
      * @param {Weapon} weapon
      */
@@ -314,6 +372,7 @@ export default class SquadCoverage {
         const rays = Math.max(360, Math.min(1440, Math.ceil((2 * Math.PI * range) / (2 * cell))));
         const targets = Math.floor(range / cell);
         const values = new Uint8Array(rays * (targets + 1));
+        const peaks = new Float64Array(targets + 1);
         const gravity = App.gravity * weapon.gravityScale;
 
         const params = {
@@ -329,27 +388,48 @@ export default class SquadCoverage {
             lifespan: weapon.projectileLifespan,
             lowOnly: weapon.type === "directFire",
             inside,
+            peaks,
             out: values,
         };
 
-        const tick = (firstRay) => {
-            if (generation !== this.generation) return;
-            const lastRay = Math.min(rays, firstRay + RAYS_PER_TICK);
-            computeCoverageRays({ ...params, firstRay, lastRay });
-            if (lastRay < rays) {
-                setTimeout(() => tick(lastRay), 0);
+        let nextPeak = 1;
+        let nextRay = 0;
+        let image = { nextRow: 0 };
+        const channel = new MessageChannel();
+
+        channel.port1.onmessage = () => {
+            if (generation !== this.generation) {
+                channel.port1.close();
                 return;
             }
-            this.draw(origin, values, rays, targets, cell, range);
+            const deadline = performance.now() + TIME_BUDGET_MS;
+            if (nextPeak <= targets) {
+                nextPeak = computeCoveragePeaks(params, peaks, nextPeak, deadline).next;
+            } else if (nextRay < rays) {
+                nextRay = computeCoverageRays({ ...params, firstRay: nextRay, deadline }).nextRay;
+            } else {
+                image = rasterizeCoverage(values, rays, targets, cell, range, { ...image, firstRow: image.nextRow, deadline });
+                if (image.nextRow >= image.size) {
+                    channel.port1.close();
+                    this.draw(origin, image.pixels, image.size, cell, generation);
+                    return;
+                }
+            }
+            channel.port2.postMessage(null);
         };
-        setTimeout(() => tick(0), 0);
+        channel.port2.postMessage(null);
     }
 
     /**
-     * Put the image of the coverage on the map
+     * Put the image of the coverage on the map. The PNG is encoded off the main thread (`toBlob`) and
+     * shown from an object URL; an image that a newer computation replaced meanwhile is dropped.
+     * @param {LatLng} origin - the weapon
+     * @param {Uint8ClampedArray} pixels - RGBA, from rasterizeCoverage
+     * @param {number} size - side of the image in pixels
+     * @param {number} cell - meters per pixel
+     * @param {number} generation - the computation that made the image
      */
-    draw(origin, values, rays, targets, cell, range) {
-        const { pixels, size } = rasterizeCoverage(values, rays, targets, cell, range);
+    draw(origin, pixels, size, cell, generation) {
         const canvas = document.createElement("canvas");
         canvas.width = canvas.height = size;
         canvas.getContext("2d").putImageData(new ImageData(pixels, size, size), 0, 0);
@@ -357,8 +437,22 @@ export default class SquadCoverage {
         const half = (size * cell) / 2;
         const bounds = new LatLngBounds(this.map.fromMeters(origin, -half, -half), this.map.fromMeters(origin, half, half));
 
+        canvas.toBlob((blob) => {
+            if (generation !== this.generation) return;
+            this.removeOverlay();
+            this.overlayUrl = blob ? URL.createObjectURL(blob) : canvas.toDataURL();
+            this.overlay = new ImageOverlay(this.overlayUrl, bounds, { className: "coverageOverlay", interactive: false, zIndex: COVERAGE_Z_INDEX }).addTo(this.map);
+            $("#coverageLegend").show();
+        });
+    }
+
+    /**
+     * Take the image off the map and release its object URL
+     */
+    removeOverlay() {
         if (this.overlay) this.overlay.remove();
-        this.overlay = new ImageOverlay(canvas.toDataURL(), bounds, { className: "coverageOverlay", interactive: false, zIndex: COVERAGE_Z_INDEX }).addTo(this.map);
-        $("#coverageLegend").show();
+        if (this.overlayUrl?.startsWith("blob:")) URL.revokeObjectURL(this.overlayUrl);
+        this.overlay = null;
+        this.overlayUrl = null;
     }
 }
