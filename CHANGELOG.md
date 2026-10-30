@@ -1,3 +1,10 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.8.2** *(2026-10-30)*
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- A precise heightmap download the network drops (connection lost, a server error) is tried again, up to four times over about 7 s, instead of silently keeping the coarse 8-bit heightmap for the whole visit. If it still fails, a warning says the heights are coarse. A site without precise heightmaps (404) still uses the 8-bit one at once
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.8.1** *(2026-10-30)*
 
 </br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  

@@ -89,5 +89,7 @@
     "openFactionSelection": "Cliquer pour ouvrir la sélection de faction",
     "coverage": "Zone de tir : où l'arme peut toucher depuis le premier marqueur d'arme, en tenant compte du relief et des bâtiments",
     "heightmapFailed": "Pas de données d'altitude",
-    "heightmapFailedDesc": "La carte des hauteurs n'a pas pu être chargée : les solutions de tir supposent un terrain plat (hauteur 0)."
+    "heightmapFailedDesc": "La carte des hauteurs n'a pas pu être chargée : les solutions de tir supposent un terrain plat (hauteur 0).",
+    "heightmapCoarse": "Altitudes approximatives",
+    "heightmapCoarseDesc": "La carte des hauteurs précise n'a pas pu être téléchargée (réseau) : les altitudes viennent de la carte 8 bits approximative, jusqu'à 2 m d'écart. Rechargez la page pour réessayer."
 }
