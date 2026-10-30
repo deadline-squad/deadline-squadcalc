@@ -109,13 +109,18 @@ export var WEAPONS = [
         deceleration: 0,
         decelerationTime : 0,
         gravityScale: 1,
-        minElevation: [-45, 135],
+        // The readout of the technical's HUD, 40° to 83.8° (1250 m to 50 m): the mount's world pitch + 40
+        minElevation: [40, 83.8],
         unit: "deg",
         type: "vehicles",
         angleType: "high",
         elevationPrecision: 1,
-        heightOffset: 2.5,
         angleOffset: 5,
+        // The shell starts at BarrelSocketName Attach_Muzzle, 161.4 cm along the tube (3.9 cm above its axis),
+        // which pivots 117.9 cm above the ground: the turret's GunMountComponent on the vehicle's
+        // socket_turret_rear_mortar, 108.8 cm above the mesh origin, whose wheels touch the ground 9.1 cm
+        // below it (SK_Technical_2Seater, m1937mortar_swivel and m1937mortar_tube2 skeletons; Squad build 26005357)
+        muzzle: { pivotHeight: 1.1789, forward: 1.6137, up: 0.0388 },
         shells : [{
             name: "default",
             minDistance: 51,
@@ -136,12 +141,17 @@ export var WEAPONS = [
         maxSpeed: 300,
         rotationFollowsVelocity: false,
         gravityScale: 2,
-        minElevation: [-45, 135],
+        // Pitch 0° to 50° (the turret's PitchInterval) on a pod that rests level
+        minElevation: [0, 50],
         unit: "deg",
         type: "vehicles",
         angleType: "low",
         elevationPrecision: 1,
-        heightOffset: 2.5,
+        // The rockets start at BarrelSocketName Attach_Muzzle, 143.0 cm along the pod and 25.1 cm above its
+        // axis; the pod pivots at the turret's GunMountComponent, 217.5 cm above the vehicle's mesh origin
+        // (socket_turret of SK_Technical_2Seater), whose wheels touch the ground 9.1 cm below it
+        // (Squad build 26005357)
+        muzzle: { pivotHeight: 2.2659, forward: 1.4303, up: 0.2513 },
         projectileLifespan: 20,
         shells : [{
             name: "default",
@@ -160,12 +170,16 @@ export var WEAPONS = [
         deceleration: 0,
         decelerationTime : 0,
         gravityScale: 2,
-        minElevation: [-45, 135],
+        // The launcher rests 14.2° up (its Attach_Muzzle socket) and the turret pitches it 0° to 40.8° more
+        minElevation: [14.2, 55],
         unit: "deg",
         type: "vehicles",
         angleType: "low",
         elevationPrecision: 1,
-        heightOffset: 3,
+        // The rockets start at BarrelSocketName Attach_Muzzle, 273.5 cm along the rail and 63.7 cm above it;
+        // the rail pivots at the turret's GunMountComponent, 179.6 cm above the vehicle's mesh origin
+        // (bone_turret of SK_Ural375_BM21Grad), whose wheels touch the ground 2.7 cm above it (Squad build 26005357)
+        muzzle: { pivotHeight: 1.7694, forward: 2.7346, up: 0.6366 },
         projectileLifespan: 20,
         shells : [{
             name: "default",
@@ -184,12 +198,17 @@ export var WEAPONS = [
         deceleration: 0,
         decelerationTime : 0,
         gravityScale: 1,
-        minElevation: [-45, 85.3],
+        // The tube rests at 50° and the turret pitches it 0° to 35° more
+        minElevation: [50, 85],
         unit: "deg",
         type: "vehicles",
         angleType: "high",
         elevationPrecision: 1,
-        heightOffset: 3,
+        // The shell starts at BarrelSocketName Attach_Muzzle, 346.2 cm along the tube (0.35 cm above its axis),
+        // which pivots 81.7 cm above the ground: the turret's GunMountComponent on the hull's 1064_turretSocket,
+        // 76.8 cm above the mesh origin, whose tracks touch the ground 5.0 cm below it (SK_M113A3 hull skeleton,
+        // SK_M121_Mortar_Tube; Squad build 26005357)
+        muzzle: { pivotHeight: 0.8174, forward: 3.4618, up: 0.0035 },
         shells : [{
             name: "impact",
             velocity: 142,

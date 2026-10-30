@@ -1,3 +1,11 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.10.0** *(2026-10-30)*
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- The Technical's mortar and UB-32, the BM-21 and the M1064 M121 start their shell where the game does: the barrel socket `Attach_Muzzle`, at the hinge height and reach read from the game files (build 26005357), instead of a guessed 2.5-3 m above the ground. The elevation for a target moves by 0.01-0.2° at 450-2000 m; it now matches Squad Ballistics (whose old values were up to 3° off) to 1e-6°
+- Their elevation limits are the game's: Technical mortar 40°-83.8° (its HUD's table), M1064 50°-85°, BM-21 14.2°-55° (nothing nearer than about 985 m), Technical UB-32 0°-50°; targets past them show as out of range
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.9.0** *(2026-10-30)*
 
 </br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
