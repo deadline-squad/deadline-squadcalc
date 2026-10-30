@@ -6,7 +6,7 @@ import { animateCSS, animateCalc } from "./animations.js";
 import { loadLanguage } from "./localization.js";
 import { tooltip_save, createSessionTooltips, leaveSessionTooltips } from "./tooltips.js";
 import { checkApiHealth, fetchLayersByMap, fetchLayerByName } from "./squadCalcAPI.js";
-import { initWebSocket, getTargetData } from "./smcConnector.js";
+import { initWebSocket, getTargetData, getLastTarget, getRevision } from "./smcConnector.js";
 import { LatLng } from "leaflet";
 import SquadServersBrowser from "./squadServersBrowser.js";
 import SquadSession from "./squadSession.js";
@@ -95,8 +95,15 @@ export default class SquadCalc {
         // Read by Squad Ballistics (embedded map): it solves the targets for the same weapon
         window.squadBallistics = {
             // 4: targets carry the terrain and building profile to the target
-            version: 4,
+            // 5: lastTarget() and revision(); heightDiff is null until the heights loaded
+            version: 5,
+            // Every target, in the order they were placed
             targets: getTargetData,
+            // The newest target only, or null
+            lastTarget: getLastTarget,
+            // Counter that changes when a target, the weapon or the heights change: poll it, read
+            // lastTarget() when it moved
+            revision: getRevision,
             // Name of the selected weapon in Squad Ballistics' weapons.json, null if it has none
             weapon: () => this.activeWeapon?.ballistics ?? null,
             // The weapon picked in Squad Ballistics, selected here too (fire coverage, popups)

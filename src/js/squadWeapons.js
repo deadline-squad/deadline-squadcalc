@@ -180,6 +180,24 @@ export class Weapon {
 
         const gravity = App.gravity * this.gravityScale;
 
+        // The searches of maxRange cost milliseconds and this is asked on every drag event, weapon change
+        // and coverage: kept until the gravity or the shell's velocity (the only inputs that change) does
+        const key = `${gravity}|${this.velocity}`;
+        if (this.maxDistanceKey !== key) {
+            this.maxDistanceKey = key;
+            this.maxDistanceValue = this.computeMaxDistance(gravity);
+        }
+        return this.maxDistanceValue;
+    }
+
+
+    /**
+     * The range of getMaxDistance, computed
+     * @param {number} gravity - world gravity times the projectile's gravity scale
+     * @returns {number} - meters
+     */
+    computeMaxDistance(gravity) {
+
         if (gravity === 0) return NO_GRAVITY_RANGE;
 
         // Launch point moving with the elevation, boosted rockets, or shells fired faster than their cap:

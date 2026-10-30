@@ -1,9 +1,36 @@
-# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.10.0** *(2026-10-30)*
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.13.0** *(2026-10-30)*
 
 </br><img src="https://img.shields.io/badge/-%20improv%20-orange">  
 - Switching to a map downloads and decodes the precise heightmap faster: it is a lossless WebP the browser decodes itself (Yehorivka 30.7 MB to 20.5 MB, Al Basrah 14.1 MB to 6.6 MB; 326 MB to 171 MB for the 25 maps), with the heights rounded to 1 cm (5 mm from the old ones at most; Chora and Skorpo are unchanged). A heightmap is requested only once its `meta.json` was found, so a site without precise heightmaps no longer downloads the PNG for nothing, and with a `generated` date in `meta.json` the file is requested as `?v=<date>` and can stay in the browser's cache. The PNG of older deployments is decoded with the browser's own inflate instead of JavaScript's, and is used when the WebP cannot be
 - The first visit downloads 21.5 MB less: the 220 vehicle images (15.7 MB) and the README screenshots are no longer precached; a vehicle image is saved the first time it is shown, then served from the cache for 30 days
 - The detailed map layer keeps one tile beyond the screen instead of two, so a zoom step or a pan requests fewer tiles
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.12.0** *(2026-10-30)*
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- The rounds-to-kill and rounds-to-wound line used a spread the game does not have: impacts were spread evenly over the area of the spread ellipse, but the game's cone (`FMath::VRandCone`, `Phi = fmodf(acosf(2v - 1), h)`, build 26005357) puts the miss *radius* evenly, so rounds crowd at the centre and a kill is `kill radius / spread radius` likely, not its square. The count was too high by up to 10 times: AGS-17 at 300 m asked for 184 rounds to kill (now 19, wound 8 now 4), the mortar at 300 m 16 (now 5). Kill / wound per round, mortar 300 m 0.135 / 0.507 now 0.370 / 0.710, 1000 m 0.253 / 0.835 now 0.492 / 0.905, AGS-17 300 m 0.013 / 0.263 now 0.115 / 0.510 (a 400,000-shot simulation of the game's cone on exact flat-ground physics gives 0.369 / 0.711, 0.494 / 0.910 and 0.115 / 0.510). The drawn spread ellipse is unchanged (it matches the cone within 0.1 %)
+- Direct-fire weapons had no spread (MOA 0), so no spread ellipse was drawn for them. They now have the MOA of their game weapon: grenade launchers 30-40, RPG-7 20 (RPG-7V1 15), RPG-26 / M72 15, AT-4 and RPG-29 10, SMAW, PF98, Carl Gustav and M3 MAAWS 7, SPG-9, Grom and ZiS-3 3, 2A70 1.6, tank guns 1.5 (Leopard 1.2), NLAW 1, MK19 on the M1117, AAV-7 and PARS III 50, AGS-30 15. The tripod and open-turret MK19 and the QLZ87 spread by a curve (15 MOA for the first shot of a rested gun, up to 50 in a sustained burst) whose input the game files do not give: they show the 15 MOA of the first shot, a burst spreads wider. The AGS-17 keeps its 50 MOA (a burst). Their hit probability is not shown yet: their explosion is not in the data
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.11.0** *(2026-10-30)*
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- The page no longer freezes while the fire coverage, the damage zones or a dragged target are computed. Fire coverage: the highest trajectories are searched once instead of in every chunk, each root starts from the previous cell's, the terrain along a ray is cleared with a sparse range-maximum table instead of sample by sample, and the cells are classified in two workers while the page only samples the terrain (in chunks of 8 ms, started by a `MessageChannel`; the PNG is encoded by `toBlob`). Without workers the same chunks run on the page. Every cell is the same as before (111 weapons on a real heightmap, three positions). A weapon now takes 0.5-0.8 s to draw (UB-32 2.9 s, SPG-9 2.4 s, Tank HE 2.0 s before) and the longest task of the page went from 83-144 ms to 10-46 ms
+- Damage zones: cover is read from a horizon sweep of the impact (a pass along 2π·radius/0.5 directions instead of a line walked for every cell; 0-0.2 % of the cells change class), zones are drawn one 8 ms task at a time and kept per map, position and shell, and the hit probability is cached. Dragging a target updates once per frame and leaves the rounds line out until it is dropped
+- The firing solution solves once and traces on one trajectory (2-8x faster, same elevations, times, spreads and obstacles); `getMaxDistance()` is cached; the 4096 px map image is decoded off the main thread (230-710 ms before on every map switch)
+- A solution is for flat ground until the precise heightmap has loaded: the popups show "no height data" and the bridge sends `heightDiff: null`, then both follow `heightmap:loaded`. A target on the weapon, or at an unknown height, shows as out of range
+- Squad Ballistics bridge, version 5: `window.squadBallistics.lastTarget()` (the newest target alone, shaped like one element of `targets()`, or `null`) and `window.squadBallistics.revision()` (a number that changes when a target, the weapon or the heights change; `console.info("sb:changed")` is logged at the same moment). The profile of a target is computed once per solution. `targets()`, `weapon()` and `selectWeapon()` are unchanged
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.10.0** *(2026-10-30)*
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- The Technical's mortar and UB-32, the BM-21 and the M1064 M121 start their shell where the game does: the barrel socket `Attach_Muzzle`, at the hinge height and reach read from the game files (build 26005357), instead of a guessed 2.5-3 m above the ground. The elevation for a target moves by 0.01-0.2° at 450-2000 m; it now matches Squad Ballistics (whose old values were up to 3° off) to 1e-6°
+- Their elevation limits are the game's: Technical mortar 40°-83.8° (its HUD's table), M1064 50°-85°, BM-21 14.2°-55° (nothing nearer than about 985 m), Technical UB-32 0°-50°; targets past them show as out of range
 
 </br></br><!-- CHANGELOG SPLIT MARKER -->
 
