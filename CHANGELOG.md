@@ -1,3 +1,13 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.9.0** *(2026-10-30)*
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- Direct fire flies like the game's server: 20 ms steps, the projectile's top speed (MaxSpeed) applied from the first step, and a rocket motor that pushes along the path. Tank HEAT/HE (1100 m/s, held at 850 or 800 m/s) and SPG-9 / Grom HEAT and FRAG now land where aimed instead of 70-330 m short at 200-800 m; the RPG-7, M3 MAAWS, Carl Gustav, PF98, SMAW and RPG-29 now land on the target too (the RPG-7 passed 1.6-9 m under it at 200-800 m). Same model as Squad Ballistics (deadline-squad/squad-ballistics#4)
+- The direct-fire weapons on mounts and turrets have the elevation limits of the game files (SPG-9 tripod +-10°, MK19 tripod -35..20°, AGS-17 -12..86°); targets past them show as out of range
+- New Squad Ballistics weapons: "MK19 · emplacement / C16 / L134A1 · no sights" (fired without RMB) and "AGS-30 (BMP-1TS)"; "AGS-30 / BTR-4 AGS" now has the BTR-4's own 1.6° sight
+- The UB-32's S-5 keeps its 300 m/s cap and its motor along the pod's axis
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.8.3** *(2026-10-30)*
 
 </br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  

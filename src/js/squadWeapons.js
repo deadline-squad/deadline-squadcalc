@@ -6,7 +6,7 @@ import { maxRange } from "./squadBallistics.js";
 const NO_GRAVITY_RANGE = 10000;
 
 export class Weapon {
-    constructor(name, deceleration, decelerationTime, gravityScale, minElevation, unit, logo, marker, type, angleType, elevationPrecision, shells = [], heightOffset = 0, angleOffset = 0, projectileLifespan = 100, mod = null, elevationRate = null, heatmap = true, acceleration = 0, accelerationTime = 0, holdElevation = null, ballistics = null, image = null, muzzle = null) {
+    constructor(name, deceleration, decelerationTime, gravityScale, minElevation, unit, logo, marker, type, angleType, elevationPrecision, shells = [], heightOffset = 0, angleOffset = 0, projectileLifespan = 100, mod = null, elevationRate = null, heatmap = true, acceleration = 0, accelerationTime = 0, holdElevation = null, ballistics = null, image = null, muzzle = null, maxSpeed = 0, rotationFollowsVelocity = true) {
         this.name = name;
         this.deceleration = deceleration;
         this.decelerationTime = decelerationTime;
@@ -48,6 +48,12 @@ export class Weapon {
         // Launch point moving with the elevation, from the weapon's skeleton (weapons.js), or null:
         // the projectile starts heightOffset above the ground. {pivotHeight, forward, up} in meters
         this.muzzle = muzzle;
+        // The projectile's speed cap in m/s (MaxSpeed of its movement component; 0: none): a shell fired
+        // faster is slowed to it at once, a motor holds a rocket at it (squadBallistics.js)
+        this.maxSpeed = maxSpeed;
+        // The motor pushes along the path (the game's bRotationFollowsVelocity), or along the barrel's
+        // axis at launch when false (UB-32)
+        this.rotationFollowsVelocity = rotationFollowsVelocity;
     }
 
 
@@ -73,10 +79,11 @@ export class Weapon {
 
 
     /**
-     * Equivalent constant velocity over `distance` for a boosted rocket: it accelerates by
-     * `acceleration` m/s² during `accelerationTime` s, then keeps its speed.
-     * Same as Weapon.velocity_at in Squad Ballistics (ballistics.py). Only the spread uses it: the
-     * elevation, time of flight and range come from the exact trajectory (getShot, squadBallistics.js).
+     * Equivalent constant velocity over `distance` for a boosted rocket flying straight along the
+     * barrel: it accelerates by `acceleration` m/s² during `accelerationTime` s, then keeps its speed,
+     * held at `maxSpeed`. Same as Weapon.velocity_at in Squad Ballistics (ballistics.py). Only the
+     * spread uses it: the elevation, time of flight and range come from the trajectory (getShot,
+     * squadBallistics.js).
      * @param {number} distance - Distance to the target in meters.
      * @returns {number} - distance / time of flight, in m/s.
      */
@@ -86,12 +93,14 @@ export class Weapon {
         const a = this.acceleration;
         const boostTime = this.accelerationTime;
         const boostDistance = this.velocity * boostTime + 0.5 * a * boostTime ** 2;
+        let cruise = this.velocity + a * boostTime;
+        if (this.maxSpeed) cruise = Math.min(cruise, this.maxSpeed);
         let time;
 
         if (distance <= boostDistance) {
-            time = (Math.sqrt(Math.max(0, this.velocity ** 2 + 2 * a * distance)) - this.velocity) / a;
+            time = 2 * distance / (this.velocity + Math.sqrt(Math.max(0, this.velocity ** 2 + 2 * a * distance)));
         } else {
-            time = boostTime + (distance - boostDistance) / (this.velocity + a * boostTime);
+            time = boostTime + (distance - boostDistance) / cruise;
         }
 
         return distance / time;
@@ -112,6 +121,8 @@ export class Weapon {
             gravity,
             acceleration: boosted ? this.acceleration : 0,
             boostTime: boosted ? this.accelerationTime : 0,
+            maxSpeed: this.maxSpeed || 0,
+            rotationFollowsVelocity: this.rotationFollowsVelocity !== false,
             pivotHeight: this.muzzle ? this.muzzle.pivotHeight : launchHeight,
             muzzleForward: this.muzzle ? this.muzzle.forward : 0,
             muzzleUp: this.muzzle ? this.muzzle.up : 0,
@@ -171,10 +182,10 @@ export class Weapon {
 
         if (gravity === 0) return NO_GRAVITY_RANGE;
 
-        // Launch point moving with the elevation, or boosted rockets: the exact trajectory
-        // (squadBallistics.maxRange), from the muzzle or else from the ground
+        // Launch point moving with the elevation, boosted rockets, or shells fired faster than their cap:
+        // the exact trajectory (squadBallistics.maxRange), from the muzzle or else from the ground
         if (this.muzzle) return maxRange(this.getShot(gravity));
-        if (this.hasBoost()) return maxRange(this.getShot(gravity, 0));
+        if (this.hasBoost() || (this.maxSpeed && this.velocity > this.maxSpeed)) return maxRange(this.getShot(gravity, 0));
 
         // Weapons aimed by key press duration (AGS-17) cannot reach the ideal 45° when
         // their mount stops above it: their range is the one of the lowest hold elevation

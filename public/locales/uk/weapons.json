@@ -108,5 +108,7 @@
         "DF_Tank_HEAT_HE_M60T_MG253": "Танк, кумулятивний/фугасний · M60T (MG253)",
         "DF_Tank_HEAT_HE_ZTZ_99_ZPT_98": "Танк, кумулятивний/фугасний · ZTZ-99 (ZPT-98)",
         "DF_Tank_HEAT_HE_T_62_2A20": "Танк, кумулятивний/фугасний · T-62 (2A20)",
-        "DF_Tank_HEAT_HE_T_64BM2_KBA3": "Танк, кумулятивний/фугасний · T-64BM2 (KBA3)"
+        "DF_Tank_HEAT_HE_T_64BM2_KBA3": "Танк, кумулятивний/фугасний · T-64BM2 (KBA3)",
+        "DF_MK19_emplacement_C16_L134A1_no_sights": "MK19 · станковий / C16 / L134A1 · без прицілу",
+        "DF_AGS_30_BMP_1TS": "AGS-30 (BMP-1TS)"
 }

@@ -568,7 +568,9 @@ export default class SquadCalc {
                 weapon.holdElevation,
                 weapon.ballistics,
                 weapon.image,
-                weapon.muzzle
+                weapon.muzzle,
+                weapon.maxSpeed,
+                weapon.rotationFollowsVelocity
             );
         });
         

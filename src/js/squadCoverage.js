@@ -96,9 +96,10 @@ export function computeCoverageRays(params) {
     const [minElevation, maxElevation] = elevationLimits;
 
     // The highest trajectory at a distance does not depend on the target's height: one search per
-    // distance for all the rays (squadBallistics.solveElevation)
+    // distance for all the rays (squadBallistics.solveElevation; a parabola whose shell comes down
+    // faster than its cap is searched too)
     const peaks = new Float64Array(stride);
-    const numeric = gravity > 0 && !isParabola(shot);
+    const numeric = gravity > 0 && (!isParabola(shot) || Boolean(shot.maxSpeed));
     if (numeric) {
         for (let j = 1; j < stride; j++) peaks[j] = peakAngle(shot, j * cell);
     }
@@ -119,33 +120,8 @@ export function computeCoverageRays(params) {
      */
     const clears = (angle, distance) => {
         const end = Math.floor((distance - Math.max(cell, TARGET_CLEARANCE)) / step);
-        const path = trajectory(shot, angle);
         const first = Math.ceil(MUZZLE_CLEARANCE / step);
-        if (path.parabola) {
-            // Inlined: this loop runs for every cell of the coverage
-            const { x0, y0, tan, drop } = path.parabola;
-            for (let i = first; i <= end; i++) {
-                const ahead = i * step - x0;
-                if (ground + y0 + ahead * (tan - drop * ahead) < profile[i]) return false;
-            }
-            return true;
-        }
-        // Inlined `height` of squadBallistics.trajectory: the boost phase, then the quadratic after it
-        const { x0, y0, perCos, sin, v0, v0Squared, a, g, reach, boostHeight, perCosBoostEnd, climb } = path.boost;
-        for (let i = first; i <= end; i++) {
-            const x = i * step;
-            let height;
-            if (x <= reach) {
-                const along = (x - x0) * perCos;
-                const t = 2 * along / (v0 + Math.sqrt(Math.max(0, v0Squared + 2 * a * along)));
-                height = y0 + sin * along - 0.5 * g * t * t;
-            } else {
-                const after = (x - reach) * perCosBoostEnd;
-                height = boostHeight + after * (climb - 0.5 * g * after);
-            }
-            if (ground + height < profile[i]) return false;
-        }
-        return true;
+        return trajectory(shot, angle).above(profile, first, end, step, ground);
     };
 
     /**
