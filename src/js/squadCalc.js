@@ -577,7 +577,8 @@ export default class SquadCalc {
                 weapon.image,
                 weapon.muzzle,
                 weapon.maxSpeed,
-                weapon.rotationFollowsVelocity
+                weapon.rotationFollowsVelocity,
+                weapon.legacyBallistics
             );
         });
         
@@ -1441,11 +1442,11 @@ export default class SquadCalc {
 
     /**
      * Select the weapon whose Squad Ballistics name is `name`, as if picked in the weapon selector
-     * @param {string} name - weapon name in Squad Ballistics' weapons.json
+     * @param {string} name - weapon name in Squad Ballistics' weapons.json, or one it had before it was renamed
      * @returns {boolean} - false if no weapon here has that name (or it is hidden by the mod filter)
      */
     selectBallisticsWeapon(name) {
-        const index = WEAPONS.findIndex((weapon) => weapon.ballistics === name);
+        const index = WEAPONS.findIndex((weapon) => weapon.ballistics === name || weapon.legacyBallistics?.includes(name));
         if (index === -1 || !this.WEAPON_SELECTOR.find(`option[value="${index}"]`).length) return false;
         if (String(this.WEAPON_SELECTOR.val()) !== String(index)) this.WEAPON_SELECTOR.val(index).trigger("change");
         return true;

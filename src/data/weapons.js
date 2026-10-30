@@ -577,7 +577,8 @@ export var WEAPONS = [
      */
     {
         name: "AGS-17",
-        ballistics: "AGS-17 · emplacement",
+        ballistics: "AGS-17 · emplacement · optic (RMB ×2.5)",
+        legacyBallistics: ["AGS-17 · emplacement"],
         deceleration: 0,
         decelerationTime : 0,
         gravityScale: 1.8,
@@ -714,7 +715,8 @@ export var WEAPONS = [
     },
     {
         name: "DF_QLZ87",
-        ballistics: "QLZ87",
+        ballistics: "QLZ87 · optic (RMB ×3)",
+        legacyBallistics: ["QLZ87"],
         deceleration: 0,
         decelerationTime: 0,
         gravityScale: 1,
@@ -1156,7 +1158,8 @@ export var WEAPONS = [
     },
     {
         name: "DF_ZiS_3",
-        ballistics: "ZiS-3",
+        ballistics: "ZiS-3 · optic (RMB ×4)",
+        legacyBallistics: ["ZiS-3"],
         deceleration: 0,
         decelerationTime: 0,
         maxSpeed: 700,
@@ -2131,7 +2134,8 @@ export var WEAPONS = [
     },
     {
         name: "DF_QLZ87_Lynx_CSK131",
-        ballistics: "QLZ87 · Lynx / CSK131",
+        ballistics: "QLZ87 · Lynx / CSK131 · optic (RMB ×3)",
+        legacyBallistics: ["QLZ87 · Lynx / CSK131"],
         deceleration: 0,
         decelerationTime: 0,
         gravityScale: 1,
@@ -2173,7 +2177,8 @@ export var WEAPONS = [
     },
     {
         name: "DF_SPG_9_HEAT_scope",
-        ballistics: "SPG-9 · HEAT · scope",
+        ballistics: "SPG-9 · HEAT · scope · optic (RMB ×4)",
+        legacyBallistics: ["SPG-9 · HEAT · scope"],
         deceleration: 0,
         decelerationTime: 0,
         acceleration: 100,
@@ -2197,7 +2202,8 @@ export var WEAPONS = [
     },
     {
         name: "DF_SPG_9_FRAG_scope",
-        ballistics: "SPG-9 · FRAG · scope",
+        ballistics: "SPG-9 · FRAG · scope · optic (RMB ×4)",
+        legacyBallistics: ["SPG-9 · FRAG · scope"],
         deceleration: 0,
         decelerationTime: 0,
         acceleration: 100,
