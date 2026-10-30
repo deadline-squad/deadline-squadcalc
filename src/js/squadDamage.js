@@ -38,10 +38,11 @@ const SOLDIER_CLEARANCE = 0.5;
 const TRACE_STEP = 0.5;
 const COVER_TOLERANCE = 0.2;
 
-// Impacts sampled over the spread ellipse for the hit probability
+// Impacts sampled over the spread ellipse for the hit probability: 400 radii a 400th of the ellipse apart
+// match 400,000 random shots of the game's cone within 0.01
 const SPREAD_SAMPLES = 400;
 
-// Golden angle: successive samples of a Vogel spiral cover a disk uniformly
+// Golden angle: the direction of successive samples, whose radii grow steadily, never lines up
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 
 
@@ -192,8 +193,14 @@ export function damageField(heightAt, explosion, cell, progress = {}) {
 
 /**
  * Probability that one round kills, or at least wounds, a soldier standing at the aim point.
- * Rounds land uniformly inside the spread ellipse SquadCalc draws (SquadFiringSolution.getSpreadParameter:
- * a cone of the weapon's MOA, uniform like Unreal's VRandCone, cut by the ground).
+ * Rounds land inside the spread ellipse SquadCalc draws (SquadFiringSolution.getSpreadParameter: a cone of
+ * the weapon's MOA cut by the ground), with the game's distribution: the miss radius is uniform on
+ * [0, R] and the direction uniform, so the density is 1/r and rounds crowd at the centre, not spread
+ * evenly over the area. The game's FMath::VRandCone takes Phi = fmodf(acosf(2v - 1), h) (h the cone's
+ * half-angle, MOA / 120 degrees; Squad build 26005357, SquadGameServer 0x4a13010): acos(2v - 1) is spread over
+ * [0, pi] and its remainder by the tiny h is flat, so the angle off the barrel's axis is uniform, and so
+ * is the radius on the ground (deadline-squad/deadline-squadcalc#6). On flat ground a circular spread
+ * of radius R kills with probability (kill radius / R).
  * @param {function(number, number): number} heightAt - height at (east, north) meters from the aim point
  * @param {object} explosion - see impactDamage
  * @param {number} lateral - semi-axis of the spread across the line of fire, meters
@@ -211,7 +218,7 @@ export function hitProbability(heightAt, explosion, lateral, along, bearing) {
     let wounds = 0;
 
     for (let i = 0; i < samples; i++) {
-        const r = Math.sqrt((i + 0.5) / samples);
+        const r = (i + 0.5) / samples;
         const x = r * Math.cos(i * GOLDEN_ANGLE) * lateral;
         const y = r * Math.sin(i * GOLDEN_ANGLE) * along;
         const impact = samples === 1 ? soldier : {

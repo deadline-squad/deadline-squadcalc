@@ -1,6 +1,9 @@
 export const WEAPONSTYPE = ["deployables", "vehicles", "directFire"];
 
-// Direct-fire weapons are aimed with the Squad Ballistics overlay mark: no splash or spread circles.
+// Direct-fire weapons are aimed with the Squad Ballistics overlay mark: no splash circles, hit probability
+// or damage zone (their explosion is not modelled). Each entry sets its own `moa`, the game weapon's spread
+// (gen_squadcalc_weapons.py GAME_MOA), so the spread ellipse is drawn; the autocannons and machine guns
+// only SquadCalc has keep 0: no spread.
 const NO_EXPLOSION = {
     moa: 0,
     explosionDamage: 100,
@@ -643,6 +646,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 76,
             ...NO_EXPLOSION,
+            moa: 30,
         }]
     },
     {
@@ -663,6 +667,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 78,
             ...NO_EXPLOSION,
+            moa: 40,
         }]
     },
     {
@@ -683,6 +688,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 76,
             ...NO_EXPLOSION,
+            moa: 30,
         }]
     },
     {
@@ -703,6 +709,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 230,
             ...NO_EXPLOSION,
+            moa: 50,
         }]
     },
     {
@@ -723,6 +730,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 190,
             ...NO_EXPLOSION,
+            moa: 15,
         }]
     },
     {
@@ -743,6 +751,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 190,
             ...NO_EXPLOSION,
+            moa: 15,
         }]
     },
     {
@@ -763,6 +772,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 144,
             ...NO_EXPLOSION,
+            moa: 15,
         }]
     },
     {
@@ -783,6 +793,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 290,
             ...NO_EXPLOSION,
+            moa: 10,
         }]
     },
     {
@@ -806,6 +817,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 220,
             ...NO_EXPLOSION,
+            moa: 7,
         }]
     },
     {
@@ -829,6 +841,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 310,
             ...NO_EXPLOSION,
+            moa: 7,
         }]
     },
     {
@@ -852,6 +865,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 220,
             ...NO_EXPLOSION,
+            moa: 7,
         }]
     },
     {
@@ -875,6 +889,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 280,
             ...NO_EXPLOSION,
+            moa: 10,
         }]
     },
     {
@@ -898,6 +913,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 117,
             ...NO_EXPLOSION,
+            moa: 20,
         }]
     },
     {
@@ -921,6 +937,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 63,
             ...NO_EXPLOSION,
+            moa: 20,
         }]
     },
     {
@@ -944,6 +961,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 117,
             ...NO_EXPLOSION,
+            moa: 15,
         }]
     },
     {
@@ -967,6 +985,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 63,
             ...NO_EXPLOSION,
+            moa: 7,
         }]
     },
     {
@@ -990,6 +1009,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 63,
             ...NO_EXPLOSION,
+            moa: 7,
         }]
     },
     {
@@ -1013,6 +1033,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 40,
             ...NO_EXPLOSION,
+            moa: 1,
         }]
     },
     {
@@ -1036,6 +1057,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 435,
             ...NO_EXPLOSION,
+            moa: 3,
         }]
     },
     {
@@ -1059,6 +1081,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 315,
             ...NO_EXPLOSION,
+            moa: 3,
         }]
     },
     {
@@ -1082,6 +1105,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 435,
             ...NO_EXPLOSION,
+            moa: 3,
         }]
     },
     {
@@ -1105,6 +1129,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 290,
             ...NO_EXPLOSION,
+            moa: 3,
         }]
     },
     {
@@ -1126,6 +1151,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 355,
             ...NO_EXPLOSION,
+            moa: 1.6,
         }]
     },
     {
@@ -1147,6 +1173,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 700,
             ...NO_EXPLOSION,
+            moa: 3,
         }]
     },
     {
@@ -1168,6 +1195,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 1300,
             ...NO_EXPLOSION,
+            moa: 1.5,
         }]
     },
     {
@@ -1189,6 +1217,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 1200,
             ...NO_EXPLOSION,
+            moa: 1.5,
         }]
     },
     {
@@ -1210,6 +1239,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 1500,
             ...NO_EXPLOSION,
+            moa: 1.5,
         }]
     },
     {
@@ -1231,6 +1261,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 1100,
             ...NO_EXPLOSION,
+            moa: 1.5,
         }]
     },
     {
@@ -1252,6 +1283,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 670,
             ...NO_EXPLOSION,
+            moa: 1.5,
         }]
     },
     {
@@ -1566,6 +1598,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 75,
             ...NO_EXPLOSION,
+            moa: 30,
         }]
     },
     {
@@ -1586,6 +1619,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 70,
             ...NO_EXPLOSION,
+            moa: 30,
         }]
     },
     {
@@ -1606,6 +1640,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 235,
             ...NO_EXPLOSION,
+            moa: 15,
         }]
     },
     {
@@ -1629,6 +1664,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 63,
             ...NO_EXPLOSION,
+            moa: 20,
         }]
     },
     {
@@ -1652,6 +1688,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 310,
             ...NO_EXPLOSION,
+            moa: 7,
         }]
     },
     {
@@ -1672,6 +1709,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 255,
             ...NO_EXPLOSION,
+            moa: 7,
         }]
     },
     {
@@ -1695,6 +1733,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 255,
             ...NO_EXPLOSION,
+            moa: 7,
         }]
     },
     {
@@ -1716,6 +1755,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 1110,
             ...NO_EXPLOSION,
+            moa: 1.5,
         }]
     },
     {
@@ -1737,6 +1777,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 730,
             ...NO_EXPLOSION,
+            moa: 1.5,
         }]
     },
     {
@@ -1886,6 +1927,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 190,
             ...NO_EXPLOSION,
+            moa: 15,
         }]
     },
     {
@@ -1906,6 +1948,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 190,
             ...NO_EXPLOSION,
+            moa: 15,
         }]
     },
     {
@@ -1929,6 +1972,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 435,
             ...NO_EXPLOSION,
+            moa: 3,
         }]
     },
     {
@@ -1952,6 +1996,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 315,
             ...NO_EXPLOSION,
+            moa: 3,
         }]
     },
     {
@@ -1973,6 +2018,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 700,
             ...NO_EXPLOSION,
+            moa: 3,
         }]
     },
     {
@@ -1993,6 +2039,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 230,
             ...NO_EXPLOSION,
+            moa: 50,
         }]
     },
     {
@@ -2013,6 +2060,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 230,
             ...NO_EXPLOSION,
+            moa: 15,
         }]
     },
     {
@@ -2033,6 +2081,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 230,
             ...NO_EXPLOSION,
+            moa: 15,
         }]
     },
     {
@@ -2053,6 +2102,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 230,
             ...NO_EXPLOSION,
+            moa: 15,
         }]
     },
     {
@@ -2097,6 +2147,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 190,
             ...NO_EXPLOSION,
+            moa: 15,
         }]
     },
     {
@@ -2117,6 +2168,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 190,
             ...NO_EXPLOSION,
+            moa: 15,
         }]
     },
     {
@@ -2140,6 +2192,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 435,
             ...NO_EXPLOSION,
+            moa: 3,
         }]
     },
     {
@@ -2163,6 +2216,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 315,
             ...NO_EXPLOSION,
+            moa: 3,
         }]
     },
     {
@@ -2186,6 +2240,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 435,
             ...NO_EXPLOSION,
+            moa: 3,
         }]
     },
     {
@@ -2209,6 +2264,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 290,
             ...NO_EXPLOSION,
+            moa: 3,
         }]
     },
     {
@@ -2230,6 +2286,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 355,
             ...NO_EXPLOSION,
+            moa: 1.6,
         }]
     },
     {
@@ -2251,6 +2308,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 355,
             ...NO_EXPLOSION,
+            moa: 1.6,
         }]
     },
     {
@@ -2272,6 +2330,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 1300,
             ...NO_EXPLOSION,
+            moa: 1.5,
         }]
     },
     {
@@ -2293,6 +2352,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 1300,
             ...NO_EXPLOSION,
+            moa: 1.5,
         }]
     },
     {
@@ -2314,6 +2374,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 1300,
             ...NO_EXPLOSION,
+            moa: 1.5,
         }]
     },
     {
@@ -2335,6 +2396,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 1200,
             ...NO_EXPLOSION,
+            moa: 1.2,
         }]
     },
     {
@@ -2356,6 +2418,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 1200,
             ...NO_EXPLOSION,
+            moa: 1.5,
         }]
     },
     {
@@ -2377,6 +2440,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 1500,
             ...NO_EXPLOSION,
+            moa: 1.5,
         }]
     },
     {
@@ -2398,6 +2462,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 1100,
             ...NO_EXPLOSION,
+            moa: 1.5,
         }]
     },
     {
@@ -2419,6 +2484,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 1100,
             ...NO_EXPLOSION,
+            moa: 1.2,
         }]
     },
     {
@@ -2440,6 +2506,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 1100,
             ...NO_EXPLOSION,
+            moa: 1.5,
         }]
     },
     {
@@ -2461,6 +2528,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 1100,
             ...NO_EXPLOSION,
+            moa: 1.5,
         }]
     },
     {
@@ -2482,6 +2550,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 1100,
             ...NO_EXPLOSION,
+            moa: 1.5,
         }]
     },
     {
@@ -2503,6 +2572,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 1100,
             ...NO_EXPLOSION,
+            moa: 1.5,
         }]
     },
     {
@@ -2524,6 +2594,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 1100,
             ...NO_EXPLOSION,
+            moa: 1.5,
         }]
     },
     {
@@ -2544,6 +2615,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 235,
             ...NO_EXPLOSION,
+            moa: 15,
         }]
     },
     {
@@ -2564,6 +2636,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 190,
             ...NO_EXPLOSION,
+            moa: 15,
         }]
     },
 ];

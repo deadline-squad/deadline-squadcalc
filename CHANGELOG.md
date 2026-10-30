@@ -1,3 +1,11 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.12.0** *(2026-10-30)*
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- The rounds-to-kill and rounds-to-wound line used a spread the game does not have: impacts were spread evenly over the area of the spread ellipse, but the game's cone (`FMath::VRandCone`, `Phi = fmodf(acosf(2v - 1), h)`, build 26005357) puts the miss *radius* evenly, so rounds crowd at the centre and a kill is `kill radius / spread radius` likely, not its square. The count was too high by up to 10 times: AGS-17 at 300 m asked for 184 rounds to kill (now 19, wound 8 now 4), the mortar at 300 m 16 (now 5). Kill / wound per round, mortar 300 m 0.135 / 0.507 now 0.370 / 0.710, 1000 m 0.253 / 0.835 now 0.492 / 0.905, AGS-17 300 m 0.013 / 0.263 now 0.115 / 0.510 (a 400,000-shot simulation of the game's cone on exact flat-ground physics gives 0.369 / 0.711, 0.494 / 0.910 and 0.115 / 0.510). The drawn spread ellipse is unchanged (it matches the cone within 0.1 %)
+- Direct-fire weapons had no spread (MOA 0), so no spread ellipse was drawn for them. They now have the MOA of their game weapon: grenade launchers 30-40, RPG-7 20 (RPG-7V1 15), RPG-26 / M72 15, AT-4 and RPG-29 10, SMAW, PF98, Carl Gustav and M3 MAAWS 7, SPG-9, Grom and ZiS-3 3, 2A70 1.6, tank guns 1.5 (Leopard 1.2), NLAW 1, MK19 on the M1117, AAV-7 and PARS III 50, AGS-30 15. The tripod and open-turret MK19 and the QLZ87 spread by a curve (15 MOA for the first shot of a rested gun, up to 50 in a sustained burst) whose input the game files do not give: they show the 15 MOA of the first shot, a burst spreads wider. The AGS-17 keeps its 50 MOA (a burst). Their hit probability is not shown yet: their explosion is not in the data
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.11.0** *(2026-10-30)*
 
 </br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
