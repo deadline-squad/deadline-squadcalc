@@ -8,6 +8,7 @@ import { sendTargetData } from "./squadCalcAPI.js";
 import { Ellipse } from "./libs/leaflet-ellipse.js";
 import { squadMarker } from "./squadMarker.js";
 import { damageField, hitProbability, roundsNeeded, KILL_DAMAGE, WOUND_DAMAGE } from "./squadDamage.js";
+import { notifyBridgeChange } from "./smcConnector.js";
 import i18next from "i18next";
 
 const CARPET_MAX_TARGETS = 10;
@@ -306,6 +307,7 @@ export const squadTargetMarker = squadMarker.extend({
     
         // If that was the last Marker on the map, hide "delete/undo" buttons
         if (!this.map.hasMarkers()) $(".btn-delete, .btn-undo").hide();
+        notifyBridgeChange();
     },
 
 
@@ -921,6 +923,7 @@ export const squadTargetMarker = squadMarker.extend({
         this.updateSpread();
         this.updateDamageRadius();
         if (copy && App.userSettings.copyTarget) navigator.clipboard.writeText(clipboard);
+        notifyBridgeChange();
     },
 
 

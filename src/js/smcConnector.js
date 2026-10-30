@@ -266,6 +266,25 @@ let revision = 0;
 const solutionIds = new WeakMap();
 let nextSolutionId = 1;
 
+// A notification is already waiting for the end of the current task
+let notifying = false;
+
+/**
+ * Tell Squad Ballistics that the bridge's data may have changed: once the current task ends, if
+ * `revision()` moved, `console.info("sb:changed")` is logged, which the embedding window reads
+ * (javaScriptConsoleMessage) to ask for the new target at once instead of at its next poll.
+ * Cheap enough to call after every recalculation: the calls of one task make one check.
+ */
+export function notifyBridgeChange() {
+    if (notifying) return;
+    notifying = true;
+    queueMicrotask(() => {
+        notifying = false;
+        const before = revision;
+        if (getRevision() !== before) console.info("sb:changed");
+    });
+}
+
 /**
  * Counter that changes whenever what the bridge reports changes: a target added, moved or removed, the
  * first weapon marker moved, raised or removed, the weapon or its shell switched, the heights loaded.

@@ -17,6 +17,7 @@ import "tippy.js/dist/tippy.css";
 import "./libs/leaflet-edgebuffer.js";
 import "./libs/leaflet-spin.js";
 import "./libs/leaflet-imageoverlay-rotated.js";
+import { notifyBridgeChange } from "./smcConnector.js";
 
 
 // Ctrl + double-click marks a burst for the nearest target within this distance, in meters
@@ -197,7 +198,6 @@ export const squadMinimap = Map.extend({
      * Map image of an upstream layer from the SquadCalc API
      * @param {string} layerMode - basemap, terrainmap or topomap
      * @returns {TileLayer|ImageOverlay} - 256 px tiles (zoom 0..5) in high quality mode, else one image
-     *   whose `decoded` promise settles when the browser has decoded it (rejects when it failed to load)
      */
     upstreamLayer: function(layerMode) {
         const imagePath = `${process.env.API_URL}${this.activeMap.mapURL}${layerMode}`;
@@ -210,13 +210,9 @@ export const squadMinimap = Map.extend({
                 tileSize: 256,
             });
         }
-        // The image is decoded (a 4096 px webp took 230-710 ms of the main thread when the browser did it
-        // as the image joined the page) before the overlay is added: showMapImage waits for `decoded`
-        const image = new Image();
-        image.src = `${imagePath}.webp`;
-        const overlay = new ImageOverlay(image, this.imageBounds);
-        overlay.decoded = image.decode();
-        return overlay;
+        // Decoded off the main thread: the 4096 px webp blocked it for 230-710 ms when the browser decoded
+        // it as the image joined the page
+        return new ImageOverlay(`${imagePath}.webp`, this.imageBounds, { decoding: "async" });
     },
 
 
@@ -258,44 +254,34 @@ export const squadMinimap = Map.extend({
 
 
     /**
-     * Add a map image under the markers and remove the previous one once it loaded; a single image is
-     * decoded first (upstreamLayer), then fades in. The image on show is removed even when it is not the
-     * `oldLayer`: a layer change that a later one overtook before its image was decoded was never added.
+     * Add a map image under the markers and remove the previous one once it loaded; a single image fades in
      * @param {TileLayer|ImageOverlay} layer - new map image
      * @param {TileLayer|ImageOverlay} [oldLayer] - previous map image
      */
     showMapImage: function(layer, oldLayer) {
         this.activeLayer = layer;
+        layer.addTo(this.layerGroup);
         const tiled = layer instanceof TileLayer;
+        if (!tiled) $(layer.getElement()).css("opacity", 0);
 
-        const replaceOldImages = () => {
+        layer.once("load", () => {
+            if (tiled) {
+                if (oldLayer) oldLayer.remove();
+                this.spin(false);
+            }
+            else {
+                // Animate the opacity of the new layer
+                $(layer.getElement()).fadeTo(700, 1, () => {
+                    if (oldLayer) oldLayer.remove();
+                    this.spin(false);
+                });
+            }
+        });
+
+        layer.once("error", (e) => {
+            console.error("Error loading", e.sourceTarget._url);
             if (oldLayer) oldLayer.remove();
-            if (this.shownImage && this.shownImage !== layer) this.shownImage.remove();
-            this.shownImage = layer;
             this.spin(false);
-        };
-        const failed = (url) => {
-            console.error("Error loading", url);
-            if (oldLayer) oldLayer.remove();
-            this.spin(false);
-        };
-
-        if (tiled) {
-            layer.addTo(this.layerGroup);
-            layer.once("load", replaceOldImages);
-            layer.once("error", (e) => failed(e.sourceTarget._url));
-            return;
-        }
-
-        layer.decoded.then(() => {
-            // A newer layer change took over while the image decoded
-            if (this.activeLayer !== layer) return;
-            layer.addTo(this.layerGroup);
-            $(layer.getElement()).css("opacity", 0);
-            // Animate the opacity of the new layer
-            $(layer.getElement()).fadeTo(700, 1, replaceOldImages);
-        }, () => {
-            if (this.activeLayer === layer) failed(layer.getElement().src);
         });
     },
 
@@ -392,6 +378,7 @@ export const squadMinimap = Map.extend({
         });
         // Weapon moved, deleted or raised: recomputed only if its inputs changed
         this.coverage.update();
+        notifyBridgeChange();
     },
 
 
