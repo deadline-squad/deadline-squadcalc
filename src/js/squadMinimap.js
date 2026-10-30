@@ -246,7 +246,7 @@ export const squadMinimap = Map.extend({
                 bounds: this.imageBounds,
                 minNativeZoom: meta.minNativeZoom,
                 maxNativeZoom: meta.maxNativeZoom,
-                edgeBufferTiles: 2,
+                edgeBufferTiles: 1,
                 tileSize: meta.tileSize,
             }), oldLayer);
         });

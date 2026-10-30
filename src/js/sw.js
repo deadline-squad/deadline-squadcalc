@@ -1,7 +1,7 @@
 import { precacheAndRoute, cleanupOutdatedCaches } from "workbox-precaching";
 import { clientsClaim } from "workbox-core";
 import { registerRoute } from "workbox-routing";
-import { StaleWhileRevalidate, NetworkOnly } from "workbox-strategies";
+import { CacheFirst, StaleWhileRevalidate, NetworkOnly } from "workbox-strategies";
 import { ExpirationPlugin } from "workbox-expiration";
 
 self.skipWaiting();
@@ -25,6 +25,23 @@ registerRoute(
         plugins: [
             new ExpirationPlugin({
                 maxEntries: 30,
+                maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
+                purgeOnQuotaError: true,
+            }),
+        ],
+    })
+);
+
+
+// Vehicle images (/img/vehicles, 15 MB for the 220 of them) are not precached: each is cached the first
+// time a faction or vehicle dialog shows it, for 30 days, and then served from the cache first
+registerRoute(
+    ({ url }) => url.pathname.startsWith("/img/vehicles/"),
+    new CacheFirst({
+        cacheName: "vehicle-images",
+        plugins: [
+            new ExpirationPlugin({
+                maxEntries: 300,
                 maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
                 purgeOnQuotaError: true,
             }),
