@@ -1,3 +1,12 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.8.3** *(2026-10-30)*
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- 26 more Squad Ballistics weapons, so an embedded map selects them instead of keeping the previous weapon: each tank's own AP and HEAT/HE entry (T-62, T-64BM2, ZTZ-99, Leopard 2A6, M60T, M1128 MGS, M1A1 / M1A2), the MK19 mounts (PARS III and TAPV C16 RWS, M113 and M1151 / RHIB open turrets), SPG-9 · HEAT / FRAG · scope, QLZ87 · Lynx / CSK131, AGS-30 (BMP-2M), 2A28 Grom (BMD-1M) · HEAT / FRAG, 2A70 100mm (ZBD-04A, BMD-4M) · FRAG and AGS-17 · iron sights emplacement
+- "AGS-17 · emplacement · no optic" and the new "AGS-17 · iron sights emplacement" work like the AGS-17: hold time on the high arc, direct fire on the low arc, its grenade's spread and damage, listed with it under Deployables (the no-optic one was direct fire only). The iron-sights gun lobs from 33 m (its barrel sits 4.5° higher)
+- The saved weapon selection is unchanged
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.8.2** *(2026-10-30)*
 
 </br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  

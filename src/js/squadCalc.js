@@ -1530,7 +1530,7 @@ export default class SquadCalc {
         animateCalc(bearing.toFixed(1), 500, "bearingNum");
         animateCalc(elevation.toFixed(this.activeWeapon.elevationPrecision), 500, "elevationNum");
 
-        if (this.activeWeapon.name != "Mortar" && this.activeWeapon.name != "UB-32" && this.activeWeapon.name != "AGS-17") $("#highlow").addClass("active");
+        if (this.activeWeapon.name != "Mortar" && this.activeWeapon.name != "UB-32" && !this.activeWeapon.elevationRate) $("#highlow").addClass("active");
         if (this.activeWeapon.getAngleType() === -1) $("#highlowicon").css({ transform: "rotate(0deg)"});
         else $("#highlowicon").css({transform: "rotate(180deg)"});
 

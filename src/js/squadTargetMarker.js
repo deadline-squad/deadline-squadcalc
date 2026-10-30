@@ -414,7 +414,7 @@ export const squadTargetMarker = squadMarker.extend({
              App.activeWeapon.name != "UB-32" &&
               App.activeWeapon.name != "M1064M121" &&
                App.activeWeapon.name != "Mk19" &&
-                App.activeWeapon.name != "AGS-17" &&
+                !App.activeWeapon.elevationRate &&
                  App.activeWeapon.name != "BTR4-30mm") {  
             setSpreadMarker(this.spreadMarker11, this.firingSolution1, 0, true);
         } else {
@@ -505,7 +505,7 @@ export const squadTargetMarker = squadMarker.extend({
              App.activeWeapon.name != "UB-32" &&
               App.activeWeapon.name != "M1064M121" &&
                App.activeWeapon.name != "Mk19" &&
-                App.activeWeapon.name != "AGS-17") {
+                !App.activeWeapon.elevationRate) {
             baseRadiiX = Math.max(this.spreadMarker1.getRadius().x, this.spreadMarker11.getRadius().x);  
             baseRadiiY = Math.max(this.spreadMarker1.getRadius().y, this.spreadMarker11.getRadius().y);
         }
