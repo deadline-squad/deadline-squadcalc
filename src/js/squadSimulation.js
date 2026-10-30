@@ -32,7 +32,7 @@ export default class Simulation {
                 App.activeWeapon.name !== "UB-32" &&
                 App.activeWeapon.name !== "M1064M121" &&
                 App.activeWeapon.name !== "Mk19" &&
-                App.activeWeapon.name !== "AGS-17") {
+                !App.activeWeapon.elevationRate) {
         
                 if (this.angleType === "low") {
                     this.angleType = "high";
@@ -72,7 +72,7 @@ export default class Simulation {
                  App.activeWeapon.name != "UB-32" &&
                   App.activeWeapon.name != "M1064M121" &&
                    App.activeWeapon.name != "Mk19" &&
-                    App.activeWeapon.name != "AGS-17" &&
+                    !App.activeWeapon.elevationRate &&
                      App.activeWeapon.name != "BTR4-AGS"
             ) {
 
