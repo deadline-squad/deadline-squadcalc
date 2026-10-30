@@ -6,7 +6,7 @@ import { maxRange } from "./squadBallistics.js";
 const NO_GRAVITY_RANGE = 10000;
 
 export class Weapon {
-    constructor(name, deceleration, decelerationTime, gravityScale, minElevation, unit, logo, marker, type, angleType, elevationPrecision, shells = [], heightOffset = 0, angleOffset = 0, projectileLifespan = 100, mod = null, elevationRate = null, heatmap = true, acceleration = 0, accelerationTime = 0, holdElevation = null, ballistics = null, image = null, muzzle = null, maxSpeed = 0, rotationFollowsVelocity = true) {
+    constructor(name, deceleration, decelerationTime, gravityScale, minElevation, unit, logo, marker, type, angleType, elevationPrecision, shells = [], heightOffset = 0, angleOffset = 0, projectileLifespan = 100, mod = null, elevationRate = null, heatmap = true, acceleration = 0, accelerationTime = 0, holdElevation = null, ballistics = null, image = null, muzzle = null, maxSpeed = 0, rotationFollowsVelocity = true, legacyBallistics = []) {
         this.name = name;
         this.deceleration = deceleration;
         this.decelerationTime = decelerationTime;
@@ -54,6 +54,9 @@ export class Weapon {
         // The motor pushes along the path (the game's bRotationFollowsVelocity), or along the barrel's
         // axis at launch when false (UB-32)
         this.rotationFollowsVelocity = rotationFollowsVelocity;
+        // Names this weapon had in Squad Ballistics before it was renamed (the RMB sights got their view in
+        // the name): `selectBallisticsWeapon` still finds it by them, so an older Squad Ballistics works
+        this.legacyBallistics = legacyBallistics;
     }
 
 
