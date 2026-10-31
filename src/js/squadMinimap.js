@@ -31,6 +31,8 @@ const DETAILED_EXTRA_ZOOM = 2;
 // Layer value and tile folder suffix of the detailed layer in the game's colours (tools/maptiles, style "colour")
 const COLOUR_LAYER = "detailed-colour";
 const COLOUR_SUFFIX = "-colour";
+// Maps that have those tiles (a map without them is not asked for a meta.json that does not exist)
+const COLOUR_MAPS = ["albasrah", "fallujah", "gorodok"];
 
 /**
  * Squad Minimap
@@ -232,7 +234,8 @@ export const squadMinimap = Map.extend({
      */
     showDetailedLayer: function(oldLayer, request, suffix = "") {
         const mapName = this.activeMap.mapURL.split("/").filter(Boolean).pop();
-        this.detailedMeta(mapName + suffix).then((meta) => {
+        const available = !suffix || COLOUR_MAPS.includes(mapName);
+        (available ? this.detailedMeta(mapName + suffix) : Promise.resolve(null)).then((meta) => {
             if (request !== this.layerRequest) return;
             if (!meta && suffix) {
                 console.warn(`[MAP] No tiles in the game's colours for ${mapName}, showing the detailed map`);
@@ -276,14 +279,12 @@ export const squadMinimap = Map.extend({
 
 
     /**
-     * Show the button of the detailed layer in the game's colours only on maps that have its tiles
+     * Show the button of the detailed layer in the game's colours only on maps that have its tiles (COLOUR_MAPS)
      */
     updateColourLayerButton: function() {
         const mapName = this.activeMap.mapURL.split("/").filter(Boolean).pop();
-        this.detailedMeta(mapName + COLOUR_SUFFIX).then((meta) => {
-            if (mapName !== this.activeMap.mapURL.split("/").filter(Boolean).pop()) return;
-            $(`.btn-${COLOUR_LAYER}`).toggle(Boolean(meta)).data("unavailable", !meta);
-        });
+        const available = COLOUR_MAPS.includes(mapName);
+        $(`.btn-${COLOUR_LAYER}`).toggle(available).data("unavailable", !available);
     },
 
 
