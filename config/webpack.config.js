@@ -98,6 +98,9 @@ export default async (env) => {
                     /\.map$/,
                     /\/favicons\//,
                     /robots\.txt/,
+                    // Fonts: the licence texts and the latin-ext and cyrillic subsets (about 270 kB) are not
+                    // precached, sw.js caches each on first use; the three latin files stay precached
+                    /(^|\/)fonts\/(?!(montserrat|oswald|roboto)-v\d+-latin\.woff2$)/,
                     // README screenshots, and the 220 vehicle images (15 MB), cached on first use by sw.js; the
                     // placeholder shown for a missing image stays precached
                     /(^|\/)img\/github\//,

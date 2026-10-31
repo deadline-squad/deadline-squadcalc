@@ -7,6 +7,7 @@ import "animate.css";
 import "leaflet/dist/leaflet.css";
 
 // Local styles
+import "./components/shared/_fonts.scss";
 import "./components/header/header.scss";
 import "./components/map/map.scss";
 import "./components/map/mapFactionCtxMenu.scss";
