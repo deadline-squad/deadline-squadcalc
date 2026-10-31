@@ -1,3 +1,11 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.19.0** *(2026-10-31)*
+
+</br><img src="https://img.shields.io/badge/-%20improv%20-orange">  
+- Chora and Kokan Valley have their heights at the game's own 0.5 m: their landscapes have a vertex every 0.5 m, and the 1 m heightmap dropped every other one. Against the landscape's vertices (22 million on Chora, 24 million on Kokan, Squad build 26005357) the error of the 1 m heightmap was 8.9 cm RMS and 9.4 cm at the 99th percentile on Chora (31 m at the worst vertex, on a cliff) and 0.9 cm RMS, 3.1 cm 99th percentile on Kokan; the 0.5 m heightmap reads the vertices back to within its 0.8 to 1 cm height step (0.2 to 0.3 cm RMS). Around buildings, walls and rocks (the densest square kilometre of each map, against a 0.25 m reference) the heightmap is closer to the game too: within 2 m of an object the RMS error falls from 0.35 m to 0.18 m on Chora and from 0.41 m to 0.23 m on Kokan, and the share of points more than 25 cm off from 13.2 % to 4.9 % and from 14.6 % to 6.1 %. Direct-fire line of sight in that window disagrees with the 0.25 m reference in 1.8 % of the pairs instead of 5.6 % on Chora, 0.2 % instead of 0.6 % on Kokan; the mortar's lob is unchanged. The price is the download of these two maps only, and only when you open them: heightmap.webp grows from 4.9 to 14.2 MB (Chora) and from 2.6 to 6.4 MB (Kokan), and their decoding in the background worker from 0.6 to 1.8 s and from 0.2 to 0.7 s; every other map keeps its 1 m heightmap. The page reads the sample spacing from `resolution_m` in meta.json and scales its grid from the image size, as before
+- The check for obstacles in the line of fire (the hill, wall or building between weapon and target) steps along the line every 0.5 m on these two maps instead of every metre, so a 0.5 m wall between two samples is not skipped. The fire coverage keeps its coarser ray sampling (at least 1.25 m, for speed), which was never tied to the heightmap's samples
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.18.0** *(2026-10-31)*
 
 </br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
