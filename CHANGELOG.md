@@ -1,3 +1,11 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.17.0** *(2026-10-31)*
+
+</br><img src="https://img.shields.io/badge/-%20improv%20-orange">  
+- Keyboard focus is visible: tabbing through the map buttons, the settings sliders and checkboxes draws an outline (a mouse click looks as before). Screen readers now get a name for the layer and tools buttons, the simple-mode button (it was announced as "Download map") and every settings checkbox and slider
+- The strings that German, French, Russian, Ukrainian and Chinese lacked are translated: "Move to" in the weapon dialog, the km and min units, the Squad unit types (mountain, recon, air-mobile and wheeled mechanized units, MLRS support), the CRF, MEI and GFI factions in German and the "show only the last three digits" tooltip in Ukrainian. Before, the English key or nothing was shown. `npm run locales` now fails when a language lacks a key that English has
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.15.0** *(2026-10-31)*
 
 </br><img src="https://img.shields.io/badge/-new%20feature-green">  
