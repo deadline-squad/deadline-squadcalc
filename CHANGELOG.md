@@ -1,3 +1,10 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.16.0** *(2026-10-31)*
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- Hovering a placed mortar or Hell Cannon marker shows its range circle again (1237 m and 923 m) and hides it when the pointer leaves: the marker listened for mouse events that Leaflet 2 no longer fires. Dragging such a marker also pauses the keypad popup under the cursor again, as it does for weapons and targets
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.15.0** *(2026-10-31)*
 
 </br><img src="https://img.shields.io/badge/-new%20feature-green">  
