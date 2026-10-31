@@ -30,7 +30,8 @@
     }
 }
 
-.mapLayerMenuWrapper:hover .btnLayersGroup {
+.mapLayerMenuWrapper:hover .btnLayersGroup,
+.mapLayerMenuWrapper:focus-within .btnLayersGroup {
     opacity: 1;
     visibility: visible;
     pointer-events: auto;
