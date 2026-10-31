@@ -26,6 +26,7 @@
     "start": "webpack serve -c ./config/webpack.config.js",
     "build": "webpack -c ./config/webpack.config.js",
     "lint": "stylelint -c ./config/.stylelintrc.json ./src/**/*.scss && htmlhint --config ./config/.htmlhintrc.json --nocolor ./src/ && eslint --fix -c ./config/eslint.config.js ./src/",
+    "test": "node --import ./tests/register.mjs --test tests/",
     "locales": "node scripts/check-locales.mjs",
     "mapinfo": "node src/data/maps.js mapinfo"
   },
