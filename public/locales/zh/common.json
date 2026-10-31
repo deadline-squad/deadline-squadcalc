@@ -15,6 +15,8 @@
         "high": "高",
         "low": "低",
         "addHeight": "额外高度",
+        "moveTo": "移动到",
+        "moveToPlaceholder": "A02-3-5-2",
         "meters": "米",
         "km": "千米",
         "m": "米",
