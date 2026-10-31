@@ -610,12 +610,13 @@ export const squadTargetMarker = squadMarker.extend({
 
 
     /**
-     * Whether the active weapon's explosion is shown on targets (damage zone, rounds to kill)
+     * Whether the active weapon's explosion is shown on targets (damage zone, rounds to kill): it has one
+     * (direct-fire weapons that only hit with the projectile, AP rounds and machine guns, have none)
      * @returns {boolean}
      */
     showsExplosion: function() {
         const explosion = App.activeWeapon.explosion;
-        return Boolean(App.userSettings.damageRadius && explosion && explosion.outer > 0 && App.activeWeapon.type !== "directFire");
+        return Boolean(App.userSettings.damageRadius && explosion && explosion.outer > 0);
     },
 
 
@@ -719,17 +720,17 @@ export const squadTargetMarker = squadMarker.extend({
      * while the target is dragged (400 cover traces per move): the line comes back when it is dropped.
      * @param {SquadFiringSolution} firingSolution
      * @param {string[]} arcs - "low" / "high" in the order they are shown; the first one that reaches counts
-     * @returns {string} - HTML line, empty when the weapon's explosion is not shown
+     * @returns {string} - HTML line, empty when the weapon's explosion is not shown, or when a direct-fire
+     *   shot is stopped by an obstacle before the target (it explodes there, not around the target)
      */
     formatRounds: function(firingSolution, arcs) {
         if (!this.showsExplosion() || this.isDragging) return "";
         const arc = arcs.find((angle) => !isNaN(firingSolution.elevation[angle]?.rad));
         if (!arc) return "";
+        if (App.activeWeapon.type === "directFire" && firingSolution.obstacle?.[arc]) return "";
 
-        // The spread ellipse has half the axes of getSpreadParameter (updateSpread draws it so), shown or not
-        const spread = firingSolution.spreadParameters[arc];
-        const lateral = (spread.semiMajorAxis || 0) / 2;
-        const along = (spread.semiMinorAxis || 0) / 2;
+        // Half the axes of the drawn spread ellipse (updateSpread), exact for rockets and capped shells
+        const { lateral, along } = firingSolution.getHitSpread(arc);
         const explosion = App.activeWeapon.explosion;
         const center = this.getLatLng();
         const key = [this.map.activeMap.name, center.lat, center.lng, JSON.stringify(explosion), lateral, along, firingSolution.bearing, this.map.heightmap?.precise].join("|");
