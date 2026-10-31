@@ -220,13 +220,17 @@ export class Weapon {
 
 
     /**
-     * Return distance at which will be dealt given damage
+     * Return distance at which will be dealt given damage (0 when the explosion never deals it)
      * https://github.com/sh4rkman/SquadCalc/wiki/Deducing-Damage-Radius
      */
     calculateDistanceForDamage(maxDamage, startRadius, endRadius, falloff, distanceFromImpact, targetDamage) {
+        // An explosion weaker than the damage asked for (the SMAW's tandem warhead: 80) never deals it
+        if (targetDamage > maxDamage) return 0;
+
         const PLAYERSIZE = 1.8;
         const RADIUS = endRadius - (Math.pow(targetDamage / maxDamage, 1 / falloff) * (endRadius - startRadius));
-        return Math.sqrt(-Math.pow(distanceFromImpact - PLAYERSIZE, 2 ) + Math.pow(RADIUS, 2));
+        // The distance to the soldier's head cannot be below the explosion's height: no zone at all
+        return Math.sqrt(Math.max(0, Math.pow(RADIUS, 2) - Math.pow(distanceFromImpact - PLAYERSIZE, 2)));
     }
 
     /**

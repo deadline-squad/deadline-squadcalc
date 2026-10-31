@@ -1,9 +1,9 @@
 export const WEAPONSTYPE = ["deployables", "vehicles", "directFire"];
 
-// Direct-fire weapons are aimed with the Squad Ballistics overlay mark: no splash circles, hit probability
-// or damage zone (their explosion is not modelled). Each entry sets its own `moa`, the game weapon's spread
-// (gen_squadcalc_weapons.py GAME_MOA), so the spread ellipse is drawn; the autocannons and machine guns
-// only SquadCalc has keep 0: no spread.
+// Direct-fire weapons are aimed with the Squad Ballistics overlay mark. Each shell sets its own `moa`, the
+// game weapon's spread (gen_squadcalc_weapons.py GAME_MOA, SQUADCALC_ONLY), so the spread ellipse is drawn, and
+// the explosion of its ammunition (GAME_EXPLOSION, SQUADCALC_ONLY): damage zone and hit probability. A shell
+// whose projectile does not explode (AP, APFSDS, machine guns) has ...NO_EXPLOSION: no damage zone.
 const NO_EXPLOSION = {
     moa: 0,
     explosionDamage: 100,
@@ -646,8 +646,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 76,
-            ...NO_EXPLOSION,
             moa: 30,
+            explosionDamage: 115,
+            explosionRadius: [1, 15],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
         }]
     },
     {
@@ -667,8 +670,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 78,
-            ...NO_EXPLOSION,
             moa: 40,
+            explosionDamage: 115,
+            explosionRadius: [1, 15],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
         }]
     },
     {
@@ -685,11 +691,23 @@ export var WEAPONS = [
         image: "DirectFire",
         heatmap: false,
         shells: [{
-            name: "default",
+            name: "HE",
             minDistance: 0,
             velocity: 76,
-            ...NO_EXPLOSION,
             moa: 30,
+            explosionDamage: 250,
+            explosionRadius: [4, 18],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
+        }, {
+            name: "HEAT",
+            minDistance: 0,
+            velocity: 76,
+            moa: 30,
+            explosionDamage: 130,
+            explosionRadius: [2, 8],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
         }]
     },
     {
@@ -709,8 +727,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 230,
-            ...NO_EXPLOSION,
             moa: 50,
+            explosionDamage: 115,
+            explosionRadius: [1, 15],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
         }]
     },
     {
@@ -731,8 +752,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 190,
-            ...NO_EXPLOSION,
             moa: 15,
+            explosionDamage: 115,
+            explosionRadius: [1, 11],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
         }]
     },
     {
@@ -752,8 +776,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 190,
-            ...NO_EXPLOSION,
             moa: 15,
+            explosionDamage: 115,
+            explosionRadius: [1, 15],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
         }]
     },
     {
@@ -773,8 +800,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 144,
-            ...NO_EXPLOSION,
             moa: 15,
+            explosionDamage: 100,
+            explosionRadius: [1.5, 7.5],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
         }]
     },
     {
@@ -794,8 +824,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 290,
-            ...NO_EXPLOSION,
             moa: 10,
+            explosionDamage: 115,
+            explosionRadius: [1.5, 7.5],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
         }]
     },
     {
@@ -815,11 +848,23 @@ export var WEAPONS = [
         image: "DirectFire",
         heatmap: false,
         shells: [{
-            name: "default",
+            name: "HEAT",
             minDistance: 0,
             velocity: 220,
-            ...NO_EXPLOSION,
             moa: 7,
+            explosionDamage: 200,
+            explosionRadius: [2, 8],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
+        }, {
+            name: "Tandem",
+            minDistance: 0,
+            velocity: 220,
+            moa: 7,
+            explosionDamage: 80,
+            explosionRadius: [2, 8],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 0,
         }]
     },
     {
@@ -842,8 +887,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 310,
-            ...NO_EXPLOSION,
             moa: 7,
+            explosionDamage: 200,
+            explosionRadius: [2, 8],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 0,
         }]
     },
     {
@@ -866,8 +914,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 220,
-            ...NO_EXPLOSION,
             moa: 7,
+            explosionDamage: 200,
+            explosionRadius: [7, 20],
+            explosionDistanceFromImpact: 0.15,
+            damageFallOff: 2,
         }]
     },
     {
@@ -890,8 +941,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 280,
-            ...NO_EXPLOSION,
             moa: 10,
+            explosionDamage: 200,
+            explosionRadius: [2, 8],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
         }]
     },
     {
@@ -911,11 +965,23 @@ export var WEAPONS = [
         image: "DirectFire",
         heatmap: false,
         shells: [{
-            name: "default",
+            name: "HEAT",
             minDistance: 0,
             velocity: 117,
-            ...NO_EXPLOSION,
             moa: 20,
+            explosionDamage: 130,
+            explosionRadius: [2, 8],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
+        }, {
+            name: "HE",
+            minDistance: 0,
+            velocity: 117,
+            moa: 20,
+            explosionDamage: 250,
+            explosionRadius: [2, 16],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
         }]
     },
     {
@@ -938,8 +1004,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 63,
-            ...NO_EXPLOSION,
             moa: 20,
+            explosionDamage: 200,
+            explosionRadius: [2, 10],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 2,
         }]
     },
     {
@@ -959,11 +1028,23 @@ export var WEAPONS = [
         image: "DirectFire",
         heatmap: false,
         shells: [{
-            name: "default",
+            name: "HEAT",
             minDistance: 0,
             velocity: 117,
-            ...NO_EXPLOSION,
             moa: 15,
+            explosionDamage: 130,
+            explosionRadius: [2, 8],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
+        }, {
+            name: "HE",
+            minDistance: 0,
+            velocity: 117,
+            moa: 15,
+            explosionDamage: 250,
+            explosionRadius: [2, 16],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
         }]
     },
     {
@@ -986,8 +1067,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 63,
-            ...NO_EXPLOSION,
             moa: 7,
+            explosionDamage: 130,
+            explosionRadius: [2, 8],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
         }]
     },
     {
@@ -1010,8 +1094,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 63,
-            ...NO_EXPLOSION,
             moa: 7,
+            explosionDamage: 200,
+            explosionRadius: [2, 10],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 2,
         }]
     },
     {
@@ -1034,8 +1121,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 40,
-            ...NO_EXPLOSION,
             moa: 1,
+            explosionDamage: 200,
+            explosionRadius: [2, 8],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
         }]
     },
     {
@@ -1058,8 +1148,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 435,
-            ...NO_EXPLOSION,
             moa: 3,
+            explosionDamage: 100,
+            explosionRadius: [2, 8],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
         }]
     },
     {
@@ -1082,8 +1175,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 315,
-            ...NO_EXPLOSION,
             moa: 3,
+            explosionDamage: 200,
+            explosionRadius: [2, 16],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
         }]
     },
     {
@@ -1106,8 +1202,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 435,
-            ...NO_EXPLOSION,
             moa: 3,
+            explosionDamage: 100,
+            explosionRadius: [2, 8],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
         }]
     },
     {
@@ -1130,8 +1229,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 290,
-            ...NO_EXPLOSION,
             moa: 3,
+            explosionDamage: 200,
+            explosionRadius: [2, 16],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
         }]
     },
     {
@@ -1152,8 +1254,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 355,
-            ...NO_EXPLOSION,
             moa: 1.6,
+            explosionDamage: 300,
+            explosionRadius: [4, 35],
+            explosionDistanceFromImpact: 0.2,
+            damageFallOff: 5,
         }]
     },
     {
@@ -1172,11 +1277,23 @@ export var WEAPONS = [
         image: "DirectFire",
         heatmap: false,
         shells: [{
-            name: "default",
+            name: "HEAT",
             minDistance: 0,
             velocity: 700,
-            ...NO_EXPLOSION,
             moa: 3,
+            explosionDamage: 200,
+            explosionRadius: [3.5, 16],
+            explosionDistanceFromImpact: 0.15,
+            damageFallOff: 2,
+        }, {
+            name: "HE",
+            minDistance: 0,
+            velocity: 700,
+            moa: 3,
+            explosionDamage: 200,
+            explosionRadius: [2, 16],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
         }]
     },
     {
@@ -1260,11 +1377,23 @@ export var WEAPONS = [
         image: "DirectFire",
         heatmap: false,
         shells: [{
-            name: "default",
+            name: "HEAT",
             minDistance: 0,
             velocity: 1100,
-            ...NO_EXPLOSION,
             moa: 1.5,
+            explosionDamage: 200,
+            explosionRadius: [3.5, 16],
+            explosionDistanceFromImpact: 0.15,
+            damageFallOff: 2,
+        }, {
+            name: "HE",
+            minDistance: 0,
+            velocity: 1100,
+            moa: 1.5,
+            explosionDamage: 300,
+            explosionRadius: [4, 35],
+            explosionDistanceFromImpact: 0.2,
+            damageFallOff: 5,
         }]
     },
     {
@@ -1285,8 +1414,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 670,
-            ...NO_EXPLOSION,
             moa: 1.5,
+            explosionDamage: 200,
+            explosionRadius: [7, 20],
+            explosionDistanceFromImpact: 0.15,
+            damageFallOff: 2,
         }]
     },
     {
@@ -1308,6 +1440,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 1385,
             ...NO_EXPLOSION,
+            moa: 2,
         }]
     },
     {
@@ -1328,7 +1461,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 1000,
-            ...NO_EXPLOSION,
+            moa: 2,
+            explosionDamage: 125,
+            explosionRadius: [1, 7.5],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 2,
         }]
     },
     {
@@ -1350,6 +1487,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 1004,
             ...NO_EXPLOSION,
+            moa: 3,
         }]
     },
     {
@@ -1370,7 +1508,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 900,
-            ...NO_EXPLOSION,
+            moa: 3,
+            explosionDamage: 125,
+            explosionRadius: [1, 7.5],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 2,
         }]
     },
     {
@@ -1392,6 +1534,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 1300,
             ...NO_EXPLOSION,
+            moa: 1.5,
         }]
     },
     {
@@ -1412,7 +1555,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 1100,
-            ...NO_EXPLOSION,
+            moa: 1.5,
+            explosionDamage: 125,
+            explosionRadius: [1, 7.5],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 2,
         }]
     },
     {
@@ -1434,6 +1581,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 1500,
             ...NO_EXPLOSION,
+            moa: 1.5,
         }]
     },
     {
@@ -1454,7 +1602,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 1200,
-            ...NO_EXPLOSION,
+            moa: 1.5,
+            explosionDamage: 175,
+            explosionRadius: [1, 12.5],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 2,
         }]
     },
     {
@@ -1476,6 +1628,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 1360,
             ...NO_EXPLOSION,
+            moa: 2.5,
         }]
     },
     {
@@ -1493,10 +1646,20 @@ export var WEAPONS = [
         image: "DirectFire",
         heatmap: false,
         shells: [{
-            name: "default",
+            name: "AP",
             minDistance: 0,
             velocity: 970,
             ...NO_EXPLOSION,
+            moa: 1.35,
+        }, {
+            name: "HE",
+            minDistance: 0,
+            velocity: 970,
+            moa: 1.69,
+            explosionDamage: 125,
+            explosionRadius: [1, 7.5],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 2,
         }]
     },
     {
@@ -1518,6 +1681,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 1004,
             ...NO_EXPLOSION,
+            moa: 2.3,
         }]
     },
     {
@@ -1539,6 +1703,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 890,
             ...NO_EXPLOSION,
+            moa: 3,
         }]
     },
     {
@@ -1560,6 +1725,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 860,
             ...NO_EXPLOSION,
+            moa: 7,
         }]
     },
     {
@@ -1581,6 +1747,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 850,
             ...NO_EXPLOSION,
+            moa: 3,
         }]
     },
     {
@@ -1600,8 +1767,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 75,
-            ...NO_EXPLOSION,
             moa: 30,
+            explosionDamage: 115,
+            explosionRadius: [1, 15],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
         }]
     },
     {
@@ -1621,8 +1791,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 70,
-            ...NO_EXPLOSION,
             moa: 30,
+            explosionDamage: 115,
+            explosionRadius: [1, 15],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
         }]
     },
     {
@@ -1642,8 +1815,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 235,
-            ...NO_EXPLOSION,
             moa: 15,
+            explosionDamage: 115,
+            explosionRadius: [1, 15],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
         }]
     },
     {
@@ -1666,8 +1842,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 63,
-            ...NO_EXPLOSION,
             moa: 20,
+            explosionDamage: 200,
+            explosionRadius: [8, 24],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 2,
         }]
     },
     {
@@ -1690,8 +1869,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 310,
-            ...NO_EXPLOSION,
             moa: 7,
+            explosionDamage: 130,
+            explosionRadius: [2, 8],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
         }]
     },
     {
@@ -1711,8 +1893,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 255,
-            ...NO_EXPLOSION,
             moa: 7,
+            explosionDamage: 250,
+            explosionRadius: [4, 16],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
         }]
     },
     {
@@ -1735,8 +1920,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 255,
-            ...NO_EXPLOSION,
             moa: 7,
+            explosionDamage: 200,
+            explosionRadius: [2, 8],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 0,
         }]
     },
     {
@@ -1776,11 +1964,23 @@ export var WEAPONS = [
         image: "DirectFire",
         heatmap: false,
         shells: [{
-            name: "default",
+            name: "HEAT",
             minDistance: 0,
             velocity: 730,
-            ...NO_EXPLOSION,
             moa: 1.5,
+            explosionDamage: 200,
+            explosionRadius: [3.5, 16],
+            explosionDistanceFromImpact: 0.15,
+            damageFallOff: 2,
+        }, {
+            name: "HE",
+            minDistance: 0,
+            velocity: 730,
+            moa: 1.5,
+            explosionDamage: 300,
+            explosionRadius: [4, 35],
+            explosionDistanceFromImpact: 0.2,
+            damageFallOff: 5,
         }]
     },
     {
@@ -1801,7 +2001,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 1004,
-            ...NO_EXPLOSION,
+            moa: 4,
+            explosionDamage: 125,
+            explosionRadius: [1, 7.5],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 2,
         }]
     },
     {
@@ -1819,10 +2023,20 @@ export var WEAPONS = [
         image: "DirectFire",
         heatmap: false,
         shells: [{
-            name: "default",
+            name: "AP",
             minDistance: 0,
             velocity: 970,
             ...NO_EXPLOSION,
+            moa: 1.35,
+        }, {
+            name: "HE",
+            minDistance: 0,
+            velocity: 970,
+            moa: 1.69,
+            explosionDamage: 125,
+            explosionRadius: [1, 7.5],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 2,
         }]
     },
     {
@@ -1844,6 +2058,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 950,
             ...NO_EXPLOSION,
+            moa: 3.5,
         }]
     },
     {
@@ -1865,6 +2080,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 890,
             ...NO_EXPLOSION,
+            moa: 3,
         }]
     },
     {
@@ -1886,6 +2102,7 @@ export var WEAPONS = [
             minDistance: 0,
             velocity: 860,
             ...NO_EXPLOSION,
+            moa: 7,
         }]
     },
     {
@@ -1929,8 +2146,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 190,
-            ...NO_EXPLOSION,
             moa: 15,
+            explosionDamage: 115,
+            explosionRadius: [1, 11],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
         }]
     },
     {
@@ -1950,8 +2170,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 190,
-            ...NO_EXPLOSION,
             moa: 15,
+            explosionDamage: 115,
+            explosionRadius: [1, 11],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
         }]
     },
     {
@@ -1974,8 +2197,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 435,
-            ...NO_EXPLOSION,
             moa: 3,
+            explosionDamage: 100,
+            explosionRadius: [2, 8],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
         }]
     },
     {
@@ -1998,8 +2224,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 315,
-            ...NO_EXPLOSION,
             moa: 3,
+            explosionDamage: 200,
+            explosionRadius: [2, 16],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
         }]
     },
     {
@@ -2017,11 +2246,23 @@ export var WEAPONS = [
         image: "DirectFire",
         heatmap: false,
         shells: [{
-            name: "default",
+            name: "HEAT",
             minDistance: 0,
             velocity: 700,
-            ...NO_EXPLOSION,
             moa: 3,
+            explosionDamage: 200,
+            explosionRadius: [3.5, 16],
+            explosionDistanceFromImpact: 0.15,
+            damageFallOff: 2,
+        }, {
+            name: "HE",
+            minDistance: 0,
+            velocity: 700,
+            moa: 3,
+            explosionDamage: 200,
+            explosionRadius: [2, 16],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
         }]
     },
     {
@@ -2041,8 +2282,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 230,
-            ...NO_EXPLOSION,
             moa: 50,
+            explosionDamage: 115,
+            explosionRadius: [1, 15],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
         }]
     },
     {
@@ -2062,8 +2306,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 230,
-            ...NO_EXPLOSION,
             moa: 15,
+            explosionDamage: 115,
+            explosionRadius: [1, 15],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
         }]
     },
     {
@@ -2083,8 +2330,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 230,
-            ...NO_EXPLOSION,
             moa: 15,
+            explosionDamage: 115,
+            explosionRadius: [1, 15],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
         }]
     },
     {
@@ -2104,8 +2354,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 230,
-            ...NO_EXPLOSION,
             moa: 15,
+            explosionDamage: 115,
+            explosionRadius: [1, 15],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
         }]
     },
     {
@@ -2150,8 +2403,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 190,
-            ...NO_EXPLOSION,
             moa: 15,
+            explosionDamage: 115,
+            explosionRadius: [1, 11],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
         }]
     },
     {
@@ -2171,8 +2427,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 190,
-            ...NO_EXPLOSION,
             moa: 15,
+            explosionDamage: 115,
+            explosionRadius: [1, 15],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
         }]
     },
     {
@@ -2196,8 +2455,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 435,
-            ...NO_EXPLOSION,
             moa: 3,
+            explosionDamage: 100,
+            explosionRadius: [2, 8],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
         }]
     },
     {
@@ -2221,8 +2483,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 315,
-            ...NO_EXPLOSION,
             moa: 3,
+            explosionDamage: 200,
+            explosionRadius: [2, 16],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
         }]
     },
     {
@@ -2245,8 +2510,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 435,
-            ...NO_EXPLOSION,
             moa: 3,
+            explosionDamage: 100,
+            explosionRadius: [2, 8],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
         }]
     },
     {
@@ -2269,8 +2537,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 290,
-            ...NO_EXPLOSION,
             moa: 3,
+            explosionDamage: 200,
+            explosionRadius: [2, 16],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
         }]
     },
     {
@@ -2291,8 +2562,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 355,
-            ...NO_EXPLOSION,
             moa: 1.6,
+            explosionDamage: 300,
+            explosionRadius: [4, 35],
+            explosionDistanceFromImpact: 0.2,
+            damageFallOff: 5,
         }]
     },
     {
@@ -2313,8 +2587,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 355,
-            ...NO_EXPLOSION,
             moa: 1.6,
+            explosionDamage: 300,
+            explosionRadius: [4, 35],
+            explosionDistanceFromImpact: 0.2,
+            damageFallOff: 5,
         }]
     },
     {
@@ -2467,8 +2744,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 1100,
-            ...NO_EXPLOSION,
             moa: 1.5,
+            explosionDamage: 200,
+            explosionRadius: [7, 20],
+            explosionDistanceFromImpact: 0.15,
+            damageFallOff: 2,
         }]
     },
     {
@@ -2489,8 +2769,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 1100,
-            ...NO_EXPLOSION,
             moa: 1.2,
+            explosionDamage: 200,
+            explosionRadius: [7, 20],
+            explosionDistanceFromImpact: 0.15,
+            damageFallOff: 2,
         }]
     },
     {
@@ -2511,8 +2794,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 1100,
-            ...NO_EXPLOSION,
             moa: 1.5,
+            explosionDamage: 200,
+            explosionRadius: [7, 20],
+            explosionDistanceFromImpact: 0.15,
+            damageFallOff: 2,
         }]
     },
     {
@@ -2533,8 +2819,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 1100,
-            ...NO_EXPLOSION,
             moa: 1.5,
+            explosionDamage: 300,
+            explosionRadius: [4, 35],
+            explosionDistanceFromImpact: 0.2,
+            damageFallOff: 5,
         }]
     },
     {
@@ -2552,11 +2841,23 @@ export var WEAPONS = [
         image: "DirectFire",
         heatmap: false,
         shells: [{
-            name: "default",
+            name: "HEAT",
             minDistance: 0,
             velocity: 1100,
-            ...NO_EXPLOSION,
             moa: 1.5,
+            explosionDamage: 200,
+            explosionRadius: [3.5, 16],
+            explosionDistanceFromImpact: 0.15,
+            damageFallOff: 2,
+        }, {
+            name: "HE",
+            minDistance: 0,
+            velocity: 1100,
+            moa: 1.5,
+            explosionDamage: 300,
+            explosionRadius: [4, 35],
+            explosionDistanceFromImpact: 0.2,
+            damageFallOff: 5,
         }]
     },
     {
@@ -2574,11 +2875,23 @@ export var WEAPONS = [
         image: "DirectFire",
         heatmap: false,
         shells: [{
-            name: "default",
+            name: "HEAT",
             minDistance: 0,
             velocity: 1100,
-            ...NO_EXPLOSION,
             moa: 1.5,
+            explosionDamage: 200,
+            explosionRadius: [3.5, 16],
+            explosionDistanceFromImpact: 0.15,
+            damageFallOff: 2,
+        }, {
+            name: "HE",
+            minDistance: 0,
+            velocity: 1100,
+            moa: 1.5,
+            explosionDamage: 300,
+            explosionRadius: [4, 35],
+            explosionDistanceFromImpact: 0.2,
+            damageFallOff: 5,
         }]
     },
     {
@@ -2596,11 +2909,23 @@ export var WEAPONS = [
         image: "DirectFire",
         heatmap: false,
         shells: [{
-            name: "default",
+            name: "HEAT",
             minDistance: 0,
             velocity: 1100,
-            ...NO_EXPLOSION,
             moa: 1.5,
+            explosionDamage: 200,
+            explosionRadius: [3.5, 16],
+            explosionDistanceFromImpact: 0.15,
+            damageFallOff: 2,
+        }, {
+            name: "HE",
+            minDistance: 0,
+            velocity: 1100,
+            moa: 1.5,
+            explosionDamage: 300,
+            explosionRadius: [4, 35],
+            explosionDistanceFromImpact: 0.2,
+            damageFallOff: 5,
         }]
     },
     {
@@ -2620,8 +2945,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 235,
-            ...NO_EXPLOSION,
             moa: 15,
+            explosionDamage: 115,
+            explosionRadius: [1, 15],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
         }]
     },
     {
@@ -2641,8 +2969,11 @@ export var WEAPONS = [
             name: "default",
             minDistance: 0,
             velocity: 190,
-            ...NO_EXPLOSION,
             moa: 15,
+            explosionDamage: 115,
+            explosionRadius: [1, 15],
+            explosionDistanceFromImpact: 0.08,
+            damageFallOff: 1,
         }]
     },
 ];

@@ -1,6 +1,6 @@
 import { App } from "../app.js";
 import { MUZZLE_CLEARANCE, SHOULDER_HEIGHT, TARGET_CLEARANCE } from "./squadCoverage.js";
-import { pathAt, solveElevation, trajectory } from "./squadBallistics.js";
+import { heightAt, pathAt, solveElevation, trajectory } from "./squadBallistics.js";
 
 // Distance between two heightmap samples when looking for an obstacle, in meters (heightmap pixel size)
 const OBSTACLE_STEP = 1;
@@ -250,6 +250,66 @@ export default class SquadFiringSolution {
             semiMinorAxis: this.getVerticalSpread(elevation, this.velocity),
             ellipseAngle: (elevation * (180 / Math.PI))
         };
+    }
+
+
+    /**
+     * Semi-axes of the ground ellipse the rounds of the weapon's cone land in, for the hit probability
+     * (the drawn ellipse has twice these, getSpreadParameter). A plain parabola uses the closed form of
+     * getSpreadParameter. A shot with a motor or a speed cap (rockets, tank and autocannon shells) is not
+     * one: its speed is not constant, so the closed form misjudges the range spread (SPG-9 at 400 m:
+     * 16.9 m against 8.1 m). Its semi-axes come from the trajectory itself: the range error of the cone's
+     * top and bottom (the barrel raised and lowered by the half-angle), and the sideways error of the cone's
+     * side, which at the landing distance d, with the barrel at elevation e, is d·tan(half-angle)/cos(e)
+     * (the sideways component of the cone's edge is sin(half-angle), the forward one cos(half-angle)·cos(e)).
+     * @param {string} arc - "low" or "high"
+     * @returns {{lateral: number, along: number}} - semi-axes across and along the line of fire, meters
+     */
+    getHitSpread(arc) {
+        const spread = this.spreadParameters[arc];
+        const closedForm = { lateral: (spread.semiMajorAxis || 0) / 2, along: (spread.semiMinorAxis || 0) / 2 };
+        if (!this.shot.acceleration && !this.shot.maxSpeed) return closedForm;
+
+        const elevation = this.elevation[arc].rad + this.degToRad(App.activeWeapon.angleOffset);
+        const halfAngle = this.moa / 2;
+        const landing = (angle) => this.getLandingDistance(angle);
+        const top = landing(elevation + halfAngle);
+        const bottom = landing(elevation - halfAngle);
+        if (isNaN(top) || isNaN(bottom)) return closedForm;
+
+        return {
+            lateral: this.distance * Math.tan(halfAngle) / Math.cos(elevation),
+            along: Math.abs(top - bottom) / 2,
+        };
+    }
+
+
+    /**
+     * Horizontal distance at which a shot laid at `angle` comes down to the target's height, searching
+     * around the target's distance (the landing of the cone's top and bottom is close to it)
+     * @param {number} angle - barrel elevation in radians
+     * @returns {number} - meters from the pivot, NaN if the shot does not come down there
+     */
+    getLandingDistance(angle) {
+        const above = (distance) => heightAt(this.shot, angle, distance) - this.heightDiff;
+        let low = this.distance;
+        let high = this.distance;
+        let step = Math.max(1, this.distance / 100);
+
+        // Widen the bracket until the shot is above the target's height at `low` and below it at `high`
+        for (let i = 0; i < 20 && (above(low) <= 0 || above(high) >= 0); i++) {
+            if (above(low) <= 0) low = Math.max(0, low - step);
+            if (above(high) >= 0) high += step;
+            step *= 1.5;
+        }
+        if (above(low) <= 0 || above(high) >= 0) return NaN;
+
+        for (let i = 0; i < 60; i++) {
+            const middle = (low + high) / 2;
+            if (above(middle) > 0) low = middle;
+            else high = middle;
+        }
+        return (low + high) / 2;
     }
 
 
