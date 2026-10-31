@@ -30,6 +30,8 @@ export default class SquadHeightmap {
         // Heightmap pixels per map unit along each axis (see receive)
         this.colsPerUnit = 0;
         this.rowsPerUnit = 0;
+        // Meters between two samples (1 on most maps, 0.5 on Chora and Kokan); 0 until a heightmap loaded
+        this.resolution = 0;
         // Whether `jsonPng` holds the precise game heightmap (mm steps), not the 8-bit one (up to 2 m steps)
         this.precise = false;
         // Whether both heightmaps failed to load: every height is 0
@@ -66,7 +68,7 @@ export default class SquadHeightmap {
 
     /**
      * Store the worker's result and announce it
-     * @param {{levels: Uint16Array, width: number, height: number, step: number, precise: boolean, preciseLost: boolean, url: string}|{error: string, url: string}} data
+     * @param {{levels: Uint16Array, width: number, height: number, step: number, resolution?: number, precise: boolean, preciseLost: boolean, url: string}|{error: string, url: string}} data
      */
     receive(data) {
         this.dispose();
@@ -83,9 +85,12 @@ export default class SquadHeightmap {
             for (let y = 0; y < height; y++) rows.push(levels.subarray(y * width, (y + 1) * width));
             this.jsonPng = rows;
             this.step = data.step;
-            // The grid has one sample per meter from the minimap's min corner to its max corner included
-            // (width = map size X + 1, height = size Y + 1: tools/heightmaps meta.json, and SquadCalc's
-            // 8-bit PNGs alike), so its last sample sits on the map's edge, pixelSize units away
+            // The grid has one sample per `resolution` meters (meta.json resolution_m, 1 unless the map is built
+            // finer) from the minimap's min corner to its max corner included (width = map size X / resolution
+            // + 1, height = size Y / resolution + 1: tools/heightmaps meta.json, and SquadCalc's 8-bit PNGs
+            // alike, one meter), so its last sample sits on the map's edge, pixelSize units away; the unit
+            // counts below follow from the grid, whatever its resolution
+            this.resolution = data.resolution > 0 ? data.resolution : 1;
             this.colsPerUnit = (width - 1) / this.map.pixelSize;
             this.rowsPerUnit = (height - 1) / this.map.pixelSize;
             this.precise = data.precise;
