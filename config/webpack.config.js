@@ -98,6 +98,8 @@ export default async (env) => {
                     /\.map$/,
                     /\/favicons\//,
                     /robots\.txt/,
+                    // licence texts of the self-hosted fonts
+                    /(^|\/)fonts\/OFL-.*\.txt$/,
                     // README screenshots, and the 220 vehicle images (15 MB), cached on first use by sw.js; the
                     // placeholder shown for a missing image stays precached
                     /(^|\/)img\/github\//,
