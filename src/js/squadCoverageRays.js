@@ -3,7 +3,7 @@ import { heightAt as projectileHeight, isParabola, peakAngle, RangeMax, solveEle
 /**
  * Fire coverage: where the active weapon can hit from the first weapon marker.
  *
- * The heightmap includes the buildings (about 1 m per pixel), so a cell behind a building or a ridge
+ * The heightmap includes the buildings (1 m per pixel, 0.5 m on Chora and Kokan), so a cell behind a building or a ridge
  * is only reachable by a trajectory that clears them. Each cell gets one of the COVERAGE values.
  * The trajectory is the same exact one as SquadFiringSolution (squadBallistics.js: rocket boost, gravity
  * scale, elevation limits, AGS-17 hold range, projectile lifespan), launched from the weapon's ground

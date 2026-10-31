@@ -7,8 +7,10 @@
  *   - preciseBase: URL of this deployment's /heightmaps/<map>/ (meta.json, heightmap.webp, heightmap.png)
  *   - fallbackUrl: SquadCalc's 8-bit R/B heightmap.png, used when there is no precise one
  *   - fallbackScale: metres per level of the 8-bit heightmap (SDK_data.heightmapPNG.scale[2])
- * Message out: {levels, width, height, step, precise, preciseLost, url}, `levels` a Uint16Array
- * (transferred) of width x height integer levels, row-major, height in metres = level * step;
+ * Message out: {levels, width, height, step, resolution, precise, preciseLost, url}, `levels` a Uint16Array
+ * (transferred) of width x height integer levels, row-major, height in metres = level * step; `resolution`
+ * is the distance in metres between two samples (meta.json `resolution_m`: 1 m, 0.5 m on Chora and Kokan;
+ * absent for the 8-bit heightmap and for a meta.json without it);
  * `preciseLost` when the precise heightmap could not be fetched (network) and the 8-bit one is used
  * instead; or {error, url}.
  *
@@ -178,7 +180,7 @@ async function decodePng16(bytes) {
  * The heightmap.webp announced by `meta`
  * @param {string} base - URL of /heightmaps/<map>/
  * @param {object} meta - parsed meta.json with format "webp-rg16"
- * @returns {Promise<{levels: Uint16Array, width: number, height: number, step: number, url: string}|null>} -
+ * @returns {Promise<{levels: Uint16Array, width: number, height: number, step: number, resolution: number, url: string}|null>} -
  *   null when the file is missing or cannot be used (the PNG is then read)
  * @throws {TypeError} - when the network kept failing (fetchBytes)
  */
@@ -190,7 +192,7 @@ async function loadWebp(base, meta) {
     try {
         const image = await decodeWebp(bytes);
         if ("levels_sum" in meta.webp && sumLevels(image.levels) !== meta.webp.levels_sum) return null;
-        return { ...image, step: meta.webp.z_step_m, url };
+        return { ...image, step: meta.webp.z_step_m, resolution: meta.resolution_m, url };
     } catch {
         return null;
     }
@@ -201,7 +203,7 @@ async function loadWebp(base, meta) {
  * The heightmap.png of this deployment: 16-bit grayscale, height = value * z_step_m of `meta`
  * @param {string} base - URL of /heightmaps/<map>/
  * @param {object} meta - parsed meta.json
- * @returns {Promise<{levels: Uint16Array, width: number, height: number, step: number, url: string}|null>} -
+ * @returns {Promise<{levels: Uint16Array, width: number, height: number, step: number, resolution: number, url: string}|null>} -
  *   null when the file is missing or is not a 16-bit grayscale PNG
  * @throws {TypeError} - when the network kept failing (fetchBytes)
  */
@@ -211,7 +213,7 @@ async function loadPng(base, meta) {
     if (!bytes) return null;
     try {
         const image = await decodePng16(bytes);
-        return image && { ...image, step: meta.z_step_m, url };
+        return image && { ...image, step: meta.z_step_m, resolution: meta.resolution_m, url };
     } catch {
         return null;
     }

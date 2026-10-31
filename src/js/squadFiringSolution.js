@@ -2,7 +2,8 @@ import { App } from "../app.js";
 import { MUZZLE_CLEARANCE, SHOULDER_HEIGHT, TARGET_CLEARANCE } from "./squadCoverage.js";
 import { heightAt, pathAt, solveElevation, trajectory } from "./squadBallistics.js";
 
-// Distance between two heightmap samples when looking for an obstacle, in meters (heightmap pixel size)
+// Largest distance between two points checked for an obstacle, in meters: the heightmap's sample spacing
+// (SquadHeightmap.resolution) when that is finer, so a wall between two samples of the 0.5 m maps is not skipped
 const OBSTACLE_STEP = 1;
 
 export default class SquadFiringSolution {
@@ -106,7 +107,8 @@ export default class SquadFiringSolution {
 
         const path = trajectory(shot, angle);
 
-        for (let x = MUZZLE_CLEARANCE; x <= this.distance - TARGET_CLEARANCE; x += OBSTACLE_STEP) {
+        const obstacleStep = Math.min(OBSTACLE_STEP, this.map.heightmap.resolution || OBSTACLE_STEP);
+        for (let x = MUZZLE_CLEARANCE; x <= this.distance - TARGET_CLEARANCE; x += obstacleStep) {
             const ground = this.map.heightmap.getHeight({
                 lat: this.weaponLatLng.lat + latStep * x,
                 lng: this.weaponLatLng.lng + lngStep * x,
