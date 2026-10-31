@@ -1,3 +1,10 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.16.0** *(2026-10-31)*
+
+</br><img src="https://img.shields.io/badge/-%20improv%20-orange">  
+- The fonts (Montserrat, Oswald, Roboto) are served from the site itself instead of fonts.googleapis.com / fonts.gstatic.com: the render-blocking stylesheet and the two font requests to another host are gone (no request leaves for Google), and the page looks the same in all six languages (screenshots byte-identical). The files are the OFL woff2 subsets latin, latin-ext, cyrillic and cyrillic-ext (12 files, the same unicode-range split as Google's, so only the subsets a page uses are downloaded; Chinese falls back to the system font as before). The two latin files are preloaded. The service worker precaches the three latin files (72 kB) and keeps the other subsets for a year once used, so the fonts also work offline
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.15.0** *(2026-10-31)*
 
 </br><img src="https://img.shields.io/badge/-new%20feature-green">  
