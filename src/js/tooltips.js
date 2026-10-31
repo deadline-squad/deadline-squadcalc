@@ -275,6 +275,17 @@ tippy(".btn-detailed", {
         );
     },
 });
+tippy(".btn-detailed-colour", {
+    ...commonMapMenuToolipsSettings,
+    onShow(tip) {
+        tip.setContent(
+            `
+            <div>${i18next.t("tooltips:detailedcolourmode")}</div>
+            <div class="tooltipsubtext">${App.formatShortcutHTML(App.shortcuts.toggleMap)}</div>
+            `
+        );
+    },
+});
 tippy(".btn-topomap", {
     ...commonMapMenuToolipsSettings,
     onShow(tip) {
