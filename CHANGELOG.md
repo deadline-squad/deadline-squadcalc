@@ -1,3 +1,8 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.16.0** *(2026-10-31)*
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- Heights between two heightmap samples follow the game's own collision surface. The game splits every quad of its landscape into two triangles along one diagonal (found with 1,300 positions the game server logged: the diagonal from a quad's (row, col) corner to its (row + 1, col + 1) corner is the closer to the logged ground in 79 of 89 decisive points), and SquadCalc interpolated bilinearly, which differs from it by up to a quarter of the quad's twist at its centre. On maps whose heightmap sits on the game's vertices the old read was off by 0.3-2.2 cm RMS and up to 0.2-1.1 m on the steepest quads (Al Basrah 1.1 m); the new one is exact there (0.0-0.1 cm RMS). Against the logged positions the read is within 2 cm for 92 % of the Fallujah points (bilinear 90 %, nearest sample 79 %) with a 95th percentile of 5.5 cm instead of 10.1 cm. On building cells the triangle read is 2 % worse than the bilinear one (the buildings are mesh heights, not triangles of the landscape): RMS 0.95 m instead of 0.93 m in the densest square kilometre of Fallujah
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.15.0** *(2026-10-31)*
 
 </br><img src="https://img.shields.io/badge/-new%20feature-green">  

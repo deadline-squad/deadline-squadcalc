@@ -110,8 +110,13 @@ export default class SquadHeightmap {
 
 
     /**
-     * Height at a LatLng Point, interpolated bilinearly between the four heightmap samples around it
-     * (row = -lat, col = lng, each scaled to the grid of its axis).
+     * Height at a LatLng Point on the game's collision surface: every quad of four heightmap samples
+     * is two triangles split along the diagonal from its (row, col) corner to its (row + 1, col + 1)
+     * corner, the split of the game's landscape collision (found with positions the game server logged:
+     * tools/heightmaps/py/audit_ground_truth.py in the deployment repository), and the height is
+     * interpolated on the triangle the point is in (row = -lat, col = lng, each scaled to the grid of
+     * its axis). Bilinear interpolation differs from it by the quad's twist times fy * (1 - fx), up to
+     * a quarter of the twist at the quad's centre (1.1 m on the steepest Al Basrah quad).
      * https://github.com/sh4rkman/SquadCalc/wiki/Deducing-Altitude
      * @param {LatLng} latlng - LatLng Point
      * @returns {number} - height in meters; 0 more than half a sample outside the heightmap or before
@@ -134,9 +139,11 @@ export default class SquadHeightmap {
         const colWeight = col - col0;
         const top = this.jsonPng[row0];
         const bottom = this.jsonPng[row0 + 1];
-        const upper = top[col0] + (top[col0 + 1] - top[col0]) * colWeight;
-        const lower = bottom[col0] + (bottom[col0 + 1] - bottom[col0]) * colWeight;
-        return (upper + (lower - upper) * rowWeight) * this.step;
+        const corner = top[col0];
+        const level = colWeight >= rowWeight
+            ? corner + (top[col0 + 1] - corner) * colWeight + (bottom[col0 + 1] - top[col0 + 1]) * rowWeight
+            : corner + (bottom[col0] - corner) * rowWeight + (bottom[col0 + 1] - bottom[col0]) * colWeight;
+        return level * this.step;
     }
 
 
