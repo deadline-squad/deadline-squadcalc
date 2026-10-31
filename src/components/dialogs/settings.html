@@ -57,7 +57,7 @@
               <tr id="keypadUnderCursorSettingRow">
                   <td >
                       <label class="mcui-checkbox" >
-                          <input id="keypadUnderCursorSetting" type="checkbox">
+                          <input id="keypadUnderCursorSetting" type="checkbox" aria-labelledby="keypadUnderCursorSettingLabel">
                           <span>
                             <svg class="mcui-check" viewBox="-2 -2 35 35" aria-hidden="true">
                               <polyline points="7.57 15.87 12.62 21.07 23.43 9.93" />
@@ -66,7 +66,7 @@
                         </label>
                   </td>
                   <td> 
-                      <span data-i18n="settings:showKeypad" class="toggleCheckbox"></span>
+                      <span data-i18n="settings:showKeypad" class="toggleCheckbox" id="keypadUnderCursorSettingLabel"></span>
                       <br>
                       <span id="KPSettingSubText" class="settingsSubtext"></span>
                   </td>
@@ -75,7 +75,7 @@
               <tr class="cursorChoiceSettings">
                   <td>
                       <label class="mcui-checkbox">
-                          <input id="cursorChoiceSettings" type="checkbox">
+                          <input id="cursorChoiceSettings" type="checkbox" aria-labelledby="cursorChoiceSettingsLabel">
                           <span>
                             <svg class="mcui-check" viewBox="-2 -2 35 35" aria-hidden="true">
                               <polyline points="7.57 15.87 12.62 21.07 23.43 9.93" />
@@ -83,13 +83,13 @@
                           </span>
                         </label>
                   </td>
-                  <td><span data-i18n="settings:useClassicCursor" class="toggleCheckbox"></span></td>
+                  <td><span data-i18n="settings:useClassicCursor" class="toggleCheckbox" id="cursorChoiceSettingsLabel"></span></td>
               </tr>
 
               <tr class="mapAnimationSettings">
                   <td>
                       <label class="mcui-checkbox">
-                          <input id="mapAnimationSettings" type="checkbox">
+                          <input id="mapAnimationSettings" type="checkbox" aria-labelledby="mapAnimationSettingsLabel">
                           <span>
                             <svg class="mcui-check" viewBox="-2 -2 35 35" aria-hidden="true">
                               <polyline points="7.57 15.87 12.62 21.07 23.43 9.93" />
@@ -98,14 +98,14 @@
                         </label>
                   </td>
                   <td>
-                    <span data-i18n="settings:mapAnimationSettings" class="toggleCheckbox"></span>
+                    <span data-i18n="settings:mapAnimationSettings" class="toggleCheckbox" id="mapAnimationSettingsLabel"></span>
                   </td>
               </tr>
 
               <tr class="contextMenuSettings">
                   <td>
                       <label class="mcui-checkbox">
-                          <input id="contextMenuSettings" type="checkbox">
+                          <input id="contextMenuSettings" type="checkbox" aria-labelledby="contextMenuSettingsLabel">
                           <span>
                             <svg class="mcui-check" viewBox="-2 -2 35 35" aria-hidden="true">
                               <polyline points="7.57 15.87 12.62 21.07 23.43 9.93" />
@@ -114,7 +114,7 @@
                         </label>
                   </td>
                   <td>
-                    <span data-i18n="settings:contextMenu" class="toggleCheckbox"></span>
+                    <span data-i18n="settings:contextMenu" class="toggleCheckbox" id="contextMenuSettingsLabel"></span>
                   </td>
               </tr>
 
@@ -186,12 +186,12 @@
           <tbody>
               <tr>
                   <td class="noborder">
-                    <span data-i18n="settings:gridOpacity"></span>
+                    <span data-i18n="settings:gridOpacity" id="gridSliderLabel"></span>
                   </td> 
                   <td class="noborder">
                       <div class="slider-wrapper">
                         <div class="ticks" id="gridTicks"></div>
-                        <input type="range" id="gridSlider" min="0" max="1" step="0.05">
+                        <input type="range" id="gridSlider" aria-labelledby="gridSliderLabel" min="0" max="1" step="0.05">
                       </div>
                   </td>
               </tr>
@@ -204,12 +204,12 @@
           <tbody>
               <tr>
                   <td class="noborder">
-                    <span data-i18n="settings:zoomSensitivity"></span>
+                    <span data-i18n="settings:zoomSensitivity" id="zoomSliderLabel"></span>
                   </td> 
                   <td class="noborder">
                       <div class="slider-wrapper">
                         <div class="ticks" id="zoomTicks"></div>
-                        <input type="range" id="zoomSlider" min="1" max="3" step="0.1">
+                        <input type="range" id="zoomSlider" aria-labelledby="zoomSliderLabel" min="1" max="3" step="0.1">
                       </div>
                   </td>
               </tr>
@@ -222,12 +222,12 @@
           <tbody>
               <tr>
                   <td class="noborder">
-                    <span data-i18n="settings:fontSize"></span>
+                    <span data-i18n="settings:fontSize" id="fontSliderLabel"></span>
                   </td> 
                   <td class="noborder">
                       <div class="slider-wrapper">
                         <div class="ticks" id="fontTicks"></div>
-                        <input type="range" id="fontSlider" min="1" max="5" step="1">
+                        <input type="range" id="fontSlider" aria-labelledby="fontSliderLabel" min="1" max="5" step="1">
                       </div>
                   </td>
               </tr>
@@ -240,12 +240,12 @@
           <tbody>
               <tr>
                   <td class="noborder">
-                    <span data-i18n="settings:markerSize"></span>
+                    <span data-i18n="settings:markerSize" id="markerSliderLabel"></span>
                   </td> 
                   <td class="noborder">
                       <div class="slider-wrapper">
                         <div class="ticks" id="markerTicks"></div>
-                        <input type="range" id="markerSlider" min="1" max="5" step="0.25">
+                        <input type="range" id="markerSlider" aria-labelledby="markerSliderLabel" min="1" max="5" step="0.25">
                       </div>
                   </td>
               </tr>
@@ -258,12 +258,12 @@
           <tbody>
               <tr>
                   <td class="noborder">
-                    <span data-i18n="settings:brightness"></span>
+                    <span data-i18n="settings:brightness" id="brightnessSliderLabel"></span>
                   </td> 
                   <td class="noborder">
                       <div class="slider-wrapper">
                         <div class="ticks" id="brightnessTicks"></div>
-                        <input type="range" id="brightnessSlider" min="0.5" max="1.5" step="0.05">
+                        <input type="range" id="brightnessSlider" aria-labelledby="brightnessSliderLabel" min="0.5" max="1.5" step="0.05">
                       </div>
                   </td>
               </tr>
@@ -276,12 +276,12 @@
           <tbody>
               <tr>
                   <td class="noborder">
-                    <span data-i18n="settings:contrast"></span>
+                    <span data-i18n="settings:contrast" id="contrastSliderLabel"></span>
                   </td> 
                   <td class="noborder">
                       <div class="slider-wrapper">
                         <div class="ticks" id="contrastTicks"></div>
-                        <input type="range" id="contrastSlider" min="0.5" max="1.5" step="0.05">
+                        <input type="range" id="contrastSlider" aria-labelledby="contrastSliderLabel" min="0.5" max="1.5" step="0.05">
                       </div>
                   </td>
               </tr>
@@ -300,7 +300,7 @@
           <tr class="weaponDragSetting">
             <td>
                 <label class="mcui-checkbox">
-                    <input id="weaponDragSetting" type="checkbox">
+                    <input id="weaponDragSetting" type="checkbox" aria-labelledby="weaponDragSettingLabel">
                     <span>
                       <svg class="mcui-check" viewBox="-2 -2 35 35" aria-hidden="true">
                         <polyline points="7.57 15.87 12.62 21.07 23.43 9.93" />
@@ -309,14 +309,14 @@
                   </label>
             </td>
             <td>
-              <span data-i18n="settings:weaponDrag" class="toggleCheckbox"></span>
+              <span data-i18n="settings:weaponDrag" class="toggleCheckbox" id="weaponDragSettingLabel"></span>
             </td>
           </tr>
 
           <tr>
             <td>
                 <label class="mcui-checkbox">
-                    <input id="realMaxRangeSettings" type="checkbox">
+                    <input id="realMaxRangeSettings" type="checkbox" aria-labelledby="realMaxRangeSettingsLabel">
                     <span>
                       <svg class="mcui-check" viewBox="-2 -2 35 35" aria-hidden="true">
                         <polyline points="7.57 15.87 12.62 21.07 23.43 9.93" />
@@ -325,14 +325,14 @@
                   </label>
             </td>
             <td>
-              <span data-i18n="settings:realMaxRange" class="toggleCheckbox"></span>
+              <span data-i18n="settings:realMaxRange" class="toggleCheckbox" id="realMaxRangeSettingsLabel"></span>
             </td>
           </tr>
 
             <tr class="experimentalSetting">
               <td>
                   <label class="mcui-checkbox">
-                      <input id="experimentalSetting" type="checkbox">
+                      <input id="experimentalSetting" type="checkbox" aria-labelledby="experimentalSettingLabel">
                       <span>
                         <svg class="mcui-check" viewBox="-2 -2 35 35" aria-hidden="true">
                           <polyline points="7.57 15.87 12.62 21.07 23.43 9.93" />
@@ -341,7 +341,7 @@
                     </label>
               </td>
               <td>
-                <span data-i18n="settings:moddedWeapons" class="toggleCheckbox"></span>
+                <span data-i18n="settings:moddedWeapons" class="toggleCheckbox" id="experimentalSettingLabel"></span>
               </td>
           </tr>
 
@@ -362,7 +362,7 @@
           <tr class="targetAnimationSettings">
             <td>
                 <label class="mcui-checkbox">
-                    <input id="targetAnimationSettings" type="checkbox">
+                    <input id="targetAnimationSettings" type="checkbox" aria-labelledby="targetAnimationSettingsLabel">
                     <span>
                       <svg class="mcui-check" viewBox="-2 -2 35 35" aria-hidden="true">
                         <polyline points="7.57 15.87 12.62 21.07 23.43 9.93" />
@@ -371,14 +371,14 @@
                   </label>
             </td>
             <td>
-              <span data-i18n="settings:showAnimations" class="toggleCheckbox"></span>
+              <span data-i18n="settings:showAnimations" class="toggleCheckbox" id="targetAnimationSettingsLabel"></span>
             </td>
           </tr>
 
           <tr>
             <td>
                 <label class="mcui-checkbox">
-                  <input id="targetDragSetting" type="checkbox">
+                  <input id="targetDragSetting" type="checkbox" aria-labelledby="targetDragSettingLabel">
                   <span>
                     <svg class="mcui-check" viewBox="-2 -2 35 35" aria-hidden="true">
                       <polyline points="7.57 15.87 12.62 21.07 23.43 9.93" />
@@ -387,14 +387,14 @@
                 </label>
             </td>
             <td>
-              <span data-i18n="settings:targetDrag" class="toggleCheckbox"></span>
+              <span data-i18n="settings:targetDrag" class="toggleCheckbox" id="targetDragSettingLabel"></span>
             </td>
           </tr>
 
           <tr>
             <td>
                 <label class="mcui-checkbox">
-                  <input id="targetCopySetting" type="checkbox">
+                  <input id="targetCopySetting" type="checkbox" aria-labelledby="targetCopySettingLabel">
                   <span>
                     <svg class="mcui-check" viewBox="-2 -2 35 35" aria-hidden="true">
                       <polyline points="7.57 15.87 12.62 21.07 23.43 9.93" />
@@ -403,14 +403,14 @@
                 </label>
             </td>
             <td>
-              <span data-i18n="settings:copyTarget" class="toggleCheckbox"></span>
+              <span data-i18n="settings:copyTarget" class="toggleCheckbox" id="targetCopySettingLabel"></span>
             </td>
           </tr>
 
           <tr>
             <td>
                 <label class="mcui-checkbox">
-                  <input id="lowAndHighSetting" type="checkbox">
+                  <input id="lowAndHighSetting" type="checkbox" aria-labelledby="lowAndHighSettingLabel">
                   <span>
                     <svg class="mcui-check" viewBox="-2 -2 35 35" aria-hidden="true">
                       <polyline points="7.57 15.87 12.62 21.07 23.43 9.93" />
@@ -419,14 +419,14 @@
                 </label>
             </td>
             <td>
-              <span data-i18n="settings:lowAndHigh" class="toggleCheckbox"></span>
+              <span data-i18n="settings:lowAndHigh" class="toggleCheckbox" id="lowAndHighSettingLabel"></span>
             </td>
           </tr>
 
           <tr>
             <td>
                 <label class="mcui-checkbox">
-                  <input id="lastDigitsSetting" type="checkbox">
+                  <input id="lastDigitsSetting" type="checkbox" aria-labelledby="lastDigitsSettingLabel">
                   <span>
                     <svg class="mcui-check" viewBox="-2 -2 35 35" aria-hidden="true">
                       <polyline points="7.57 15.87 12.62 21.07 23.43 9.93" />
@@ -435,14 +435,14 @@
                 </label>
             </td>
             <td>
-              <span data-i18n="settings:lastDigits" class="toggleCheckbox"></span>
+              <span data-i18n="settings:lastDigits" class="toggleCheckbox" id="lastDigitsSettingLabel"></span>
             </td>
           </tr>
 
           <tr>
               <td>
                   <label class="mcui-checkbox">
-                      <input id="spreadRadiusSetting" type="checkbox">
+                      <input id="spreadRadiusSetting" type="checkbox" aria-labelledby="spreadRadiusSettingLabel">
                       <span>
                         <svg class="mcui-check" viewBox="-2 -2 35 35" aria-hidden="true">
                           <polyline points="7.57 15.87 12.62 21.07 23.43 9.93" />
@@ -450,13 +450,13 @@
                       </span>
                     </label>
               </td>
-              <td><span data-i18n="settings:showSpread" class="toggleCheckbox"></span></td>
+              <td><span data-i18n="settings:showSpread" class="toggleCheckbox" id="spreadRadiusSettingLabel"></span></td>
           </tr>
 
           <tr class="damageRadiusSetting">
               <td>
                   <label class="mcui-checkbox">
-                      <input id="damageRadiusSetting" type="checkbox">
+                      <input id="damageRadiusSetting" type="checkbox" aria-labelledby="damageRadiusSettingLabel">
                       <span>
                         <svg class="mcui-check" viewBox="-2 -2 35 35" aria-hidden="true">
                           <polyline points="7.57 15.87 12.62 21.07 23.43 9.93" />
@@ -464,13 +464,13 @@
                       </span>
                   </label>
               </td>
-              <td><span data-i18n="settings:showDamage" class="toggleCheckbox"></span></td>
+              <td><span data-i18n="settings:showDamage" class="toggleCheckbox" id="damageRadiusSettingLabel"></span></td>
           </tr>
 
           <tr class="targetGridSetting">
               <td>
                   <label class="mcui-checkbox">
-                      <input id="targetGridSetting" type="checkbox">
+                      <input id="targetGridSetting" type="checkbox" aria-labelledby="targetGridSettingLabel">
                       <span>
                         <svg class="mcui-check" viewBox="-2 -2 35 35" aria-hidden="true">
                           <polyline points="7.57 15.87 12.62 21.07 23.43 9.93" />
@@ -479,13 +479,13 @@
                   </label>
               </td>
               <td>
-                <span data-i18n="settings:targetGrid" class="toggleCheckbox"></span>
+                <span data-i18n="settings:targetGrid" class="toggleCheckbox" id="targetGridSettingLabel"></span>
               </td>
           </tr>
           <tr class="lineToTargetSetting">
               <td>
                   <label class="mcui-checkbox">
-                      <input id="lineToTargetSetting" type="checkbox">
+                      <input id="lineToTargetSetting" type="checkbox" aria-labelledby="lineToTargetSettingLabel">
                       <span>
                         <svg class="mcui-check" viewBox="-2 -2 35 35" aria-hidden="true">
                           <polyline points="7.57 15.87 12.62 21.07 23.43 9.93" />
@@ -494,7 +494,7 @@
                   </label>
               </td>
               <td>
-                <span data-i18n="settings:lineToTarget" class="toggleCheckbox"></span>
+                <span data-i18n="settings:lineToTarget" class="toggleCheckbox" id="lineToTargetSettingLabel"></span>
               </td>
           </tr>
 
@@ -508,7 +508,7 @@
         <tr>
           <td>
               <label class="mcui-checkbox">
-                  <input id="bearingSetting" type="checkbox">
+                  <input id="bearingSetting" type="checkbox" aria-labelledby="bearingSettingLabel">
                   <span>
                     <svg class="mcui-check" viewBox="-2 -2 35 35" aria-hidden="true">
                       <polyline points="7.57 15.87 12.62 21.07 23.43 9.93" />
@@ -516,13 +516,13 @@
                   </span>
                 </label>
           </td>
-          <td><span data-i18n="settings:showBearing" class="toggleCheckbox"></span></td>
+          <td><span data-i18n="settings:showBearing" class="toggleCheckbox" id="bearingSettingLabel"></span></td>
       </tr>
 
       <tr>
           <td>
               <label class="mcui-checkbox">
-                  <input id="distanceSetting" type="checkbox">
+                  <input id="distanceSetting" type="checkbox" aria-labelledby="distanceSettingLabel">
                   <span>
                     <svg class="mcui-check" viewBox="-2 -2 35 35" aria-hidden="true">
                       <polyline points="7.57 15.87 12.62 21.07 23.43 9.93" />
@@ -530,13 +530,13 @@
                   </span>
                 </label>
           </td>
-          <td><span data-i18n="settings:showDistance" class="toggleCheckbox"></span></td>
+          <td><span data-i18n="settings:showDistance" class="toggleCheckbox" id="distanceSettingLabel"></span></td>
       </tr>
 
       <tr>
           <td>
               <label class="mcui-checkbox">
-                  <input id="timeOfFlightSetting" type="checkbox">
+                  <input id="timeOfFlightSetting" type="checkbox" aria-labelledby="timeOfFlightSettingLabel">
                   <span>
                     <svg class="mcui-check" viewBox="-2 -2 35 35" aria-hidden="true">
                       <polyline points="7.57 15.87 12.62 21.07 23.43 9.93" />
@@ -544,13 +544,13 @@
                   </span>
                 </label>
           </td>
-          <td><span data-i18n="settings:showTimeOfFlight" class="toggleCheckbox"></span></td>
+          <td><span data-i18n="settings:showTimeOfFlight" class="toggleCheckbox" id="timeOfFlightSettingLabel"></span></td>
       </tr>
 
       <tr>
           <td>
               <label class="mcui-checkbox">
-                  <input id="heightSetting" type="checkbox">
+                  <input id="heightSetting" type="checkbox" aria-labelledby="heightSettingLabel">
                   <span>
                     <svg class="mcui-check" viewBox="-2 -2 35 35" aria-hidden="true">
                       <polyline points="7.57 15.87 12.62 21.07 23.43 9.93" />
@@ -558,7 +558,7 @@
                   </span>
                 </label>
           </td>
-          <td><span data-i18n="settings:showHeightDiff" class="toggleCheckbox"></span></td>
+          <td><span data-i18n="settings:showHeightDiff" class="toggleCheckbox" id="heightSettingLabel"></span></td>
       </tr>
 
       </tbody>
@@ -575,7 +575,7 @@
           <tr>
             <td>
                 <label class="mcui-checkbox">
-                  <input id="showMainZonesSettings" type="checkbox">
+                  <input id="showMainZonesSettings" type="checkbox" aria-labelledby="showMainZonesSettingsLabel">
                   <span>
                     <svg class="mcui-check" viewBox="-2 -2 35 35" aria-hidden="true">
                       <polyline points="7.57 15.87 12.62 21.07 23.43 9.93" />
@@ -584,14 +584,14 @@
                 </label>
             </td>
             <td>
-              <span data-i18n="settings:showMainZones" class="toggleCheckbox"></span>
+              <span data-i18n="settings:showMainZones" class="toggleCheckbox" id="showMainZonesSettingsLabel"></span>
             </td>
           </tr>
 
           <tr>
             <td>
                 <label class="mcui-checkbox">
-                  <input id="showMainAssetsSettings" type="checkbox">
+                  <input id="showMainAssetsSettings" type="checkbox" aria-labelledby="showMainAssetsSettingsLabel">
                   <span>
                     <svg class="mcui-check" viewBox="-2 -2 35 35" aria-hidden="true">
                       <polyline points="7.57 15.87 12.62 21.07 23.43 9.93" />
@@ -600,14 +600,14 @@
                 </label>
             </td>
             <td>
-              <span data-i18n="settings:showMainAssets" class="toggleCheckbox"></span>
+              <span data-i18n="settings:showMainAssets" class="toggleCheckbox" id="showMainAssetsSettingsLabel"></span>
             </td>
           </tr>
 
           <tr class="">
             <td>
                 <label class="mcui-checkbox">
-                  <input id="showMapBordersSettings" type="checkbox">
+                  <input id="showMapBordersSettings" type="checkbox" aria-labelledby="showMapBordersSettingsLabel">
                   <span>
                     <svg class="mcui-check" viewBox="-2 -2 35 35" aria-hidden="true">
                       <polyline points="7.57 15.87 12.62 21.07 23.43 9.93" />
@@ -616,14 +616,14 @@
                 </label>
             </td>
             <td>
-              <span data-i18n="settings:showMapBorders" class="toggleCheckbox"></span>
+              <span data-i18n="settings:showMapBorders" class="toggleCheckbox" id="showMapBordersSettingsLabel"></span>
             </td>
           </tr>
 
           <tr>
             <td>
                 <label class="mcui-checkbox">
-                  <input id="respawnCamSettings" type="checkbox">
+                  <input id="respawnCamSettings" type="checkbox" aria-labelledby="respawnCamSettingsLabel">
                   <span>
                     <svg class="mcui-check" viewBox="-2 -2 35 35" aria-hidden="true">
                       <polyline points="7.57 15.87 12.62 21.07 23.43 9.93" />
@@ -632,14 +632,14 @@
                 </label>
             </td>
             <td>
-              <span data-i18n="settings:respawnCam" class="toggleCheckbox"></span>
+              <span data-i18n="settings:respawnCam" class="toggleCheckbox" id="respawnCamSettingsLabel"></span>
             </td>
           </tr>
 
           <tr>
             <td>
                 <label class="mcui-checkbox">
-                  <input id="circlesFlagsSettings" type="checkbox">
+                  <input id="circlesFlagsSettings" type="checkbox" aria-labelledby="circlesFlagsSettingsLabel">
                   <span>
                     <svg class="mcui-check" viewBox="-2 -2 35 35" aria-hidden="true">
                       <polyline points="7.57 15.87 12.62 21.07 23.43 9.93" />
@@ -648,14 +648,14 @@
                 </label>
             </td>
             <td>
-              <span data-i18n="settings:circlesFlags" class="toggleCheckbox"></span>
+              <span data-i18n="settings:circlesFlags" class="toggleCheckbox" id="circlesFlagsSettingsLabel"></span>
             </td>
           </tr>
 
           <tr class="showFlagsDistanceSettings">
             <td>
                 <label class="mcui-checkbox">
-                  <input id="showFlagsDistanceSettings" type="checkbox">
+                  <input id="showFlagsDistanceSettings" type="checkbox" aria-labelledby="showFlagsDistanceSettingsLabel">
                   <span>
                     <svg class="mcui-check" viewBox="-2 -2 35 35" aria-hidden="true">
                       <polyline points="7.57 15.87 12.62 21.07 23.43 9.93" />
@@ -664,14 +664,14 @@
                 </label>
             </td>
             <td>
-              <span data-i18n="settings:showFlagsDistance" class="toggleCheckbox"></span>
+              <span data-i18n="settings:showFlagsDistance" class="toggleCheckbox" id="showFlagsDistanceSettingsLabel"></span>
             </td>
           </tr>
 
           <tr class="showNextFlagPercentage">
             <td>
                 <label class="mcui-checkbox">
-                  <input id="showNextFlagPercentageSettings" type="checkbox">
+                  <input id="showNextFlagPercentageSettings" type="checkbox" aria-labelledby="showNextFlagPercentageSettingsLabel">
                   <span>
                     <svg class="mcui-check" viewBox="-2 -2 35 35" aria-hidden="true">
                       <polyline points="7.57 15.87 12.62 21.07 23.43 9.93" />
@@ -680,14 +680,14 @@
                 </label>
             </td>
             <td>
-              <span data-i18n="settings:showNextFlagPercentage" class="toggleCheckbox"></span>
+              <span data-i18n="settings:showNextFlagPercentage" class="toggleCheckbox" id="showNextFlagPercentageSettingsLabel"></span>
             </td>
           </tr>
 
           <tr class="capZoneOnHoverSettings">
             <td>
                 <label class="mcui-checkbox">
-                    <input id="capZoneOnHoverSettings" type="checkbox">
+                    <input id="capZoneOnHoverSettings" type="checkbox" aria-labelledby="capZoneOnHoverSettingsLabel">
                     <span>
                       <svg class="mcui-check" viewBox="-2 -2 35 35" aria-hidden="true">
                         <polyline points="7.57 15.87 12.62 21.07 23.43 9.93" />
@@ -696,14 +696,14 @@
                   </label>
             </td>
             <td>
-              <span data-i18n="settings:capZoneOnHover" class="toggleCheckbox"></span>
+              <span data-i18n="settings:capZoneOnHover" class="toggleCheckbox" id="capZoneOnHoverSettingsLabel"></span>
             </td>
           </tr>
           
           <tr class="revealLayerOnHover">
             <td>
                 <label class="mcui-checkbox">
-                    <input id="revealLayerOnHoverSettings" type="checkbox">
+                    <input id="revealLayerOnHoverSettings" type="checkbox" aria-labelledby="revealLayerOnHoverSettingsLabel">
                     <span>
                       <svg class="mcui-check" viewBox="-2 -2 35 35" aria-hidden="true">
                         <polyline points="7.57 15.87 12.62 21.07 23.43 9.93" />
@@ -712,14 +712,14 @@
                   </label>
             </td>
             <td>
-              <span data-i18n="settings:revealLayerOnHover" class="toggleCheckbox"></span>
+              <span data-i18n="settings:revealLayerOnHover" class="toggleCheckbox" id="revealLayerOnHoverSettingsLabel"></span>
             </td>
           </tr>
 
           <!-- <tr class="copyNextFlagsSettings">
             <td>
                 <label class="mcui-checkbox">
-                  <input id="copyNextFlagsSettings" type="checkbox">
+                  <input id="copyNextFlagsSettings" type="checkbox" aria-labelledby="copyNextFlagsSettingsLabel">
                   <span>
                     <svg class="mcui-check" viewBox="-2 -2 35 35" aria-hidden="true">
                       <polyline points="7.57 15.87 12.62 21.07 23.43 9.93" />
@@ -728,7 +728,7 @@
                 </label>
             </td>
             <td>
-              <span data-i18n="settings:copyNextFlags" class="toggleCheckbox"></span>
+              <span data-i18n="settings:copyNextFlags" class="toggleCheckbox" id="copyNextFlagsSettingsLabel"></span>
             </td>
           </tr> -->
 
@@ -743,7 +743,7 @@
           <tr class="enableFactionsTooltip">
             <td>
                 <label class="mcui-checkbox">
-                    <input id="enableFactionsSettings" type="checkbox">
+                    <input id="enableFactionsSettings" type="checkbox" aria-labelledby="enableFactionsSettingsLabel">
                     <span>
                       <svg class="mcui-check" viewBox="-2 -2 35 35" aria-hidden="true">
                         <polyline points="7.57 15.87 12.62 21.07 23.43 9.93" />
@@ -752,14 +752,14 @@
                   </label>
             </td>
             <td>
-              <span data-i18n="settings:enableFactions" class="toggleCheckbox"></span>
+              <span data-i18n="settings:enableFactions" class="toggleCheckbox" id="enableFactionsSettingsLabel"></span>
             </td>
           </tr>
 
           <tr class="">
             <td>
                 <label class="mcui-checkbox">
-                    <input id="defaultFactionsSettings" type="checkbox">
+                    <input id="defaultFactionsSettings" type="checkbox" aria-labelledby="defaultFactionsSettingsLabel">
                     <span>
                       <svg class="mcui-check" viewBox="-2 -2 35 35" aria-hidden="true">
                         <polyline points="7.57 15.87 12.62 21.07 23.43 9.93" />
@@ -768,14 +768,14 @@
                   </label>
             </td>
             <td>
-              <span data-i18n="settings:defaultFactions" class="toggleCheckbox"></span>
+              <span data-i18n="settings:defaultFactions" class="toggleCheckbox" id="defaultFactionsSettingsLabel"></span>
             </td>
           </tr>
 
           <tr class="">
             <td>
                 <label class="mcui-checkbox">
-                    <input id="hideLowRespawnSettings" type="checkbox">
+                    <input id="hideLowRespawnSettings" type="checkbox" aria-labelledby="hideLowRespawnSettingsLabel">
                     <span>
                       <svg class="mcui-check" viewBox="-2 -2 35 35" aria-hidden="true">
                         <polyline points="7.57 15.87 12.62 21.07 23.43 9.93" />
@@ -784,14 +784,14 @@
                   </label>
             </td>
             <td>
-              <span data-i18n="settings:hideLowRespawn" class="toggleCheckbox"></span>
+              <span data-i18n="settings:hideLowRespawn" class="toggleCheckbox" id="hideLowRespawnSettingsLabel"></span>
             </td>
           </tr>
 
           <tr class="">
             <td>
                 <label class="mcui-checkbox">
-                    <input id="disableSoundsSettings" type="checkbox">
+                    <input id="disableSoundsSettings" type="checkbox" aria-labelledby="disableSoundsSettingsLabel">
                     <span>
                       <svg class="mcui-check" viewBox="-2 -2 35 35" aria-hidden="true">
                         <polyline points="7.57 15.87 12.62 21.07 23.43 9.93" />
@@ -800,14 +800,14 @@
                   </label>
             </td>
             <td>
-              <span data-i18n="settings:disableSounds" class="toggleCheckbox"></span>
+              <span data-i18n="settings:disableSounds" class="toggleCheckbox" id="disableSoundsSettingsLabel"></span>
             </td>
           </tr>
 
           <tr class="minimizeFactionBarTooltip">
             <td>
                 <label class="mcui-checkbox">
-                    <input id="minimizeFactionBarSettings" type="checkbox">
+                    <input id="minimizeFactionBarSettings" type="checkbox" aria-labelledby="minimizeFactionBarSettingsLabel">
                     <span>
                       <svg class="mcui-check" viewBox="-2 -2 35 35" aria-hidden="true">
                         <polyline points="7.57 15.87 12.62 21.07 23.43 9.93" />
@@ -816,7 +816,7 @@
                   </label>
             </td>
             <td>
-              <span data-i18n="settings:minimizeFactionBar" class="toggleCheckbox"></span>
+              <span data-i18n="settings:minimizeFactionBar" class="toggleCheckbox" id="minimizeFactionBarSettingsLabel"></span>
                <sup class="new">new</sup>
             </td>
           </tr>

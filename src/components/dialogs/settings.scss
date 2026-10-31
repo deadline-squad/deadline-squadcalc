@@ -365,6 +365,11 @@ $bezier: cubic-bezier(0.65, 0.25, 0.56, 0.96);
         position: relative;
         background-color: white;
     }
+    input[type="checkbox"]:focus-visible + span,
+    input[type="radio"]:focus-visible + span {
+        outline: 2px solid #fff;
+        box-shadow: 0 0 0 4px variables.$mainColor;
+    }
     input[type="checkbox"]:checked + span {
         border-color: variables.$mainColor;
         transition: border-color 107ms $bezier;
