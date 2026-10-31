@@ -264,13 +264,18 @@ export default class SquadFiringSolution {
      * top and bottom (the barrel raised and lowered by the half-angle), and the sideways error of the cone's
      * side, which at the landing distance d, with the barrel at elevation e, is d·tan(half-angle)/cos(e)
      * (the sideways component of the cone's edge is sin(half-angle), the forward one cos(half-angle)·cos(e)).
+     * A direct-fire shell that leaves from a muzzle above the ground (vehicle mounts, 2-3 m up) is not a plain
+     * parabola from the pivot either: it comes down at a grazing angle and the launch point moves with the
+     * elevation, so the closed form's range spread is off (PARS III MK19 at 300 m: kill 0.090 against the
+     * game's 0.112, deadline-squad/deadline-squadcalc#19).
      * @param {string} arc - "low" or "high"
      * @returns {{lateral: number, along: number}} - semi-axes across and along the line of fire, meters
      */
     getHitSpread(arc) {
         const spread = this.spreadParameters[arc];
         const closedForm = { lateral: (spread.semiMajorAxis || 0) / 2, along: (spread.semiMinorAxis || 0) / 2 };
-        if (!this.shot.acceleration && !this.shot.maxSpeed) return closedForm;
+        const leavesFromMuzzle = App.activeWeapon.type === "directFire" && (this.shot.muzzleForward || this.shot.muzzleUp);
+        if (!this.shot.acceleration && !this.shot.maxSpeed && !leavesFromMuzzle) return closedForm;
 
         const elevation = this.elevation[arc].rad + this.degToRad(App.activeWeapon.angleOffset);
         const halfAngle = this.moa / 2;

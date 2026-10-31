@@ -10,6 +10,7 @@ classes. `leaflet.test.mjs` imports the real Leaflet 2 package.
 - `squadDamage.test.mjs`: damage falloff, cover, hit probability, rounds needed.
 - `squadHeightmaps.test.mjs`: height interpolation (the game's triangle rule), edges, height path.
 - `weapons.test.mjs`: invariants of the `weapons.js` data.
+- `hitProbability.test.mjs`: the hit probability of direct-fire weapons from a muzzle above the ground against a simulation of the game's cone (#19).
 - `leaflet.test.mjs`: Leaflet 2 event names (pointer, not mouse; `bubblingPointerEvents`).
 
 What needs a browser (hover, drag, clean console on a served build) is covered by
