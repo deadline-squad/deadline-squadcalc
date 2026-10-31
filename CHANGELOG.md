@@ -1,3 +1,11 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.16.0** *(2026-10-31)*
+
+</br><img src="https://img.shields.io/badge/-%20improv%20-orange">  
+- The page opens and works without a network after one visit: the service worker keeps the last page, the translations, the Google fonts and the precise heightmap of the maps seen (the 8 latest, 30 days; meta.json comes from the network first, the heavy file is saved under its `?v=` URL), so a reload offline shows the app in your language with the real heights instead of a browser error page. Online nothing is served stale: the page, the translations and meta.json always come from the network first
+- An older Squad Ballistics that still selects a weapon by a name SquadCalc renamed in the game-data update (`MK19 / AGS-17 / AGS-30`, `BTR-4 AGS`, `Carl Gustav / M3 MAAWS · HEAT` and `· Tandem`, `Tank AP · 2A46 / ZPT98 / 2A20 / M68A2`, `Tank AP · L30A1 (Challenger 2)`, `M203 / M320 / GP-25 / HK79 / MKE MGL`) gets the weapon again instead of `false`, as it does for the RMB sights
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.15.0** *(2026-10-31)*
 
 </br><img src="https://img.shields.io/badge/-new%20feature-green">  

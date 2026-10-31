@@ -632,6 +632,7 @@ export var WEAPONS = [
     {
         name: "DF_M203_M320_GP_25_HK79_SL40",
         ballistics: "M203 / M320 / GP-25 / HK79 / SL40",
+        legacyBallistics: ["M203 / M320 / GP-25 / HK79 / MKE MGL"],
         deceleration: 0,
         decelerationTime: 0,
         gravityScale: 1,
@@ -695,6 +696,7 @@ export var WEAPONS = [
     {
         name: "DF_MK19",
         ballistics: "MK19",
+        legacyBallistics: ["MK19 / AGS-17 / AGS-30"],
         deceleration: 0,
         decelerationTime: 0,
         gravityScale: 1,
@@ -738,6 +740,7 @@ export var WEAPONS = [
     {
         name: "DF_AGS_30_BTR_4_AGS",
         ballistics: "AGS-30 / BTR-4 AGS",
+        legacyBallistics: ["BTR-4 AGS"],
         deceleration: 0,
         decelerationTime: 0,
         gravityScale: 1,
@@ -969,6 +972,7 @@ export var WEAPONS = [
     {
         name: "DF_M3_MAAWS_HEAT_Smoke",
         ballistics: "M3 MAAWS · HEAT / Smoke",
+        legacyBallistics: ["Carl Gustav / M3 MAAWS · HEAT"],
         deceleration: 0,
         decelerationTime: 0,
         acceleration: 230,
@@ -993,6 +997,7 @@ export var WEAPONS = [
     {
         name: "DF_M3_MAAWS_Tandem",
         ballistics: "M3 MAAWS · Tandem",
+        legacyBallistics: ["Carl Gustav / M3 MAAWS · Tandem"],
         deceleration: 0,
         decelerationTime: 0,
         acceleration: 230,
@@ -1182,6 +1187,7 @@ export var WEAPONS = [
     {
         name: "DF_Tank_AP_2A46_ZPT98_2A20_2A45_KBA3",
         ballistics: "Tank AP · 2A46 / ZPT98 / 2A20 / 2A45 / KBA3",
+        legacyBallistics: ["Tank AP · 2A46 / ZPT98 / 2A20 / M68A2"],
         deceleration: 0,
         decelerationTime: 0,
         maxSpeed: 1500,
@@ -1226,6 +1232,7 @@ export var WEAPONS = [
     {
         name: "DF_Tank_AP_L30A1_Challenger_2_M68A2",
         ballistics: "Tank AP · L30A1 (Challenger 2) / M68A2",
+        legacyBallistics: ["Tank AP · L30A1 (Challenger 2)"],
         deceleration: 0,
         decelerationTime: 0,
         maxSpeed: 1500,
