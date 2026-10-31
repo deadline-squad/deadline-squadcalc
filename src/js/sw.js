@@ -17,6 +17,23 @@ registerRoute(
 );
 
 
+// Font subsets other than latin (latin-ext, cyrillic) are not precached: each is cached the first time a page
+// uses it, then served from the cache first. The file names carry the version, so they never change
+registerRoute(
+    ({ url }) => url.pathname.startsWith("/fonts/"),
+    new CacheFirst({
+        cacheName: "fonts",
+        plugins: [
+            new ExpirationPlugin({
+                maxEntries: 20,
+                maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
+                purgeOnQuotaError: true,
+            }),
+        ],
+    })
+);
+
+
 // Cache map images for 30 days with StaleWhileRevalidate
 registerRoute(
     ({ url }) => url.pathname.includes("/maps/") && url.pathname.endsWith(".webp"),

@@ -2,7 +2,7 @@
    Self-hosted fonts (SIL Open Font License, texts in public/fonts/OFL-*.txt), the latin, latin-ext, cyrillic and
    cyrillic-ext subsets of the files Google Fonts serves, with the same unicode-range split so the browser only
    downloads the subsets a page uses. Montserrat is one variable file for 400 and 600. The latin files are
-   preloaded in index.html; every file is precached by sw.js. Other scripts (zh, greek, vietnamese) fall back to
+   preloaded in index.html; the latin files are precached by sw.js, the others cached on first use. Other scripts (zh, greek, vietnamese) fall back to
    the system fonts.
 */
 
