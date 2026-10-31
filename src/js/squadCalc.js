@@ -1264,7 +1264,8 @@ export default class SquadCalc {
         }
 
         if (this.matchesShortcut(event, "toggleMap")) {
-            const layers = ["detailed", "topomap", "terrainmap", "basemap"];
+            const layers = ["detailed", "detailed-colour", "topomap", "terrainmap", "basemap"]
+                .filter((layer) => !$(`.btn-${layer}`).data("unavailable"));
             const currentLayer = $("#mapLayerMenu .layers.active").attr("value") || "basemap";
             const nextIndex = (layers.indexOf(currentLayer) + 1) % layers.length;
             const nextLayer = layers[nextIndex];

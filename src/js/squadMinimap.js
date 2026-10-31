@@ -28,6 +28,9 @@ const DEFAULT_MAX_ZOOM = 8;
 
 // Zoom levels the detailed layer allows beyond its finest tiles (Leaflet scales those up)
 const DETAILED_EXTRA_ZOOM = 2;
+// Layer value and tile folder suffix of the detailed layer in the game's colours (tools/maptiles, style "colour")
+const COLOUR_LAYER = "detailed-colour";
+const COLOUR_SUFFIX = "-colour";
 
 /**
  * Squad Minimap
@@ -88,7 +91,7 @@ export const squadMinimap = Map.extend({
         this.activeCircles = [];
         this.activePolylines = [];
         this.layerGroup = new LayerGroup().addTo(this);
-        // Requests for the detailed tiles' meta.json by map folder, and the number of the latest layer change
+        // Requests for the detailed tiles' meta.json by tile folder, and the number of the latest layer change
         this.detailedTiles = {};
         this.layerRequest = 0;
         this.markersGroup = new LayerGroup().addTo(this);
@@ -178,8 +181,8 @@ export const squadMinimap = Map.extend({
         // Show spinner
         this.spin(true, this.spinOptions);
 
-        if (LAYERMODE === "detailed") {
-            this.showDetailedLayer(OLDLAYER, request);
+        if (LAYERMODE === "detailed" || LAYERMODE === COLOUR_LAYER) {
+            this.showDetailedLayer(OLDLAYER, request, LAYERMODE === COLOUR_LAYER ? COLOUR_SUFFIX : "");
         } else {
             this.setMaxZoom(DEFAULT_MAX_ZOOM);
             this.showMapImage(this.upstreamLayer(LAYERMODE), OLDLAYER);
@@ -187,6 +190,7 @@ export const squadMinimap = Map.extend({
 
         // Show grid and heatmap
         if (changemap) {
+            this.updateColourLayerButton();
             if (App.userSettings.grid) this.showGrid();
             this.toggleHeatmap();
         }
@@ -221,19 +225,22 @@ export const squadMinimap = Map.extend({
      * (terrain cover, hillshade, contours, foliage, buildings; tools/maptiles in the deployment repository),
      * served by this deployment in /maptiles/<map>/ with their meta.json ({maxNativeZoom, generated, ...}).
      * The map may then zoom DETAILED_EXTRA_ZOOM levels past the finest tiles. A map without tiles shows the
-     * upstream topographic map instead.
+     * upstream topographic map instead; a map without tiles in the game's colours shows the detailed map.
      * @param {TileLayer|ImageOverlay} [oldLayer] - layer to remove once the new one loaded
      * @param {number} request - number of this layer change; a later change or map switch wins
+     * @param {string} [suffix] - COLOUR_SUFFIX for the tiles in the game's colours (/maptiles/<map>-colour/)
      */
-    showDetailedLayer: function(oldLayer, request) {
+    showDetailedLayer: function(oldLayer, request, suffix = "") {
         const mapName = this.activeMap.mapURL.split("/").filter(Boolean).pop();
-        if (!this.detailedTiles[mapName]) {
-            this.detailedTiles[mapName] = fetch(`/maptiles/${mapName}/meta.json`, { cache: "no-cache" })
-                .then((response) => response.ok ? response.json() : null)
-                .catch(() => null);
-        }
-        this.detailedTiles[mapName].then((meta) => {
+        this.detailedMeta(mapName + suffix).then((meta) => {
             if (request !== this.layerRequest) return;
+            if (!meta && suffix) {
+                console.warn(`[MAP] No tiles in the game's colours for ${mapName}, showing the detailed map`);
+                $("#mapLayerMenu").find(".layers").removeClass("active");
+                $(".btn-detailed").addClass("active");
+                this.showDetailedLayer(oldLayer, request);
+                return;
+            }
             if (!meta) {
                 console.warn(`[MAP] No detailed tiles for ${mapName}, showing the topographic map`);
                 this.setMaxZoom(DEFAULT_MAX_ZOOM);
@@ -242,13 +249,40 @@ export const squadMinimap = Map.extend({
             }
             const version = encodeURIComponent(meta.generated);
             this.setMaxZoom(Math.max(DEFAULT_MAX_ZOOM, meta.maxNativeZoom + DETAILED_EXTRA_ZOOM));
-            this.showMapImage(new TileLayer(`/maptiles/${mapName}/{z}/{x}_{y}.webp?v=${version}`, {
+            this.showMapImage(new TileLayer(`/maptiles/${mapName}${suffix}/{z}/{x}_{y}.webp?v=${version}`, {
                 bounds: this.imageBounds,
                 minNativeZoom: meta.minNativeZoom,
                 maxNativeZoom: meta.maxNativeZoom,
                 edgeBufferTiles: 1,
                 tileSize: meta.tileSize,
             }), oldLayer);
+        });
+    },
+
+
+    /**
+     * meta.json of a folder of detailed tiles, requested once per folder
+     * @param {string} folder - folder in /maptiles/ (the map name, or the map name with COLOUR_SUFFIX)
+     * @returns {Promise<object|null>} - the parsed meta.json, null when the folder does not exist
+     */
+    detailedMeta: function(folder) {
+        if (!this.detailedTiles[folder]) {
+            this.detailedTiles[folder] = fetch(`/maptiles/${folder}/meta.json`, { cache: "no-cache" })
+                .then((response) => response.ok ? response.json() : null)
+                .catch(() => null);
+        }
+        return this.detailedTiles[folder];
+    },
+
+
+    /**
+     * Show the button of the detailed layer in the game's colours only on maps that have its tiles
+     */
+    updateColourLayerButton: function() {
+        const mapName = this.activeMap.mapURL.split("/").filter(Boolean).pop();
+        this.detailedMeta(mapName + COLOUR_SUFFIX).then((meta) => {
+            if (mapName !== this.activeMap.mapURL.split("/").filter(Boolean).pop()) return;
+            $(`.btn-${COLOUR_LAYER}`).toggle(Boolean(meta)).data("unavailable", !meta);
         });
     },
 
