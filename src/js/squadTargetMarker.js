@@ -237,8 +237,6 @@ export const squadTargetMarker = squadMarker.extend({
         // Custom events handlers
         this.on("click", this._handleClick, this);
         this.on("drag", this._handleDrag, this);
-        this.on("dragStart", this._handleDragStart, this);
-        this.on("dragEnd", this._handleDragEnd, this);
         this.on("contextmenu", this._handleContextMenu, this);
         this.on("pointerdown", this._handlePointerDown, this);
 
