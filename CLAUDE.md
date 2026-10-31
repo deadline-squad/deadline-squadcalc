@@ -75,6 +75,7 @@ App.sanitize(str); // HTML escape utility (static method)
 ### Locales
 - Namespaces: `tooltips`, `settings`, `maps`, `weapons`, `common`, `factions`, `units`, `vehicles`
 - Languages: `en`, `fr`, `de`, `ru`, `uk`, `zh`
+- `npm run locales` fails when a language lacks a key that `en` has (there is no fallback language)
 - Files: `public/locales/{{lng}}/{{ns}}.json`, cache-busted with `?v=${version}` from `package.json`
 - Weapon display names: key = `weapon.name` value — **spaces in weapon names break i18next keys**, use underscores (e.g. `type_63` not `Type 63`)
 
