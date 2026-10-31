@@ -1,3 +1,13 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.19.0** *(2026-10-31)*
+
+</br><img src="https://img.shields.io/badge/-new%20feature-green">  
+- The Squad Ballistics group has the AGS-17, MK19 and SPG-9 of every vehicle that carries them, 24 weapons more: the AGS-17 on the Technical, Tigr, Safir, M1151 and BTR-D; the MK19 on the AAVP-7A1, M113 (with and without its sights), M1151, MATV and RHIB; the SPG-9 on the Technical and the INS armoured technical (HEAT and FRAG, with and without the ×4 scope). Each starts its shell where the game does: the barrel pivots at the game's height above the ground (1.80 m on the Safir to 3.22 m on the AAVP-7A1) and the muzzle sits along and above the barrel, so the firing solution, the line-of-sight angle and the fire coverage use that point. The PARS III, TAPV C16, M113 and M1151 MK19 get their launch point too. Also the C90-CR, the DZJ-08, the RPG-28 and the PG-7VR tandem round of the RPG-7V1 (65 m/s) and RPG-7V2 (117 m/s; the older RPG-7 keeps 63 m/s). All from the game files (Squad build 26005357); `compare.py` finds no difference with Squad Ballistics over the 104 weapons. The M1117 and RHIB MK19 and the Kozak-2M1 and RHIB AGS-17 are not in the files with a launch height (Squad Ballistics #12).
+
+</br><img src="https://img.shields.io/badge/-%20improv%20-orange">  
+- "MK19 · M1151 / RHIB open turret" is now "MK19 · M1151 open turret" (the RHIB has its own entry); the old name still selects it from an older Squad Ballistics.
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.18.0** *(2026-10-31)*
 
 </br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
