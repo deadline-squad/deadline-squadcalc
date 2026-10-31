@@ -903,7 +903,6 @@ export const squadMinimap = Map.extend({
         let iconSizeValue = 20 + (markerSizeSetting - 1) * 5;
         let iconSize = [iconSizeValue, iconSizeValue];
 
-        // Not Working TODO: fix
         if (icon === "deployable_mortars" || icon === "deployable_hellcannon") {
             let range = 0;
             if (icon === "deployable_mortars") range = 1237;
@@ -1024,7 +1023,7 @@ export const squadMinimap = Map.extend({
         const handleClick = () => {
             if (isDrawing && circle) {
                 isDrawing = false;
-                this.off("mousemove", handleMouseMove);
+                this.off("pointermove", handleMouseMove);
     
                 //if (!circle.uid) circle.uid = uuidv4();
     

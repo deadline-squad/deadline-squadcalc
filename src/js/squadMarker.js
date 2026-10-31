@@ -157,8 +157,6 @@ export const squadWeaponMarker = squadMarker.extend({
         // Custom events handlers
         this.on("click", this._handleClick, this);
         this.on("drag", this._handleDrag, this);
-        this.on("dragStart", this._handleDragStart, this);
-        this.on("dragEnd", this._handleDragEnd, this);
         this.on("dblclick", this._handleDblclick, this);
         this.on("contextmenu", this._handleContextMenu, this);
         if (App.hasMouse){
@@ -669,10 +667,8 @@ export const squadStratMarker = squadMarker.extend({
 
         // Custom events handlers
         this.on("drag", this._handleDrag, this);
-        this.on("dragStart", this._handleDragStart, this);
-        this.on("dragEnd", this._handleDragEnd, this);
-        this.on("mouseover", this._handleMouseOver, this);
-        this.on("mouseout", this._handleMouseOut, this);
+        this.on("pointerover", this._handleMouseOver, this);
+        this.on("pointerout", this._handleMouseOut, this);
         this.on("click", this._handleClick, this);
         this.on("dblclick", this._handleDblclick, this);
         this.on("contextmenu", this._handleContextMenu, this);
@@ -760,14 +756,14 @@ export const squadStratMarker = squadMarker.extend({
         }
 
         this.map.mouseLocationPopup.close();
-        this.map.off("mousemove", this.map._handleMouseMove);
+        this.map.off("pointermove", this.map._handleMouseMove);
         this.posPopUp.openOn(this.map);
     },
 
 
     _handleDragEnd: function () {
 
-        if (App.userSettings.keypadUnderCursor) this.map.on("mousemove", this.map._handleMouseMove);
+        if (App.userSettings.keypadUnderCursor) this.map.on("pointermove", this.map._handleMouseMove);
 
         this.isDragging = false;
         this.posPopUp.close();
