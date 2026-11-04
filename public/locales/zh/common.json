@@ -3,8 +3,6 @@
     "calc": "CALC",
     "squadcalc": "SquadCalc",
     "desc": "Squad 终极游戏内助手",
-    "weaponInf": "武器信息",
-        "name": "名称",
         "range": "射程",
         "velocity": "速度",
         "moa": "角分 (MOA)",

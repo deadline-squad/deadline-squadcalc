@@ -182,5 +182,14 @@ function updateContent() {
             templateSelection: (state) => App.minimap.layer.factions.formatUnits(state, true),
         });
     }
-    
+
+    // select2 hides the native <select> and shows its own widget, named after its current value
+    // (aria-labelledby): name it after the select instead, as the native control is
+    document.querySelectorAll("select[aria-label]").forEach(select => {
+        const selection = select.nextElementSibling?.querySelector(".select2-selection");
+        if (!selection) return;
+        selection.removeAttribute("aria-labelledby");
+        selection.setAttribute("aria-label", select.getAttribute("aria-label"));
+        selection.querySelector(".select2-selection__rendered")?.setAttribute("aria-label", select.getAttribute("aria-label"));
+    });
 }

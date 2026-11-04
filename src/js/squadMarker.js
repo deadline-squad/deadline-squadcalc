@@ -6,6 +6,7 @@ import { sendMarkerData } from "./squadCalcAPI.js";
 import { v4 as uuidv4 } from "uuid";
 import { animateCSS } from "./animations.js";
 import { heightAt } from "./squadBallistics.js";
+import { makeMarkerIconOperable } from "./accessibility.js";
 
 
 /*
@@ -40,6 +41,23 @@ export const squadMarker = Marker.extend({
 
 
     /**
+     * Name announced for the marker when it takes the keyboard focus (set by the keyboard-operable subclasses)
+     * @returns {string} translated accessible name
+     */
+    getAccessibleName: function() {
+        return "";
+    },
+
+    // Leaflet creates a new icon element on every setIcon(): make each one keyboard-operable again
+    _initIcon: function() {
+        Marker.prototype._initIcon.call(this);
+        if (this.options.keyboard) {
+            makeMarkerIconOperable(this._icon, this.getAccessibleName(), () => this.fire("click"));
+        }
+    },
+
+
+    /**
      * Force a given event to stay inside the map bounds
      * @param {event} [event] - event
      * @returns {event} - same event with corrected Latlng 
@@ -55,6 +73,14 @@ export const squadMarker = Marker.extend({
 });
 
 export const squadWeaponMarker = squadMarker.extend({
+
+    options: {
+        keyboard: true,
+    },
+
+    getAccessibleName: function() {
+        return i18next.t("tooltips:weaponMarker");
+    },
 
     initialize: function (latlng, options, map) {
         const CIRCLESCOLOR = "#00137f";

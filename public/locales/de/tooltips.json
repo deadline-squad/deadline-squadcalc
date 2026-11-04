@@ -92,5 +92,17 @@
     "heightmapFailed": "Keine Höhendaten",
     "heightmapFailedDesc": "Die Höhenkarte konnte nicht geladen werden: die Schusslösungen nehmen flaches Gelände an (Höhe 0).",
     "heightmapCoarse": "Ungenaue Höhen",
-    "heightmapCoarseDesc": "Die genaue Höhenkarte konnte nicht heruntergeladen werden (Netzwerk): die Höhen stammen aus der groben 8-Bit-Höhenkarte, bis zu 2 m Abweichung. Lade die Seite neu, um es erneut zu versuchen."
+    "heightmapCoarseDesc": "Die genaue Höhenkarte konnte nicht heruntergeladen werden (Netzwerk): die Höhen stammen aus der groben 8-Bit-Höhenkarte, bis zu 2 m Abweichung. Lade die Seite neu, um es erneut zu versuchen.",
+    "mapLayers": "Kartenebenen",
+    "moreMapTools": "Weitere Kartenwerkzeuge",
+    "closeDialog": "Schließen",
+    "sessionToggle": "Geteilte Sitzung",
+    "selectServer": "Server",
+    "selectMap": "Karte",
+    "selectLayer": "Layer",
+    "selectWeapon": "Waffe",
+    "selectAmmo": "Munition",
+    "selectLanguage": "Sprache",
+    "weaponMarker": "Waffe",
+    "targetMarker": "Ziel"
 }
