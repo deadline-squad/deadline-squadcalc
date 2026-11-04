@@ -73,6 +73,7 @@ fn bvh_agrees_with_the_reference_tracer_on_fallujah() {
     );
 
     let mut hit_disagreements = Vec::new();
+    let mut point_mismatches = Vec::new();
     let mut worst_point = 0.0f64;
     let mut both_hit = 0usize;
     for (i, ((p0, p1), (expected_hit, expected_t))) in segments.iter().zip(&expected).enumerate() {
@@ -86,7 +87,11 @@ fn bvh_agrees_with_the_reference_tracer_on_fallujah() {
             let length =
                 ((p1[0] - p0[0]).powi(2) + (p1[1] - p0[1]).powi(2) + (p1[2] - p0[2]).powi(2))
                     .sqrt();
-            worst_point = worst_point.max((hit.t - expected_t).abs() * length);
+            let difference = (hit.t - expected_t).abs() * length;
+            if difference > 1e-6 {
+                point_mismatches.push(i);
+            }
+            worst_point = worst_point.max(difference);
         }
     }
     println!(
@@ -98,6 +103,18 @@ fn bvh_agrees_with_the_reference_tracer_on_fallujah() {
             "  segment {i}: {:?} rust {:?} reference {:?}",
             segments[i], hits[i], expected[i]
         );
+    }
+    println!("hit point mismatches (> 1e-6 m): {point_mismatches:?}");
+    if let Ok(path) = std::env::var("ENGINE_FALLUJAH_FLAGGED") {
+        let flagged: Vec<String> = hit_disagreements
+            .iter()
+            .chain(&point_mismatches)
+            .map(|i| i.to_string())
+            .collect();
+        for &i in hit_disagreements.iter().chain(&point_mismatches) {
+            println!("flagged {i} rust_t {:?}", hits[i].map(|hit| hit.t));
+        }
+        std::fs::write(path, flagged.join("\n")).expect("write flagged indices");
     }
     assert!(hit_disagreements.is_empty());
     assert!(worst_point <= 1e-6);

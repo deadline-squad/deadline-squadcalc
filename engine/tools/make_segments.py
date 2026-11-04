@@ -27,6 +27,21 @@ PAD = 600.0
 BIT = 2
 
 
+def box_tiles(index, tile_m, p0, p1):
+    """Every tile of the segment's bounding box, a superset of the tiles the segment crosses.
+
+    The stock `TriangleIndex.tiles_on` samples the segment every tile_m / 4 and misses tiles it only clips at a
+    corner (21 of 100 000 random segments on Fallujah lose or misplace their first hit); the Moller-Trumbore test
+    still decides, so extra tiles cost time and nothing else.
+    """
+    origin = np.array([index.min_x, index.min_y])
+    limit = np.array([index.nx - 1, index.ny - 1])
+    low = np.clip(((np.minimum(p0[:2], p1[:2]) - origin) // tile_m).astype(np.int64), 0, limit)
+    high = np.clip(((np.maximum(p0[:2], p1[:2]) - origin) // tile_m).astype(np.int64), 0, limit)
+    xs, ys = np.meshgrid(np.arange(low[0], high[0] + 1), np.arange(low[1], high[1] + 1))
+    return (ys * index.nx + xs).ravel()
+
+
 def select_strip(path, y0, y1):
     """Triangles of the file whose box overlaps y0..y1 (chunked pass over a memmap)."""
     tris = np.memmap(path, dtype="<f4", mode="r").reshape(-1, 3, 3)
@@ -42,7 +57,7 @@ def select_strip(path, y0, y1):
 def make_strip(args):
     py_dir, path, strip, y_lo, y_hi, x_lo, x_hi, count, seed = args
     sys.path.insert(0, py_dir)
-    from reference import TriangleIndex
+    from reference import TILE_M, TriangleIndex
 
     y0 = y_lo + (y_hi - y_lo) * strip / STRIPS
     y1 = y_lo + (y_hi - y_lo) * (strip + 1) / STRIPS
@@ -51,6 +66,7 @@ def make_strip(args):
     rng = np.random.default_rng(seed * 1000 + strip)
     mask = np.full(len(tris), BIT, np.uint8)
     index = TriangleIndex(tris, mask, x_lo, y_lo, x_hi - x_lo, y_hi - y_lo)
+    index.tiles_on = lambda a, b: box_tiles(index, TILE_M, a, b)
 
     segments = np.empty((count, 6))
     expected = np.full((count, 2), np.nan)

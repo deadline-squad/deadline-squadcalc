@@ -8,7 +8,10 @@ struct Lcg(u64);
 
 impl Lcg {
     fn next(&mut self) -> f64 {
-        self.0 = self.0.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        self.0 = self
+            .0
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
         (self.0 >> 11) as f64 / (1u64 << 53) as f64
     }
 }
@@ -86,5 +89,9 @@ fn the_f32_traversal_agrees_with_f64_except_on_grazing_cases() {
             assert!((a.t - b.t).abs() < 1e-3, "{a:?} {b:?}");
         }
     }
-    assert!(differ * 100 <= segs.len(), "{differ} of {} differ", segs.len());
+    assert!(
+        differ * 100 <= segs.len(),
+        "{differ} of {} differ",
+        segs.len()
+    );
 }
