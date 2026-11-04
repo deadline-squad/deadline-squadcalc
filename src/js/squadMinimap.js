@@ -18,6 +18,7 @@ import "./libs/leaflet-edgebuffer.js";
 import "./libs/leaflet-spin.js";
 import "./libs/leaflet-imageoverlay-rotated.js";
 import { notifyBridgeChange } from "./smcConnector.js";
+import { createReliefLayer } from "./squadReliefLayer.js";
 
 
 // Ctrl + double-click marks a burst for the nearest target within this distance, in meters
@@ -33,6 +34,10 @@ const COLOUR_LAYER = "detailed-colour";
 const COLOUR_SUFFIX = "-colour";
 // Maps that have those tiles (a map without them is not asked for a meta.json that does not exist)
 const COLOUR_MAPS = ["albasrah", "fallujah", "gorodok"];
+// Layer value of the shaded relief (tools/maptiles/py/relief.py), one PMTiles archive per map in /maptiles/relief/
+const RELIEF_LAYER = "relief";
+// Maps that have an archive (a map without one is not asked for a file that does not exist)
+const RELIEF_MAPS = ["fallujah", "chora"];
 
 /**
  * Squad Minimap
@@ -185,6 +190,8 @@ export const squadMinimap = Map.extend({
 
         if (LAYERMODE === "detailed" || LAYERMODE === COLOUR_LAYER) {
             this.showDetailedLayer(OLDLAYER, request, LAYERMODE === COLOUR_LAYER ? COLOUR_SUFFIX : "");
+        } else if (LAYERMODE === RELIEF_LAYER) {
+            this.showReliefLayer(OLDLAYER, request);
         } else {
             this.setMaxZoom(DEFAULT_MAX_ZOOM);
             this.showMapImage(this.upstreamLayer(LAYERMODE), OLDLAYER);
@@ -193,6 +200,7 @@ export const squadMinimap = Map.extend({
         // Show grid and heatmap
         if (changemap) {
             this.updateColourLayerButton();
+            this.updateReliefLayerButton();
             if (App.userSettings.grid) this.showGrid();
             this.toggleHeatmap();
         }
@@ -260,6 +268,44 @@ export const squadMinimap = Map.extend({
                 tileSize: meta.tileSize,
             }), oldLayer);
         });
+    },
+
+
+    /**
+     * Show the shaded relief of the active map, read from its PMTiles archive (squadReliefLayer.js; the archive and
+     * the PMTiles reader are downloaded now, not before). A map without an archive, or an archive that cannot be
+     * read, shows the detailed map.
+     * @param {TileLayer|ImageOverlay} [oldLayer] - layer to remove once the new one loaded
+     * @param {number} request - number of this layer change; a later change or map switch wins
+     */
+    showReliefLayer: function(oldLayer, request) {
+        const mapName = this.activeMap.mapURL.split("/").filter(Boolean).pop();
+        const fallback = (reason) => {
+            if (request !== this.layerRequest) return;
+            console.warn(`[MAP] No relief for ${mapName} (${reason}), showing the detailed map`);
+            $("#mapLayerMenu").find(".layers").removeClass("active");
+            $(".btn-detailed").addClass("active");
+            this.showDetailedLayer(oldLayer, request);
+        };
+        if (!RELIEF_MAPS.includes(mapName)) {
+            fallback("no archive");
+            return;
+        }
+        createReliefLayer(`/maptiles/relief/${mapName}.pmtiles`, this.imageBounds).then((layer) => {
+            if (request !== this.layerRequest) return;
+            this.setMaxZoom(Math.max(DEFAULT_MAX_ZOOM, layer.options.maxNativeZoom + DETAILED_EXTRA_ZOOM));
+            this.showMapImage(layer, oldLayer);
+        }).catch((error) => fallback(error.message));
+    },
+
+
+    /**
+     * Show the button of the relief layer only on maps that have an archive (RELIEF_MAPS)
+     */
+    updateReliefLayerButton: function() {
+        const mapName = this.activeMap.mapURL.split("/").filter(Boolean).pop();
+        const available = RELIEF_MAPS.includes(mapName);
+        $(`.btn-${RELIEF_LAYER}`).toggle(available).data("unavailable", !available);
     },
 
 
