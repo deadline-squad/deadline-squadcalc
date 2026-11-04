@@ -9,6 +9,7 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { gzipSync } from "node:zlib";
 import { fileURLToPath } from "node:url";
+import { classifyColumn } from "../src/js/targetHeights.js";
 import { COVERAGE, clearsStructures, computeCoveragePeaks, createRayClassifier } from "../src/js/squadCoverageRays.js";
 
 const here = (path) => fileURLToPath(new URL(path, import.meta.url));
@@ -79,6 +80,13 @@ const wall = {};
 for (let column = 0; column < 40; column++) {
     wall[20 * 40 + column] = column >= 18 && column <= 21 ? [[48, 2]] : [[40, 10]];
 }
+// A house in row 5 (y -47.5 to -47): the column 26 is a storey (slabs at 0 to 0.5, 3 to 3.5, 6 to 6.5 m); the columns 28 to 34 are a
+// wall 3 m high with a window in column 30 (sill to 1 m, header from 2.25 m); the columns 35, 37 and 38 are a wall with a
+// doorway in column 36 (open to 2.5 m, lintel to 3 m)
+wall[5 * 40 + 26] = [[40, 2], [52, 2], [64, 2]];
+for (let column = 28; column <= 34; column++) wall[5 * 40 + column] = column === 30 ? [[40, 4], [49, 3]] : [[40, 12]];
+for (const column of [35, 37, 38]) wall[5 * 40 + column] = [[40, 12]];
+wall[5 * 40 + 36] = [[50, 2]];
 const VOLUME_FILE = vcol(wall, GRID);
 const TERRAIN_FILE = flatTerrain(40, 40, 21, TERRAIN);
 const entry = (bytes) => ({ file: "x", bytes: bytes.length, sha256: createHash("sha256").update(bytes).digest("hex") });
@@ -135,6 +143,37 @@ test("trace: a wall stops the path, a doorway lets it through, the ground stops 
     assert.equal(hits[3].index, 1, "at 2.2 m the lintel (2 to 2.5 m) stops it");
     assert.deepEqual(hits[4], { index: 0, t: 1, z: 0 }, "under the ground");
     assert.equal(hits[5], null, "a single point above the ground");
+});
+
+test("column: the heights a vertical ray crosses, and whether the free space is part of a wall", { skip: !engineBuilt }, async () => {
+    const send = await startWorker();
+    const column = async (x, y) => (await send({ column: 7, x, y }))[0];
+    const y = -47.25;
+
+    const open = await column(105.25, -30.25);
+    assert.deepEqual(open.solids, [[-Infinity, 0]], "open ground: only the landscape");
+    assert.deepEqual(open.walled, [false]);
+
+    const storey = await column(113.25, y);
+    assert.equal(storey.columned, 7);
+    assert.deepEqual(storey.solids, [[-Infinity, 0], [0, 0.5], [3, 3.5], [6, 6.5]]);
+    assert.deepEqual(storey.walled, [false, false, false, false], "a room is not a wall");
+
+    const window = await column(115.25, y);
+    assert.deepEqual(window.solids, [[-Infinity, 0], [0, 1], [2.25, 3]]);
+    assert.deepEqual(window.walled, [false, true, false], "the window has jambs on both sides");
+
+    const doorway = await column(118.25, y);
+    assert.deepEqual(doorway.solids, [[-Infinity, 0], [2.5, 3]]);
+    assert.deepEqual(doorway.walled, [true, false], "the doorway has jambs on both sides");
+
+    const kinds = (answer) => classifyColumn(answer.solids, answer.walled).map(({ kind, z }) => `${kind} ${z.toFixed(2)}`);
+    assert.deepEqual(kinds(storey), ["roof 6.60", "ceiling 5.90", "floor 3.60", "ceiling 2.90", "floor 0.60"]);
+    assert.deepEqual(kinds(window), ["roof 3.10", "window 1.63"]);
+    assert.deepEqual(kinds(doorway), ["roof 3.10", "doorway 1.00"]);
+
+    const outside = await column(500, 500);
+    assert.equal(outside.solids, null, "no landscape there");
 });
 
 test("coverage: the rays through the wall are blocked beyond it, those through the doorway are not", { skip: !engineBuilt }, async () => {

@@ -7,6 +7,7 @@ import { v4 as uuidv4 } from "uuid";
 import { animateCSS } from "./animations.js";
 import { heightAt } from "./squadBallistics.js";
 import { makeMarkerIconOperable } from "./accessibility.js";
+import { describeStructure } from "./structureInfo.js";
 
 
 /*
@@ -716,8 +717,23 @@ export const squadStratMarker = squadMarker.extend({
         this.setIcon(newIcon);
     },
 
-    // Catch this events so user can't place a target by mistake while trying move the strat marker
-    _handleClick: function(){},
+    /**
+     * Shells the active weapon's shell needs to destroy the structure this marker stands for (FOB radio, HAB, a
+     * deployable), in a popup; nothing for the markers the game data does not cover. Also catches the click so the
+     * user can't place a target by mistake while trying to move the strat marker.
+     */
+    _handleClick: function(){
+        if (this.structurePopup?.isOpen()) {
+            this.structurePopup.close();
+            return;
+        }
+        const line = describeStructure(this.icontype, App.activeWeapon);
+        if (!line) return;
+        this.structurePopup = new Popup({ autoClose: false, offset: [0, -10], className: "structurePopup" })
+            .setLatLng(this.getLatLng())
+            .setContent(`<span title="${i18next.t("tooltips:structureDamageDesc")}"><b>${i18next.t("common:structureShells")}</b><br>${line}</span>`)
+            .openOn(this.map);
+    },
     _handleDblclick: function(){},
 
     
@@ -747,6 +763,7 @@ export const squadStratMarker = squadMarker.extend({
         if (this.options.circles1Size) this.constructionRange.removeFrom(this.map.markersGroup).remove();
         if (this.options.circles2Size) this.exclusionRange.removeFrom(this.map.markersGroup).remove();           
         this.posPopUp.removeFrom(this.map.markersGroup).remove();
+        this.structurePopup?.close();
         this.off();
         this.removeFrom(this.map.markersGroup).removeFrom(this.map.activeMarkers);
 
@@ -766,6 +783,7 @@ export const squadStratMarker = squadMarker.extend({
 
     _handleDrag: function (event) {
         event = this.keepOnMap(event);
+        this.structurePopup?.close();
         this.setLatLng(event.latlng);
         if (this.options.circles1Size) this.constructionRange.setLatLng(event.latlng); 
         if (this.options.circles2Size) this.exclusionRange.setLatLng(event.latlng);

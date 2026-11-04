@@ -1,5 +1,6 @@
 import { App } from "../app.js";
 import pkg from "../../package.json";
+import { classifyColumn } from "./targetHeights.js";
 
 // Entries the line-of-fire answers are remembered for: more than a session needs, far below any memory concern
 const MAX_CACHED_ANSWERS = 2000;
@@ -165,6 +166,9 @@ export default class SquadVolume {
         if (data.traced !== undefined) {
             this.requests.get(data.traced)?.(data.hits);
             this.requests.delete(data.traced);
+        } else if (data.columned !== undefined) {
+            this.requests.get(data.columned)?.(data);
+            this.requests.delete(data.columned);
         } else if (data.coverageBatch !== undefined) {
             if (this.coverageJob?.id === data.coverageBatch) this.coverageJob.next();
         } else if (data.coverageValues !== undefined) {
@@ -219,6 +223,35 @@ export default class SquadVolume {
             this.worker.postMessage({ trace: id, paths });
         });
     }
+
+    /**
+     * The heights a target can have at a point of the map: the landscape, the floors, ceilings, roofs, windows and
+     * doorways the vertical ray through the voxel column there crosses (targetHeights.js)
+     * @param {{lat: number, lng: number}} latlng
+     * @returns {Promise<{landscape: number, choices: Array<{kind: string, height: number, above: number}>}|null>} -
+     *   `landscape` is the height of the landscape at the point (without the objects the heightmap fuses with it);
+     *   `choices` have their `height` in the page's heights (the frame of SquadHeightmap.getHeight) and `above` the
+     *   metres over the landscape, highest first. null when the layer cannot answer (off, loading, no landscape at
+     *   the point, worker failed)
+     */
+    async heightsAt(latlng) {
+        if (!this.ready || !this.worker) return null;
+        const { x, y } = this.toWorld(latlng);
+        const id = ++this.requestId;
+        const answer = await new Promise((resolve) => {
+            this.requests.set(id, resolve);
+            this.worker.postMessage({ column: id, x, y });
+        });
+        if (!answer?.solids) return null;
+        const ground = answer.solids[0][1];
+        const choices = classifyColumn(answer.solids, answer.walled).map(({ kind, z }) => ({
+            kind,
+            height: z - this.zMin,
+            above: z - ground,
+        }));
+        return { landscape: ground - this.zMin, choices };
+    }
+
 
     /**
      * The answer of a line-of-fire question, or undefined while it is being asked. The first call starts the

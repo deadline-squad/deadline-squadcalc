@@ -240,6 +240,14 @@ The page's heights count from the heightmap's lowest level (`meta.json` `z_min_m
   landscape hole or outside the landscape are out. A wall thinner than the sample step (1 to 3 m) that falls between two
   samples of a ray is not seen, as with the heightmap.
 
+* Target heights (`SquadVolume.heightsAt`, worker message `column`): the worker probes the voxel column at the target's
+  position from 1 m under the landscape up to 120 m above it (one `voxelFirstBlock` per voxel centre) and returns the solids
+  it crosses; `src/js/targetHeights.js` turns the free spaces between them into floors (top of a solid with at least 1.8 m
+  free above), ceilings, the roof, and windows and doorways (a free space with solid on both sides of the ray along X or Y
+  within 0.75 m, a doorway when a soldier fits, 1.8 m). A heuristic from the shape of the column, not the game's building
+  data. The chosen height is the target's height in `SquadFiringSolution`, and its line of fire is checked up to the target
+  point (0.1 m above a floor or roof, below a ceiling) instead of stopping 3 m short.
+
 No penetration is computed (owner decision 2026-11-04). Tests: `tests/volumeLayer.test.mjs`; in a browser
 `tools/browser_check/volume_check.mjs` (deployment repository) on the Jensen and Kokan parity segments.
 

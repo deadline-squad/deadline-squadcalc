@@ -105,5 +105,7 @@
     "selectAmmo": "Ammunition",
     "selectLanguage": "Language",
     "weaponMarker": "Weapon",
-    "targetMarker": "Target"
+    "targetMarker": "Target",
+    "targetHeightDesc": "Heights found at this point in the volume layer: the floors, ceilings, roofs, windows and doorways a vertical line crosses. Windows and doorways are open holes, recognised from the shape of the walls, not from the game's building data. The firing solution and the line of fire use the chosen height.",
+    "structureDamageDesc": "Shells of the selected ammunition that destroy the structure from full health, each landing on it. The game's health and damage-type multipliers are exact; how the game combines them into damage is inferred from the field names and was not verified in game. The spread is not included."
 }

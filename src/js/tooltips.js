@@ -512,6 +512,30 @@ tippy(".infSpreadTooltip", {
     },
 });
 
+tippy(".infTargetHeightTooltip", {
+    animation: "fade",
+    placement: "top",
+    touch: false,
+    appendTo: targetDialog,
+    theme: "infTooltips",
+    delay: [500, 0],
+    onShow(tip) {
+        tip.setContent(i18next.t("tooltips:targetHeightDesc"));
+    },
+});
+
+tippy(".infStructureTooltip", {
+    animation: "fade",
+    placement: "top",
+    touch: false,
+    appendTo: targetDialog,
+    theme: "infTooltips",
+    delay: [500, 0],
+    onShow(tip) {
+        tip.setContent(i18next.t("tooltips:structureDamageDesc"));
+    },
+});
+
 const weaponDialog = document.getElementById("weaponInformation");
 tippy(".infMOATooltip", {
     animation: "fade",

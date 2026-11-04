@@ -40,6 +40,7 @@ App.sanitize(str); // HTML escape utility (static method)
 | `SquadCalc` | `squadCalc.js` | Main app — weapon selector, UI wiring, URL state, toast/shortcuts |
 | `squadMinimap` | `squadMinimap.js` | Leaflet `Map` **extension** (not a regular class) — basemap, markers, heatmap, context menu |
 | `SquadVolume` | `squadVolume.js` | Volume layer (voxel columns of buildings, walls, bridges, trees): lazy `volumeWorker.js` with the WASM engine; used by `SquadFiringSolution.getObstacle` and `SquadCoverage` when the `volumeLayer` setting is on and the map's `meta.json` has a `volume` entry |
+| target heights, structure damage | `targetHeights.js`, `structureInfo.js`, `structureDamage.js` | `targetHeights.js` turns a vertical ray through the volume layer (`SquadVolume.heightsAt`, worker `column`) into the floors, ceilings, roof, windows and doorways offered by the target dialog; `squadTargetMarker.heightChoice` feeds `SquadFiringSolution`'s `targetHeight`. `structureInfo.js` + `structureDamage.js` (`structureOutcome`) give the shells that destroy a deployable marker's structure; `src/data/structureLinks.js` links `weapons.js` shells and marker icons to the game data |
 | `SquadLayer` | `squadLayer.js` | Renders one game layer: objectives, capture zones, spawn groups, faction assets |
 | `SquadFiringSolution` | `squadFiringSolution.js` | Ballistics engine — computes bearing, elevation (low/high), spread, time of flight from two LatLngs |
 | `SquadFactions` | `squadFactions.js` | Faction/unit picker dialogs and background images |
