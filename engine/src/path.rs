@@ -76,12 +76,29 @@ pub fn trajectory_segments(
 
     let mut points = vec![first];
     for pair in breaks.windows(2) {
-        let end = if pair[1] == distance { last } else { point_at(pair[1]) };
-        refine(&point_at, *points.last().unwrap_or(&first), end, tolerance, MAX_DEPTH, &mut points);
+        let end = if pair[1] == distance {
+            last
+        } else {
+            point_at(pair[1])
+        };
+        refine(
+            &point_at,
+            *points.last().unwrap_or(&first),
+            end,
+            tolerance,
+            MAX_DEPTH,
+            &mut points,
+        );
     }
 
     let (sin_az, cos_az) = azimuth_rad.sin_cos();
-    let world = |p: &PlanePoint| [origin[0] + p.x * sin_az, origin[1] + p.x * cos_az, origin[2] + p.y];
+    let world = |p: &PlanePoint| {
+        [
+            origin[0] + p.x * sin_az,
+            origin[1] + p.x * cos_az,
+            origin[2] + p.y,
+        ]
+    };
     points
         .windows(2)
         .map(|w| Segment {
@@ -193,9 +210,20 @@ mod tests {
     fn azimuth_turns_the_plane_clockwise_from_north() {
         let flight = Flight::new(mortar_shot());
         let (_, high) = flight.solve_elevation(500.0, 0.0);
-        let east = trajectory_segments(&flight, high, 500.0, [10.0, 20.0, 5.0], std::f64::consts::FRAC_PI_2, 0.05);
+        let east = trajectory_segments(
+            &flight,
+            high,
+            500.0,
+            [10.0, 20.0, 5.0],
+            std::f64::consts::FRAC_PI_2,
+            0.05,
+        );
         let end = east.last().unwrap().p1;
-        assert!((end[0] - 510.0).abs() < 1e-6 && (end[1] - 20.0).abs() < 1e-6 && (end[2] - 5.0).abs() < 1e-6);
+        assert!(
+            (end[0] - 510.0).abs() < 1e-6
+                && (end[1] - 20.0).abs() < 1e-6
+                && (end[2] - 5.0).abs() < 1e-6
+        );
     }
 
     #[test]

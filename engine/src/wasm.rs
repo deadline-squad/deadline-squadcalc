@@ -44,14 +44,26 @@ impl Engine {
     }
 
     /// Registers a raw `.g16` heightmap (`u32` width, `u32` height, `u16` samples, little endian) as `reference`.
-    pub fn load_heightmap_g16(&mut self, reference: &str, bytes: &[u8], z_scale: f64, resolution_m: f64) -> Result<(), JsError> {
+    pub fn load_heightmap_g16(
+        &mut self,
+        reference: &str,
+        bytes: &[u8],
+        z_scale: f64,
+        resolution_m: f64,
+    ) -> Result<(), JsError> {
         let map = Heightmap::from_g16(bytes, z_scale, resolution_m).map_err(js_error)?;
         self.resources.add_heightmap(reference, map);
         Ok(())
     }
 
     /// Registers a 16-bit grayscale PNG heightmap as `reference`.
-    pub fn load_heightmap_png(&mut self, reference: &str, bytes: &[u8], z_scale: f64, resolution_m: f64) -> Result<(), JsError> {
+    pub fn load_heightmap_png(
+        &mut self,
+        reference: &str,
+        bytes: &[u8],
+        z_scale: f64,
+        resolution_m: f64,
+    ) -> Result<(), JsError> {
         let map = Heightmap::from_png(bytes, z_scale, resolution_m).map_err(js_error)?;
         self.resources.add_heightmap(reference, map);
         Ok(())
@@ -60,7 +72,10 @@ impl Engine {
     /// Adds the contents of a `bvh.bin` as a part of the BVH registered as `reference` (call once per part).
     pub fn load_bvh(&mut self, reference: &str, bytes: &[u8]) -> Result<(), JsError> {
         let part = Bvh::from_bytes(bytes).map_err(js_error)?;
-        let set = self.bvhs.entry(reference.to_string()).or_insert_with(|| BvhSet { parts: Vec::new() });
+        let set = self
+            .bvhs
+            .entry(reference.to_string())
+            .or_insert_with(|| BvhSet { parts: Vec::new() });
         set.parts.push(part);
         self.resources.add_bvh(reference, set.clone());
         Ok(())
@@ -74,14 +89,23 @@ impl Engine {
     /// First hit of the segment `p0 -> p1` (6 numbers) in the BVH `reference`: `[part, triangle, t]`, or an
     /// empty array if the segment is clear.
     pub fn first_hit(&self, reference: &str, segment: &[f64]) -> Result<Vec<f64>, JsError> {
-        let set = self.bvhs.get(reference).ok_or_else(|| JsError::new("unknown bvh"))?;
+        let set = self
+            .bvhs
+            .get(reference)
+            .ok_or_else(|| JsError::new("unknown bvh"))?;
         if segment.len() != 6 {
             return Err(JsError::new("a segment is 6 numbers"));
         }
-        Ok(match Scene::first_hit(set, [segment[0], segment[1], segment[2]], [segment[3], segment[4], segment[5]]) {
-            Some(hit) => vec![f64::from(hit.part), f64::from(hit.triangle), hit.t],
-            None => Vec::new(),
-        })
+        Ok(
+            match Scene::first_hit(
+                set,
+                [segment[0], segment[1], segment[2]],
+                [segment[3], segment[4], segment[5]],
+            ) {
+                Some(hit) => vec![f64::from(hit.part), f64::from(hit.triangle), hit.t],
+                None => Vec::new(),
+            },
+        )
     }
 }
 
@@ -112,7 +136,12 @@ pub fn segment_triangle(origin: &[f32], direction: &[f32], triangle: &[f32]) -> 
         [triangle[3], triangle[4], triangle[5], 0.0],
         [triangle[6], triangle[7], triangle[8], 0.0],
     ];
-    segment_triangle_f32([origin[0], origin[1], origin[2]], [direction[0], direction[1], direction[2]], &tri).unwrap_or(f32::NAN)
+    segment_triangle_f32(
+        [origin[0], origin[1], origin[2]],
+        [direction[0], direction[1], direction[2]],
+        &tri,
+    )
+    .unwrap_or(f32::NAN)
 }
 
 /// Whether this build uses the SIMD128 triangle test.

@@ -48,16 +48,27 @@ fn main() {
     );
 
     let started = Instant::now();
-    let single = segments.iter().filter(|(a, b)| set.first_hit(*a, *b).is_some()).count();
+    let single = segments
+        .iter()
+        .filter(|(a, b)| set.first_hit(*a, *b).is_some())
+        .count();
     let seconds = started.elapsed().as_secs_f64();
-    println!("f64 first_hit, 1 thread: {seconds:.3} s, {:.0} segments/s ({single} hit)", segments.len() as f64 / seconds);
+    println!(
+        "f64 first_hit, 1 thread: {seconds:.3} s, {:.0} segments/s ({single} hit)",
+        segments.len() as f64 / seconds
+    );
 
     let started = Instant::now();
     let single = segments
         .iter()
         .filter(|(a, b)| {
-            let (a, b) = ([a[0] as f32, a[1] as f32, a[2] as f32], [b[0] as f32, b[1] as f32, b[2] as f32]);
-            set.parts.iter().any(|part| part.first_hit_f32(a, b).is_some())
+            let (a, b) = (
+                [a[0] as f32, a[1] as f32, a[2] as f32],
+                [b[0] as f32, b[1] as f32, b[2] as f32],
+            );
+            set.parts
+                .iter()
+                .any(|part| part.first_hit_f32(a, b).is_some())
         })
         .count();
     let seconds = started.elapsed().as_secs_f64();

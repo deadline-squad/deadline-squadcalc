@@ -92,9 +92,14 @@ impl fmt::Display for BvhError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             BvhError::TooManyTriangles(n) => {
-                write!(f, "{n} triangles do not fit one hierarchy (at most {MAX_TRIANGLES}); use BvhSet")
+                write!(
+                    f,
+                    "{n} triangles do not fit one hierarchy (at most {MAX_TRIANGLES}); use BvhSet"
+                )
             }
-            BvhError::NonFiniteVertex(i) => write!(f, "triangle {i} has a vertex that is not finite"),
+            BvhError::NonFiniteVertex(i) => {
+                write!(f, "triangle {i} has a vertex that is not finite")
+            }
             BvhError::Format(reason) => write!(f, "bvh.bin: {reason}"),
         }
     }
@@ -116,7 +121,14 @@ pub fn triangles_from_le_bytes(bytes: &[u8]) -> Result<Vec<Triangle>, BvhError> 
     Ok(bytes
         .chunks_exact(36)
         .map(|chunk| {
-            let f = |i: usize| f32::from_le_bytes([chunk[i * 4], chunk[i * 4 + 1], chunk[i * 4 + 2], chunk[i * 4 + 3]]);
+            let f = |i: usize| {
+                f32::from_le_bytes([
+                    chunk[i * 4],
+                    chunk[i * 4 + 1],
+                    chunk[i * 4 + 2],
+                    chunk[i * 4 + 3],
+                ])
+            };
             [[f(0), f(1), f(2)], [f(3), f(4), f(5)], [f(6), f(7), f(8)]]
         })
         .collect())
@@ -253,7 +265,10 @@ impl Bvh {
         if triangles.len() > MAX_TRIANGLES {
             return Err(BvhError::TooManyTriangles(triangles.len()));
         }
-        if let Some(i) = triangles.iter().position(|t| t.iter().flatten().any(|c| !c.is_finite())) {
+        if let Some(i) = triangles
+            .iter()
+            .position(|t| t.iter().flatten().any(|c| !c.is_finite()))
+        {
             return Err(BvhError::NonFiniteVertex(i));
         }
         if triangles.is_empty() {
@@ -298,7 +313,9 @@ impl Bvh {
     /// Serialises to `bvh.bin`: `u32` node count, `u32` triangle count, the nodes, the triangles; all
     /// little endian.
     pub fn to_bytes(&self) -> Vec<u8> {
-        let mut out = Vec::with_capacity(8 + self.nodes.len() * NODE_BYTES + self.triangles.len() * TRIANGLE_BYTES);
+        let mut out = Vec::with_capacity(
+            8 + self.nodes.len() * NODE_BYTES + self.triangles.len() * TRIANGLE_BYTES,
+        );
         out.extend_from_slice(&(self.nodes.len() as u32).to_le_bytes());
         out.extend_from_slice(&(self.triangles.len() as u32).to_le_bytes());
         for n in &self.nodes {
@@ -330,11 +347,17 @@ impl Bvh {
         if bytes.len() < 8 {
             return Err(format("shorter than the 8-byte header"));
         }
-        let word = |at: usize| u32::from_le_bytes([bytes[at], bytes[at + 1], bytes[at + 2], bytes[at + 3]]);
+        let word = |at: usize| {
+            u32::from_le_bytes([bytes[at], bytes[at + 1], bytes[at + 2], bytes[at + 3]])
+        };
         let node_count = word(0) as usize;
         let tri_count = word(4) as usize;
         let expected = 8usize
-            .checked_add(node_count.checked_mul(NODE_BYTES).ok_or_else(|| format("node count overflows"))?)
+            .checked_add(
+                node_count
+                    .checked_mul(NODE_BYTES)
+                    .ok_or_else(|| format("node count overflows"))?,
+            )
             .and_then(|n| n.checked_add(tri_count.checked_mul(TRIANGLE_BYTES)?))
             .ok_or_else(|| format("size overflows"))?;
         if bytes.len() != expected {
@@ -399,7 +422,9 @@ impl Bvh {
         if self.nodes[0].a != NO_NODE {
             return fail("the root's escape must be the end".into());
         }
-        let contains = |outer: &Node, min: [f32; 3], max: [f32; 3]| (0..3).all(|k| min[k] >= outer.min[k] && max[k] <= outer.max[k]);
+        let contains = |outer: &Node, min: [f32; 3], max: [f32; 3]| {
+            (0..3).all(|k| min[k] >= outer.min[k] && max[k] <= outer.max[k])
+        };
 
         let mut next_triangle = 0usize;
         for (i, n) in self.nodes.iter().enumerate() {
@@ -409,7 +434,9 @@ impl Bvh {
             }
             if n.is_leaf() {
                 if escape != i + 1 {
-                    return fail(format!("node {i}: a leaf's escape must be the next node, not {escape}"));
+                    return fail(format!(
+                        "node {i}: a leaf's escape must be the next node, not {escape}"
+                    ));
                 }
                 if n.first_triangle() != next_triangle {
                     return fail(format!(
@@ -543,7 +570,13 @@ enum Split {
 }
 
 /// The cheapest of the 3 x 15 binned planes by the surface area heuristic, or a leaf.
-fn choose_split(order: &[u32], prims: &[Prim], bounds: &Aabb, centroids: &Aabb, max_leaf: usize) -> Split {
+fn choose_split(
+    order: &[u32],
+    prims: &[Prim],
+    bounds: &Aabb,
+    centroids: &Aabb,
+    max_leaf: usize,
+) -> Split {
     let count = order.len();
     let extent = [
         centroids.max[0] - centroids.min[0],
@@ -552,7 +585,11 @@ fn choose_split(order: &[u32], prims: &[Prim], bounds: &Aabb, centroids: &Aabb, 
     ];
     if extent.iter().all(|&e| !(e > 0.0)) {
         // Every centroid is the same point: no plane separates them
-        return if count <= MAX_LEAF_TRIANGLES { Split::Leaf } else { Split::Median };
+        return if count <= MAX_LEAF_TRIANGLES {
+            Split::Leaf
+        } else {
+            Split::Median
+        };
     }
 
     let mut bins = [[Bin {
@@ -594,7 +631,9 @@ fn choose_split(order: &[u32], prims: &[Prim], bounds: &Aabb, centroids: &Aabb, 
             if left.1 == 0 || right_count == 0 {
                 continue;
             }
-            let cost = 1.0 + (left.0.area() * left.1 as f64 + right_box.area() * right_count as f64) / parent_area;
+            let cost = 1.0
+                + (left.0.area() * left.1 as f64 + right_box.area() * right_count as f64)
+                    / parent_area;
             if cost < best_cost {
                 best_cost = cost;
                 best = (axis, i);
@@ -603,7 +642,11 @@ fn choose_split(order: &[u32], prims: &[Prim], bounds: &Aabb, centroids: &Aabb, 
     }
 
     if !best_cost.is_finite() {
-        return if count <= MAX_LEAF_TRIANGLES { Split::Leaf } else { Split::Median };
+        return if count <= MAX_LEAF_TRIANGLES {
+            Split::Leaf
+        } else {
+            Split::Median
+        };
     }
     if count <= max_leaf && best_cost >= count as f64 {
         return Split::Leaf;
@@ -666,7 +709,11 @@ impl BvhSet {
     ///
     /// # Errors
     /// As [`Bvh::build`].
-    pub fn build(mut triangles: Vec<Triangle>, max_triangles: usize, options: BuildOptions) -> Result<BvhSet, BvhError> {
+    pub fn build(
+        mut triangles: Vec<Triangle>,
+        max_triangles: usize,
+        options: BuildOptions,
+    ) -> Result<BvhSet, BvhError> {
         let max_triangles = max_triangles.clamp(1, MAX_TRIANGLES);
         let mut ranges = Vec::new();
         split_parts(&mut triangles, max_triangles, 0, &mut ranges);
@@ -699,7 +746,12 @@ fn centroid(triangle: &Triangle, axis: usize) -> f32 {
 
 /// Splits `triangles` in place, recursively at the median centroid of the longest axis, until each range has at
 /// most `max` triangles; pushes the `(start, end)` ranges in order.
-fn split_parts(triangles: &mut [Triangle], max: usize, start: usize, out: &mut Vec<(usize, usize)>) {
+fn split_parts(
+    triangles: &mut [Triangle],
+    max: usize,
+    start: usize,
+    out: &mut Vec<(usize, usize)>,
+) {
     if triangles.len() <= max {
         out.push((start, start + triangles.len()));
         return;
@@ -717,14 +769,19 @@ fn split_parts(triangles: &mut [Triangle], max: usize, start: usize, out: &mut V
         .max_by(|&a, &b| (high[a] - low[a]).total_cmp(&(high[b] - low[b])))
         .unwrap_or(0);
     let middle = triangles.len() / 2;
-    triangles.select_nth_unstable_by(middle, |a, b| centroid(a, axis).total_cmp(&centroid(b, axis)));
+    triangles.select_nth_unstable_by(middle, |a, b| {
+        centroid(a, axis).total_cmp(&centroid(b, axis))
+    });
     let (left, right) = triangles.split_at_mut(middle);
     split_parts(left, max, start, out);
     split_parts(right, max, start + middle, out);
 }
 
 #[cfg(feature = "threads")]
-pub(crate) fn map_parallel<T: Send, I: Sync, F: Fn(&I) -> T + Sync + Send>(items: &[I], f: F) -> Vec<T> {
+pub(crate) fn map_parallel<T: Send, I: Sync, F: Fn(&I) -> T + Sync + Send>(
+    items: &[I],
+    f: F,
+) -> Vec<T> {
     items.par_iter().map(f).collect()
 }
 
@@ -738,7 +795,9 @@ mod tests {
     use super::*;
 
     fn lcg(seed: &mut u64) -> f32 {
-        *seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        *seed = seed
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
         ((*seed >> 40) as f32) / (1u64 << 24) as f32
     }
 
@@ -747,7 +806,11 @@ mod tests {
         let mut s = seed;
         (0..n)
             .map(|_| {
-                let o = [lcg(&mut s) * 100.0, lcg(&mut s) * 100.0, lcg(&mut s) * 100.0];
+                let o = [
+                    lcg(&mut s) * 100.0,
+                    lcg(&mut s) * 100.0,
+                    lcg(&mut s) * 100.0,
+                ];
                 let mut v = |_: usize| {
                     [
                         o[0] + lcg(&mut s) * 3.0,
@@ -783,7 +846,11 @@ mod tests {
         let soup = vec![tri; 1000];
         let bvh = Bvh::build(&soup, BuildOptions::default()).unwrap();
         bvh.validate().unwrap();
-        assert!(bvh.nodes.iter().filter(|n| n.is_leaf()).all(|n| n.triangle_count() <= MAX_LEAF_TRIANGLES));
+        assert!(bvh
+            .nodes
+            .iter()
+            .filter(|n| n.is_leaf())
+            .all(|n| n.triangle_count() <= MAX_LEAF_TRIANGLES));
     }
 
     #[test]
@@ -808,9 +875,18 @@ mod tests {
     fn bytes_round_trip_and_have_the_documented_size() {
         let bvh = Bvh::build(&random_soup(300, 7), BuildOptions::default()).unwrap();
         let bytes = bvh.to_bytes();
-        assert_eq!(bytes.len(), 8 + 32 * bvh.nodes.len() + 48 * bvh.triangles.len());
-        assert_eq!(u32::from_le_bytes(bytes[0..4].try_into().unwrap()) as usize, bvh.nodes.len());
-        assert_eq!(u32::from_le_bytes(bytes[4..8].try_into().unwrap()) as usize, bvh.triangles.len());
+        assert_eq!(
+            bytes.len(),
+            8 + 32 * bvh.nodes.len() + 48 * bvh.triangles.len()
+        );
+        assert_eq!(
+            u32::from_le_bytes(bytes[0..4].try_into().unwrap()) as usize,
+            bvh.nodes.len()
+        );
+        assert_eq!(
+            u32::from_le_bytes(bytes[4..8].try_into().unwrap()) as usize,
+            bvh.triangles.len()
+        );
         assert_eq!(Bvh::from_bytes(&bytes).unwrap(), bvh);
     }
 
@@ -820,10 +896,22 @@ mod tests {
         let bytes = bvh.to_bytes();
         let n = &bvh.nodes[1];
         let at = 8 + 32;
-        assert_eq!(f32::from_le_bytes(bytes[at..at + 4].try_into().unwrap()), n.min[0]);
-        assert_eq!(u32::from_le_bytes(bytes[at + 12..at + 16].try_into().unwrap()), n.a);
-        assert_eq!(f32::from_le_bytes(bytes[at + 16..at + 20].try_into().unwrap()), n.max[0]);
-        assert_eq!(u32::from_le_bytes(bytes[at + 28..at + 32].try_into().unwrap()), n.b);
+        assert_eq!(
+            f32::from_le_bytes(bytes[at..at + 4].try_into().unwrap()),
+            n.min[0]
+        );
+        assert_eq!(
+            u32::from_le_bytes(bytes[at + 12..at + 16].try_into().unwrap()),
+            n.a
+        );
+        assert_eq!(
+            f32::from_le_bytes(bytes[at + 16..at + 20].try_into().unwrap()),
+            n.max[0]
+        );
+        assert_eq!(
+            u32::from_le_bytes(bytes[at + 28..at + 32].try_into().unwrap()),
+            n.b
+        );
     }
 
     #[test]

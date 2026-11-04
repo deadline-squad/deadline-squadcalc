@@ -24,10 +24,13 @@ fn answer() -> Result<String, String> {
     match std::env::args().nth(1) {
         Some(path) => text = std::fs::read_to_string(&path).map_err(|e| format!("{path}: {e}"))?,
         None => {
-            std::io::stdin().read_to_string(&mut text).map_err(|e| e.to_string())?;
+            std::io::stdin()
+                .read_to_string(&mut text)
+                .map_err(|e| e.to_string())?;
         }
     }
-    let request: Request = serde_json::from_str(&text).map_err(|e| format!("invalid request: {e}"))?;
+    let request: Request =
+        serde_json::from_str(&text).map_err(|e| format!("invalid request: {e}"))?;
     let mut resources = Resources::new();
     resources.load_files(&request).map_err(|e| e.to_string())?;
     let response = run(&request, &resources).map_err(|e| e.to_string())?;

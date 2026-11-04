@@ -37,7 +37,11 @@ fn rust_solver_matches_the_javascript_solver() {
         .arg(checkout)
         .output()
         .expect("node must be installed");
-    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     let reference: Value = serde_json::from_slice(&output.stdout).unwrap();
 
     let weapons: Vec<Weapon> = reference["specs"]
@@ -66,14 +70,25 @@ fn rust_solver_matches_the_javascript_solver() {
             ("sight", solution.sight_angle_deg, number(&row["sight"])),
         ];
         let seconds = [
-            ("tofLow", solution.low.time_of_flight, number(&row["tofLow"])),
-            ("tofHigh", solution.high.time_of_flight, number(&row["tofHigh"])),
+            (
+                "tofLow",
+                solution.low.time_of_flight,
+                number(&row["tofLow"]),
+            ),
+            (
+                "tofHigh",
+                solution.high.time_of_flight,
+                number(&row["tofHigh"]),
+            ),
             ("hold", solution.hold_time, number(&row["hold"])),
         ];
         for (name, rust, js) in degrees {
             checked += 1;
             if !agree(rust, js, TOLERANCE_DEG) {
-                mismatches.push(format!("{} {name} d={distance} h={height}: rust {rust} js {js}", spec));
+                mismatches.push(format!(
+                    "{} {name} d={distance} h={height}: rust {rust} js {js}",
+                    spec
+                ));
             } else if !rust.is_nan() {
                 worst_deg = worst_deg.max((rust - js).abs());
             }
@@ -84,7 +99,10 @@ fn rust_solver_matches_the_javascript_solver() {
             // weapon's elevations) while the elevation is NaN; the comparison is on what the JS reports
             let tolerance = TOLERANCE_SEC.max(TOLERANCE_LONG_FLIGHT * js.abs());
             if !agree(rust, js, tolerance) {
-                mismatches.push(format!("{} {name} d={distance} h={height}: rust {rust} js {js}", spec));
+                mismatches.push(format!(
+                    "{} {name} d={distance} h={height}: rust {rust} js {js}",
+                    spec
+                ));
             } else if rust.is_finite() {
                 worst_sec = worst_sec.max((rust - js).abs());
                 if js.abs() <= 10.0 {
@@ -94,7 +112,12 @@ fn rust_solver_matches_the_javascript_solver() {
         }
     }
     for (spec, max) in max_ranges.iter().enumerate() {
-        let js = number(&rows.iter().find(|r| r["spec"].as_u64() == Some(spec as u64)).unwrap()["max"]);
+        let js = number(
+            &rows
+                .iter()
+                .find(|r| r["spec"].as_u64() == Some(spec as u64))
+                .unwrap()["max"],
+        );
         checked += 1;
         if !agree(*max, js, 1e-9 * js.abs().max(1.0)) {
             mismatches.push(format!("{spec} max range: rust {max} js {js}"));
@@ -107,5 +130,10 @@ fn rust_solver_matches_the_javascript_solver() {
         rows.len(),
         mismatches.len()
     );
-    assert!(mismatches.is_empty(), "{} mismatches, first: {:#?}", mismatches.len(), &mismatches[..mismatches.len().min(15)]);
+    assert!(
+        mismatches.is_empty(),
+        "{} mismatches, first: {:#?}",
+        mismatches.len(),
+        &mismatches[..mismatches.len().min(15)]
+    );
 }

@@ -224,8 +224,14 @@ impl Resources {
     #[cfg(not(target_arch = "wasm32"))]
     pub fn load_files(&mut self, request: &Request) -> Result<(), EngineError> {
         let environment = &request.environment;
-        let fail = |what: &str, path: &str, e: &dyn fmt::Display| EngineError::Invalid(format!("{what} {path}: {e}"));
-        if let Some(path) = environment.heightmap_ref.as_deref().filter(|p| !self.has_heightmap(p)) {
+        let fail = |what: &str, path: &str, e: &dyn fmt::Display| {
+            EngineError::Invalid(format!("{what} {path}: {e}"))
+        };
+        if let Some(path) = environment
+            .heightmap_ref
+            .as_deref()
+            .filter(|p| !self.has_heightmap(p))
+        {
             let bytes = std::fs::read(path).map_err(|e| fail("heightmap", path, &e))?;
             let resolution = environment.heightmap_resolution_m.unwrap_or(1.0);
             let map = if path.ends_with(".png") {
@@ -235,7 +241,11 @@ impl Resources {
             };
             self.add_heightmap(path, map.map_err(|e| fail("heightmap", path, &e))?);
         }
-        if let Some(path) = environment.bvh_buffer_ref.as_deref().filter(|p| !self.has_bvh(p)) {
+        if let Some(path) = environment
+            .bvh_buffer_ref
+            .as_deref()
+            .filter(|p| !self.has_bvh(p))
+        {
             let mut files = if std::path::Path::new(path).is_dir() {
                 let mut found: Vec<_> = std::fs::read_dir(path)
                     .map_err(|e| fail("bvh", path, &e))?
@@ -284,24 +294,45 @@ pub fn run_json(input: &str, resources: &Resources) -> Result<String, EngineErro
 /// [`EngineError::UnknownHeightmap`] / [`EngineError::UnknownBvh`] for refs that are not in `resources`,
 /// [`EngineError::Invalid`] for a non-finite position or velocity.
 pub fn run(request: &Request, resources: &Resources) -> Result<Response, EngineError> {
-    let finite = request.pos_gun.iter().chain(&request.pos_target).all(|c| c.is_finite());
+    let finite = request
+        .pos_gun
+        .iter()
+        .chain(&request.pos_target)
+        .all(|c| c.is_finite());
     if !finite || !request.weapon_specs.v0.is_finite() || request.weapon_specs.v0 <= 0.0 {
-        return Err(EngineError::Invalid("positions and v0 must be finite, v0 positive".into()));
+        return Err(EngineError::Invalid(
+            "positions and v0 must be finite, v0 positive".into(),
+        ));
     }
     let environment = &request.environment;
     let heightmap = match &environment.heightmap_ref {
-        Some(r) => Some(resources.heightmaps.get(r).ok_or_else(|| EngineError::UnknownHeightmap(r.clone()))?),
+        Some(r) => Some(
+            resources
+                .heightmaps
+                .get(r)
+                .ok_or_else(|| EngineError::UnknownHeightmap(r.clone()))?,
+        ),
         None => None,
     };
     let bvh = match &environment.bvh_buffer_ref {
-        Some(r) => Some(resources.bvhs.get(r).ok_or_else(|| EngineError::UnknownBvh(r.clone()))?),
+        Some(r) => Some(
+            resources
+                .bvhs
+                .get(r)
+                .ok_or_else(|| EngineError::UnknownBvh(r.clone()))?,
+        ),
         None => None,
     };
 
-    let mut weapon = request.weapon_specs.model.clone().unwrap_or_else(|| Weapon::parabola(request.weapon_specs.v0));
+    let mut weapon = request
+        .weapon_specs
+        .model
+        .clone()
+        .unwrap_or_else(|| Weapon::parabola(request.weapon_specs.v0));
     weapon.velocity = request.weapon_specs.v0;
 
-    let ground = |x: f64, y: f64| heightmap.map_or(0.0, |h| h.height_at_scaled(x, y, environment.z_scale));
+    let ground =
+        |x: f64, y: f64| heightmap.map_or(0.0, |h| h.height_at_scaled(x, y, environment.z_scale));
     let [gx, gy] = request.pos_gun;
     let [tx, ty, tz] = request.pos_target;
     let gz = ground(gx, gy);
@@ -371,7 +402,9 @@ pub fn run(request: &Request, resources: &Resources) -> Result<Response, EngineE
         }
     }
     if let Some(map) = heightmap {
-        if let Some((point, time)) = first_terrain_hit(map, environment.z_scale, &segments, distance) {
+        if let Some((point, time)) =
+            first_terrain_hit(map, environment.z_scale, &segments, distance)
+        {
             if time < impact_time {
                 occluded = true;
                 impact = point;
@@ -406,10 +439,17 @@ pub fn run(request: &Request, resources: &Resources) -> Result<Response, EngineE
 
 /// First point of the path under the terrain, sampled every heightmap resolution along each segment, leaving
 /// out [`TERRAIN_CLEARANCE`] metres of horizontal distance at both ends. Returns the point and the time.
-fn first_terrain_hit(map: &Heightmap, z_scale: f64, segments: &[Segment], distance: f64) -> Option<([f64; 3], f64)> {
+fn first_terrain_hit(
+    map: &Heightmap,
+    z_scale: f64,
+    segments: &[Segment],
+    distance: f64,
+) -> Option<([f64; 3], f64)> {
     let origin = segments.first()?.p0;
     for segment in segments {
-        let length = (segment.p1[0] - segment.p0[0]).hypot(segment.p1[1] - segment.p0[1]).max(1e-9);
+        let length = (segment.p1[0] - segment.p0[0])
+            .hypot(segment.p1[1] - segment.p0[1])
+            .max(1e-9);
         let steps = (length / map.resolution).ceil().max(1.0) as usize;
         for k in 0..=steps {
             let f = k as f64 / steps as f64;
@@ -459,13 +499,19 @@ mod tests {
         assert_eq!(a, b);
         // v = 110, d = 600: low arc atan((v^2 - sqrt(v^4 - g^2 d^2)) / (g d))
         let g = 9.8f64;
-        let expected = (((110.0f64.powi(2) - (110.0f64.powi(4) - (g * 600.0).powi(2)).sqrt()) / (g * 600.0)).atan()) * 1000.0;
+        let expected = (((110.0f64.powi(2) - (110.0f64.powi(4) - (g * 600.0).powi(2)).sqrt())
+            / (g * 600.0))
+            .atan())
+            * 1000.0;
         assert!((a["firing_solution"]["elevation_mrad"].as_f64().unwrap() - expected).abs() < 1e-9);
         assert_eq!(a["firing_solution"]["azimuth_deg"], 0.0);
         assert_eq!(a["occlusion_status"], "unchecked");
         assert_eq!(a["collision_details"]["material"], "unknown");
         assert_eq!(a["collision_details"]["lethality"], 1.0);
-        assert_eq!(a["collision_details"]["point"], serde_json::json!([0.0, 600.0, 0.0]));
+        assert_eq!(
+            a["collision_details"]["point"],
+            serde_json::json!([0.0, 600.0, 0.0])
+        );
     }
 
     #[test]
@@ -473,7 +519,10 @@ mod tests {
         let low = run_text(&request(""), &Resources::new());
         let high = run_text(&request(r#","options":{"arc":"high"}"#), &Resources::new());
         assert!(high["flight_data"]["time_sec"].as_f64() > low["flight_data"]["time_sec"].as_f64());
-        assert!(high["flight_data"]["max_ordinate_meters"].as_f64() > low["flight_data"]["max_ordinate_meters"].as_f64());
+        assert!(
+            high["flight_data"]["max_ordinate_meters"].as_f64()
+                > low["flight_data"]["max_ordinate_meters"].as_f64()
+        );
         // The apex of a parabola: (v sin e)^2 / 2g
         let e = high["firing_solution"]["elevation_mrad"].as_f64().unwrap() / 1000.0;
         let apex = (110.0 * e.sin()).powi(2) / (2.0 * 9.8);
@@ -492,35 +541,76 @@ mod tests {
     #[test]
     fn azimuth_is_clockwise_from_north() {
         let east = request("").replace("[0.0,600.0,0.0]", "[300.0,0.0,0.0]");
-        assert!((run_text(&east, &Resources::new())["firing_solution"]["azimuth_deg"].as_f64().unwrap() - 90.0).abs() < 1e-12);
+        assert!(
+            (run_text(&east, &Resources::new())["firing_solution"]["azimuth_deg"]
+                .as_f64()
+                .unwrap()
+                - 90.0)
+                .abs()
+                < 1e-12
+        );
         let west = request("").replace("[0.0,600.0,0.0]", "[-300.0,0.0,0.0]");
-        assert!((run_text(&west, &Resources::new())["firing_solution"]["azimuth_deg"].as_f64().unwrap() - 270.0).abs() < 1e-12);
+        assert!(
+            (run_text(&west, &Resources::new())["firing_solution"]["azimuth_deg"]
+                .as_f64()
+                .unwrap()
+                - 270.0)
+                .abs()
+                < 1e-12
+        );
     }
 
     #[test]
     fn a_wall_on_the_path_occludes_and_is_the_impact() {
         // A wall across the line of fire at Y = 300, from the ground to 400 m
         let wall: Vec<Triangle> = vec![
-            [[-50.0, 300.0, -10.0], [50.0, 300.0, -10.0], [50.0, 300.0, 400.0]],
-            [[-50.0, 300.0, -10.0], [50.0, 300.0, 400.0], [-50.0, 300.0, 400.0]],
+            [
+                [-50.0, 300.0, -10.0],
+                [50.0, 300.0, -10.0],
+                [50.0, 300.0, 400.0],
+            ],
+            [
+                [-50.0, 300.0, -10.0],
+                [50.0, 300.0, 400.0],
+                [-50.0, 300.0, 400.0],
+            ],
         ];
         let mut resources = Resources::new();
-        resources.add_bvh("wall", BvhSet::build(wall, 10, BuildOptions::default()).unwrap());
-        let r = run_text(&request(r#","environment":{"bvh_buffer_ref":"wall"}"#), &resources);
+        resources.add_bvh(
+            "wall",
+            BvhSet::build(wall, 10, BuildOptions::default()).unwrap(),
+        );
+        let r = run_text(
+            &request(r#","environment":{"bvh_buffer_ref":"wall"}"#),
+            &resources,
+        );
         assert_eq!(r["occlusion_status"], "occluded");
         let point = r["collision_details"]["point"].as_array().unwrap();
         assert!((point[1].as_f64().unwrap() - 300.0).abs() < 1e-9);
 
-        let r = run_text(&request(r#","environment":{"bvh_buffer_ref":"wall"},"options":{"arc":"low"}"#), &resources);
+        let r = run_text(
+            &request(r#","environment":{"bvh_buffer_ref":"wall"},"options":{"arc":"low"}"#),
+            &resources,
+        );
         assert_eq!(r["occlusion_status"], "occluded");
     }
 
     #[test]
     fn a_clear_line_of_fire_is_clear() {
-        let far_wall: Vec<Triangle> = vec![[[500.0, 100.0, 0.0], [600.0, 100.0, 0.0], [550.0, 100.0, 50.0]]];
+        let far_wall: Vec<Triangle> = vec![[
+            [500.0, 100.0, 0.0],
+            [600.0, 100.0, 0.0],
+            [550.0, 100.0, 50.0],
+        ]];
         let mut resources = Resources::new();
-        resources.add_bvh("far", BvhSet::build(far_wall, 10, BuildOptions::default()).unwrap());
-        let r = run_text(&request(r#","environment":{"bvh_buffer_ref":"far"}"#), &resources);
+        resources.add_bvh(
+            "far",
+            BvhSet::build(far_wall, 10, BuildOptions::default()).unwrap(),
+        );
+        let r = run_text(
+            &request(r#","environment":{"bvh_buffer_ref":"far"}"#),
+            &resources,
+        );
         assert_eq!(r["occlusion_status"], "clear");
     }
 
@@ -539,8 +629,10 @@ mod tests {
         let mut resources = Resources::new();
         resources.add_heightmap("ridge", map);
         // Rows run south from Y = 0, so the target is at Y = -600
-        let south = request(r#","environment":{"z_scale":300.0,"heightmap_ref":"ridge"},"options":{"arc":"low"}"#)
-            .replace("[0.0,600.0,0.0]", "[0.0,-600.0,0.0]");
+        let south = request(
+            r#","environment":{"z_scale":300.0,"heightmap_ref":"ridge"},"options":{"arc":"low"}"#,
+        )
+        .replace("[0.0,600.0,0.0]", "[0.0,-600.0,0.0]");
         let low = run_text(&south, &resources);
         assert_eq!(low["occlusion_status"], "occluded");
         let y = low["collision_details"]["point"][1].as_f64().unwrap();
@@ -549,11 +641,20 @@ mod tests {
 
     #[test]
     fn unknown_refs_and_bad_json_are_errors() {
-        let r = run_json(&request(r#","environment":{"bvh_buffer_ref":"nope"}"#), &Resources::new());
+        let r = run_json(
+            &request(r#","environment":{"bvh_buffer_ref":"nope"}"#),
+            &Resources::new(),
+        );
         assert!(matches!(r, Err(EngineError::UnknownBvh(_))));
-        assert!(matches!(run_json("{", &Resources::new()), Err(EngineError::Json(_))));
         assert!(matches!(
-            run_json(r#"{"weapon_specs":{"v0":-1},"pos_gun":[0,0],"pos_target":[1,1,1]}"#, &Resources::new()),
+            run_json("{", &Resources::new()),
+            Err(EngineError::Json(_))
+        ));
+        assert!(matches!(
+            run_json(
+                r#"{"weapon_specs":{"v0":-1},"pos_gun":[0,0],"pos_target":[1,1,1]}"#,
+                &Resources::new()
+            ),
             Err(EngineError::Invalid(_))
         ));
     }

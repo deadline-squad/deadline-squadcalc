@@ -156,7 +156,8 @@ impl Weapon {
             cruise = cruise.min(self.max_speed);
         }
         let time = if distance <= boost_distance {
-            2.0 * distance / (self.velocity + (self.velocity.powi(2) + 2.0 * a * distance).max(0.0).sqrt())
+            2.0 * distance
+                / (self.velocity + (self.velocity.powi(2) + 2.0 * a * distance).max(0.0).sqrt())
         } else {
             boost_time + (distance - boost_distance) / cruise
         };
@@ -230,7 +231,11 @@ impl Weapon {
             (height_diff - self.height_offset).atan2(distance) - angle_offset
         };
         let laid = |root: f64| {
-            let elevation = if straight { straight_elevation } else { root - angle_offset };
+            let elevation = if straight {
+                straight_elevation
+            } else {
+                root - angle_offset
+            };
             if self.in_elevation_range(elevation) {
                 elevation
             } else {
@@ -264,7 +269,9 @@ impl Weapon {
             let path = distance / elevation.cos();
             path / self.velocity_over(path)
         } else {
-            flight.path_at(elevation + deg_to_rad(self.angle_offset_deg), distance).time
+            flight
+                .path_at(elevation + deg_to_rad(self.angle_offset_deg), distance)
+                .time
         };
         // A projectile that dies in the air before landing has no solution
         let reached = !(time_of_flight > self.projectile_lifespan);

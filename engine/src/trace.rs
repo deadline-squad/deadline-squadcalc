@@ -51,7 +51,13 @@ fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
 
 /// Moller-Trumbore in `f64` for the segment `o + t d`, `t` in `[0, 1]`: the `t` of the hit, if any.
 pub fn segment_triangle_f64(o: [f64; 3], d: [f64; 3], tri: &GpuTriangle) -> Option<f64> {
-    let v = |i: usize| [f64::from(tri[i][0]), f64::from(tri[i][1]), f64::from(tri[i][2])];
+    let v = |i: usize| {
+        [
+            f64::from(tri[i][0]),
+            f64::from(tri[i][1]),
+            f64::from(tri[i][2]),
+        ]
+    };
     let a = v(0);
     let e1 = sub(v(1), a);
     let e2 = sub(v(2), a);
@@ -66,7 +72,7 @@ pub fn segment_triangle_f64(o: [f64; 3], d: [f64; 3], tri: &GpuTriangle) -> Opti
     let q = cross(s, e1);
     let w = inv * dot(q, d);
     let t = inv * dot(e2, q);
-    (u >= 0.0 && w >= 0.0 && u + w <= 1.0 && t >= 0.0 && t <= 1.0).then_some(t)
+    (u >= 0.0 && w >= 0.0 && u + w <= 1.0 && (0.0..=1.0).contains(&t)).then_some(t)
 }
 
 /// Moller-Trumbore in `f32`, the arithmetic of the GPU shader: the `t` of the hit, if any.
@@ -81,8 +87,14 @@ pub fn segment_triangle_f32(o: [f32; 3], d: [f32; 3], tri: &GpuTriangle) -> Opti
     use core::arch::wasm32::*;
     let load = |v: &[f32; 4]| f32x4(v[0], v[1], v[2], 0.0);
     let cross = |a: v128, b: v128| {
-        let (ay, az) = (i32x4_shuffle::<1, 2, 0, 3>(a, a), i32x4_shuffle::<2, 0, 1, 3>(a, a));
-        let (by, bz) = (i32x4_shuffle::<1, 2, 0, 3>(b, b), i32x4_shuffle::<2, 0, 1, 3>(b, b));
+        let (ay, az) = (
+            i32x4_shuffle::<1, 2, 0, 3>(a, a),
+            i32x4_shuffle::<2, 0, 1, 3>(a, a),
+        );
+        let (by, bz) = (
+            i32x4_shuffle::<1, 2, 0, 3>(b, b),
+            i32x4_shuffle::<2, 0, 1, 3>(b, b),
+        );
         f32x4_sub(f32x4_mul(ay, bz), f32x4_mul(az, by))
     };
     let dot = |a: v128, b: v128| {
@@ -104,7 +116,7 @@ pub fn segment_triangle_f32(o: [f32; 3], d: [f32; 3], tri: &GpuTriangle) -> Opti
     let q = cross(s, e1);
     let w = inv * dot(q, d);
     let t = inv * dot(e2, q);
-    (u >= 0.0 && w >= 0.0 && u + w <= 1.0 && t >= 0.0 && t <= 1.0).then_some(t)
+    (u >= 0.0 && w >= 0.0 && u + w <= 1.0 && (0.0..=1.0).contains(&t)).then_some(t)
 }
 
 /// The scalar `f32` Moller-Trumbore (also the reference for the SIMD version).
@@ -133,7 +145,7 @@ pub fn segment_triangle_f32_scalar(o: [f32; 3], d: [f32; 3], tri: &GpuTriangle) 
     let q = cross(s, e1);
     let w = inv * dot(q, d);
     let t = inv * dot(e2, q);
-    (u >= 0.0 && w >= 0.0 && u + w <= 1.0 && t >= 0.0 && t <= 1.0).then_some(t)
+    (u >= 0.0 && w >= 0.0 && u + w <= 1.0 && (0.0..=1.0).contains(&t)).then_some(t)
 }
 
 /// Whether the segment `o + t d` meets the box for some `t` in `[0, t_max]` (`inv_d` = 1/d per axis).
@@ -180,7 +192,10 @@ impl Bvh {
             }
             if node.is_leaf() {
                 let first = node.first_triangle();
-                for (k, tri) in self.triangles[first..first + node.triangle_count()].iter().enumerate() {
+                for (k, tri) in self.triangles[first..first + node.triangle_count()]
+                    .iter()
+                    .enumerate()
+                {
                     if let Some(t) = segment_triangle_f64(p0, d, tri) {
                         if best.is_none_or(|b| t < b.t) {
                             best = Some(Hit {
@@ -215,7 +230,10 @@ impl Bvh {
             }
             if node.is_leaf() {
                 let first = node.first_triangle();
-                for (k, tri) in self.triangles[first..first + node.triangle_count()].iter().enumerate() {
+                for (k, tri) in self.triangles[first..first + node.triangle_count()]
+                    .iter()
+                    .enumerate()
+                {
                     if let Some(t) = segment_triangle_f32(p0, d, tri) {
                         if best.is_none_or(|b| f64::from(t) < b.t) {
                             best = Some(Hit {
@@ -256,7 +274,9 @@ impl Scene for BvhSet {
     fn first_hit(&self, p0: [f64; 3], p1: [f64; 3]) -> Option<Hit> {
         let mut best: Option<Hit> = None;
         for (index, part) in self.parts.iter().enumerate() {
-            let Some((min, max)) = part.bounds() else { continue };
+            let Some((min, max)) = part.bounds() else {
+                continue;
+            };
             let d = sub(p1, p0);
             let inv_d = [1.0 / d[0], 1.0 / d[1], 1.0 / d[2]];
             if !hits_box_f64(min, max, p0, inv_d, best.map_or(1.0, |b| b.t)) {
@@ -306,7 +326,10 @@ pub fn first_hit_along<S: Scene + ?Sized>(scene: &S, segments: &[Segment]) -> Op
 }
 
 /// Traces many independent segments; on several threads with the `threads` feature.
-pub fn first_hits<S: Scene + ?Sized>(scene: &S, segments: &[([f64; 3], [f64; 3])]) -> Vec<Option<Hit>> {
+pub fn first_hits<S: Scene + ?Sized>(
+    scene: &S,
+    segments: &[([f64; 3], [f64; 3])],
+) -> Vec<Option<Hit>> {
     crate::bvh::map_parallel(segments, |(p0, p1)| scene.first_hit(*p0, *p1))
 }
 
@@ -360,7 +383,9 @@ mod tests {
         let bvh = Bvh::build(&[floor(), upper], BuildOptions::default()).unwrap();
         let hit = bvh.first_hit([0.0, 0.0, 10.0], [0.0, 0.0, -10.0]).unwrap();
         assert!((hit.t - 0.35).abs() < 1e-12);
-        let hit = bvh.first_hit_f32([0.0, 0.0, 10.0], [0.0, 0.0, -10.0]).unwrap();
+        let hit = bvh
+            .first_hit_f32([0.0, 0.0, 10.0], [0.0, 0.0, -10.0])
+            .unwrap();
         assert!((hit.t - 0.35).abs() < 1e-6);
     }
 

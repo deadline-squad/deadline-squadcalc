@@ -40,8 +40,15 @@ fn bvh_agrees_with_the_reference_tracer_on_fallujah() {
     assert_eq!(segments.len(), expected.len());
 
     let started = Instant::now();
-    let soup = triangles_from_reader(BufReader::new(File::open(dir.join("fallujah_proj.bin")).unwrap())).unwrap();
-    println!("loaded {} triangles in {:.1} s", soup.len(), started.elapsed().as_secs_f64());
+    let soup = triangles_from_reader(BufReader::new(
+        File::open(dir.join("fallujah_proj.bin")).unwrap(),
+    ))
+    .unwrap();
+    println!(
+        "loaded {} triangles in {:.1} s",
+        soup.len(),
+        started.elapsed().as_secs_f64()
+    );
 
     let started = Instant::now();
     let set = BvhSet::build(soup, MAX_TRIANGLES, BuildOptions::default()).unwrap();
@@ -59,7 +66,11 @@ fn bvh_agrees_with_the_reference_tracer_on_fallujah() {
     let started = Instant::now();
     let hits = first_hits(&set, &segments);
     let elapsed = started.elapsed().as_secs_f64();
-    println!("{} segments traced in {elapsed:.2} s ({:.0} segments/s)", segments.len(), segments.len() as f64 / elapsed);
+    println!(
+        "{} segments traced in {elapsed:.2} s ({:.0} segments/s)",
+        segments.len(),
+        segments.len() as f64 / elapsed
+    );
 
     let mut hit_disagreements = Vec::new();
     let mut worst_point = 0.0f64;
@@ -72,7 +83,9 @@ fn bvh_agrees_with_the_reference_tracer_on_fallujah() {
         }
         if let Some(hit) = got {
             both_hit += 1;
-            let length = ((p1[0] - p0[0]).powi(2) + (p1[1] - p0[1]).powi(2) + (p1[2] - p0[2]).powi(2)).sqrt();
+            let length =
+                ((p1[0] - p0[0]).powi(2) + (p1[1] - p0[1]).powi(2) + (p1[2] - p0[2]).powi(2))
+                    .sqrt();
             worst_point = worst_point.max((hit.t - expected_t).abs() * length);
         }
     }
@@ -81,7 +94,10 @@ fn bvh_agrees_with_the_reference_tracer_on_fallujah() {
         hit_disagreements.len()
     );
     for &i in hit_disagreements.iter().take(10) {
-        println!("  segment {i}: {:?} rust {:?} reference {:?}", segments[i], hits[i], expected[i]);
+        println!(
+            "  segment {i}: {:?} rust {:?} reference {:?}",
+            segments[i], hits[i], expected[i]
+        );
     }
     assert!(hit_disagreements.is_empty());
     assert!(worst_point <= 1e-6);

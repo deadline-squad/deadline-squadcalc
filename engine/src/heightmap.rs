@@ -27,7 +27,10 @@ impl fmt::Display for HeightmapError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             HeightmapError::Size { expected, found } => {
-                write!(f, "heightmap buffer has {found} samples, expected {expected}")
+                write!(
+                    f,
+                    "heightmap buffer has {found} samples, expected {expected}"
+                )
             }
             HeightmapError::TooSmall => write!(f, "heightmap needs at least 2 x 2 samples"),
             HeightmapError::Png(reason) => write!(f, "heightmap PNG: {reason}"),
@@ -92,13 +95,14 @@ impl Heightmap {
     /// # Errors
     /// As [`Heightmap::new`]; also [`HeightmapError::Size`] if the header is missing.
     pub fn from_g16(bytes: &[u8], z_scale: f64, resolution: f64) -> Result<Self, HeightmapError> {
-        let header: [u8; 8] = bytes
-            .get(..8)
-            .and_then(|b| b.try_into().ok())
-            .ok_or(HeightmapError::Size {
-                expected: 8,
-                found: bytes.len(),
-            })?;
+        let header: [u8; 8] =
+            bytes
+                .get(..8)
+                .and_then(|b| b.try_into().ok())
+                .ok_or(HeightmapError::Size {
+                    expected: 8,
+                    found: bytes.len(),
+                })?;
         let width = u32::from_le_bytes([header[0], header[1], header[2], header[3]]) as usize;
         let height = u32::from_le_bytes([header[4], header[5], header[6], header[7]]) as usize;
         let levels = bytes[8..]
@@ -118,7 +122,8 @@ impl Heightmap {
             .read_info()
             .map_err(png_error)?;
         let info = reader.info();
-        if info.color_type != png::ColorType::Grayscale || info.bit_depth != png::BitDepth::Sixteen {
+        if info.color_type != png::ColorType::Grayscale || info.bit_depth != png::BitDepth::Sixteen
+        {
             return Err(HeightmapError::Png("not a 16-bit grayscale image".into()));
         }
         let mut buffer = vec![0; reader.output_buffer_size()];

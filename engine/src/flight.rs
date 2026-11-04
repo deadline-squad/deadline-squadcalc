@@ -459,7 +459,8 @@ impl Flight {
                 let next_y = stencil.y(next);
                 return start_y
                     + start_point_y
-                    + (next_y - start_point_y) * (ahead - start_point_x) / (next_x - start_point_x);
+                    + (next_y - start_point_y) * (ahead - start_point_x)
+                        / (next_x - start_point_x);
             }
             return start_y
                 + coast_height(
@@ -618,7 +619,12 @@ impl Flight {
             for k in 0..=table.steps {
                 consider(stencil.x(k), stencil.y(k));
             }
-            (stencil.x(table.steps), stencil.y(table.steps), stencil.vx(), stencil.vy())
+            (
+                stencil.x(table.steps),
+                stencil.y(table.steps),
+                stencil.vx(),
+                stencil.vy(),
+            )
         } else if shot.has_boost() {
             let a = shot.acceleration;
             let boost = shot.axis_boost_time();
@@ -686,12 +692,7 @@ impl Flight {
 
     /// Root of `error` beyond `top` (where `error(top) >= 0`) towards `direction` (-1: lower elevations,
     /// +1: higher): bracket expansion, then the Illinois method.
-    fn find_root(
-        error: impl Fn(f64) -> f64,
-        top: f64,
-        top_error: f64,
-        direction: f64,
-    ) -> f64 {
+    fn find_root(error: impl Fn(f64) -> f64, top: f64, top_error: f64, direction: f64) -> f64 {
         let mut a = top;
         let mut error_a = top_error;
         let mut b = top;

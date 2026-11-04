@@ -12,7 +12,12 @@ fn run_cli(args: &[&str], input: &str) -> (bool, String, String) {
         .stderr(Stdio::piped())
         .spawn()
         .unwrap();
-    child.stdin.take().unwrap().write_all(input.as_bytes()).unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(input.as_bytes())
+        .unwrap();
     let out = child.wait_with_output().unwrap();
     (
         out.status.success(),
@@ -24,8 +29,16 @@ fn run_cli(args: &[&str], input: &str) -> (bool, String, String) {
 #[test]
 fn the_cli_loads_a_bvh_file_and_reports_the_occluder() {
     let wall: Vec<Triangle> = vec![
-        [[-50.0, 300.0, -10.0], [50.0, 300.0, -10.0], [50.0, 300.0, 400.0]],
-        [[-50.0, 300.0, -10.0], [50.0, 300.0, 400.0], [-50.0, 300.0, 400.0]],
+        [
+            [-50.0, 300.0, -10.0],
+            [50.0, 300.0, -10.0],
+            [50.0, 300.0, 400.0],
+        ],
+        [
+            [-50.0, 300.0, -10.0],
+            [50.0, 300.0, 400.0],
+            [-50.0, 300.0, 400.0],
+        ],
     ];
     let bvh = Bvh::build(&wall, BuildOptions::default()).unwrap();
     let path = format!("{}/wall.bin", env!("CARGO_TARGET_TMPDIR"));
