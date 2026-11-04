@@ -4,4 +4,6 @@
 pub mod bvh;
 pub mod flight;
 pub mod heightmap;
+pub mod path;
+pub mod trace;
 pub mod weapon;

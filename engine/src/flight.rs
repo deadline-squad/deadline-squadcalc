@@ -595,6 +595,66 @@ impl Flight {
         point
     }
 
+    /// Highest point of the flight from the muzzle to the horizontal `distance` from the pivot, with the barrel
+    /// at elevation `angle`: `(distance from the pivot, height above the weapon's ground)`. The apex of each
+    /// phase is found in closed form (the vertices of a stepped boost, the root of the vertical speed of a
+    /// motor along the axis, `vy / g` of a coast); the capped coast only descends.
+    pub fn apex(&self, angle: f64, distance: f64) -> (f64, f64) {
+        let shot = &self.shot;
+        let (sin, cos) = angle.sin_cos();
+        let (start_x, start_y) = shot.launch_point(angle);
+        let v0 = shot.velocity;
+        let g = shot.gravity;
+        let mut best = (start_x, start_y);
+        let mut consider = |x: f64, y: f64| {
+            if start_x + x <= distance && y + start_y > best.1 {
+                best = (start_x + x, y + start_y);
+            }
+        };
+
+        let (cx, cy, cvx, cvy) = if shot.flies_boost_in_steps() {
+            let table = self.table();
+            let stencil = table.stencil(angle);
+            for k in 0..=table.steps {
+                consider(stencil.x(k), stencil.y(k));
+            }
+            (stencil.x(table.steps), stencil.y(table.steps), stencil.vx(), stencil.vy())
+        } else if shot.has_boost() {
+            let a = shot.acceleration;
+            let boost = shot.axis_boost_time();
+            // Vertical speed (v0 + a t) sin - g t is zero at t = v0 sin / (g - a sin)
+            let denominator = g - a * sin;
+            if denominator != 0.0 {
+                let t = v0 * sin / denominator;
+                if t > 0.0 && t < boost {
+                    let along = v0 * t + 0.5 * a * t * t;
+                    consider(cos * along, sin * along - 0.5 * g * t * t);
+                }
+            }
+            let length = v0 * boost + 0.5 * a * boost * boost;
+            let end_speed = v0 + a * boost;
+            let end = (cos * length, sin * length - 0.5 * g * boost * boost);
+            consider(end.0, end.1);
+            (end.0, end.1, cos * end_speed, sin * end_speed - g * boost)
+        } else if shot.launch_clamped() {
+            let first = clamped_launch(shot, cos, sin);
+            consider(first.x, first.y);
+            (first.x, first.y, first.vx, first.vy)
+        } else {
+            (0.0, 0.0, v0 * cos, v0 * sin)
+        };
+
+        if cvy > 0.0 && g > 0.0 && cvx > 0.0 {
+            let tau = cvy / g;
+            consider(cx + cvx * tau, cy + tau * (cvy - 0.5 * g * tau));
+        }
+        let at_target = self.path_at(angle, distance);
+        if at_target.height.is_finite() && at_target.height > best.1 {
+            best = (distance, at_target.height);
+        }
+        best
+    }
+
     /// Elevation that sends the projectile highest at `distance` (golden-section search).
     pub fn peak_angle(&self, distance: f64) -> f64 {
         let mut low = -ELEVATION_LIMIT;
