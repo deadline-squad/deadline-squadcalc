@@ -274,6 +274,15 @@ dialog {
     }
 }
 
+#targetOptions {
+    overflow: hidden;
+    select {
+        max-width: 100%;
+        font: inherit;
+        font-weight: bold;
+    }
+}
+
 #canvasControls {
     margin: 0 auto 1em;
     text-align: center;

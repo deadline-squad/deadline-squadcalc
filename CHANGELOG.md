@@ -1,3 +1,14 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.24.0** *(2026-11-04)*
+
+</br><img src="https://img.shields.io/badge/-new%20features-green">  
+- Target heights (needs *Object volumes in the line of fire*, off by default): the target dialog (click a target) has a *Target height* list when the setting is on and the map has volume files. It holds the heights a vertical ray through the voxel column at the target finds: the floors a soldier can stand on, the ceilings, the roof, and the windows and doorways in walls (open ones are holes, closed windows are solid, a door is open or absent; they are recognised from the shape of the walls, not from the game's building data). Where the heightmap, which fuses a building with the landscape, stands above the landscape, *Ground* is the top of the building and *Landscape* the ground under it. The chosen height replaces the target's ground height in the elevation, the height difference and the line-of-fire check (checked up to the target point itself instead of stopping 3 m short), and shows in the target's popup. Dragging a target or turning the setting off puts it back on the ground. With the setting off, or a map without volume files, nothing changes
+- Structure damage: clicking a deployable marker (FOB radio, HAB, mortar, HMG, GMG, AA gun, ammo crate, repair station) opens a popup with the shells of the selected ammunition needed to destroy it from full health, and the target dialog shows the same for a target within 5 m of such a marker. Health and the damage-type multipliers are the game's; how the game combines them into damage is inferred from the field names and was not verified in game, which the tooltip says. Armour-piercing and machine-gun rounds do no structure damage, and nothing is shown for weapons the game data does not cover (howitzers, rocket artillery, modded weapons). One shell per count, each landing where aimed: the spread is not included
+
+</br><img src="https://img.shields.io/badge/-%20dev%20-lightgrey">  
+- `tests/targetHeights.test.mjs` (classification of a column), `tests/volumeLayer.test.mjs` (the worker's column through the real engine on a house with a storey, a window and a doorway), `tests/targetHeight.test.mjs` (the firing solution and the line of fire of a target with a height), `tests/structureInfo.test.mjs` and `tests/structureDamage.test.mjs` (the links between `weapons.js` shells and the game's projectiles, `src/data/structureLinks.js`)
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.23.0** *(2026-11-04)*
 
 </br><img src="https://img.shields.io/badge/-new%20feature-green">  

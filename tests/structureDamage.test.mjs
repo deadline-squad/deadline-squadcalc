@@ -1,6 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { damageToStructure, shellsToDestroy, findStructure, STRUCTURES, AMMO } from "../src/js/structureDamage.js";
+import { damageToStructure, shellsToDestroy, findStructure, structureOutcome, DIRECT_HIT_RADIUS, STRUCTURES, AMMO } from "../src/js/structureDamage.js";
+import { SHELL_AMMO, MARKER_STRUCTURES } from "../src/data/structureLinks.js";
+import { WEAPONS } from "../src/data/weapons.js";
 
 const near = (actual, expected, message) => assert.ok(Math.abs(actual - expected) < 1e-6, `${message ?? ""} ${actual} vs ${expected}`);
 
@@ -86,5 +88,80 @@ test("game data: armour-piercing and machine-gun rounds have no explosion and do
     for (const id of ["BP_Projectile_120mm_AP", "BP_Projectile_30mm_AP", "BP_Projectile_50cal"]) {
         assert.equal(AMMO[id].explosion, null, id);
         assert.equal(damageToStructure(findStructure("US_Hab_Desert"), AMMO[id], { directHit: true }).damage, 0, id);
+    }
+});
+
+const near2 = (actual, expected) => Math.abs(actual - expected) < 1e-9;
+const activeWeapon = (name, shellName) => {
+    const shell = WEAPONS.find((weapon) => weapon.name === name).shells.find((candidate) => candidate.name === shellName);
+    return { name, shellName, explosion: { outer: shell.explosionRadius[1] } };
+};
+
+test("structureOutcome: the mortar round needs 2 shells for the FOB radio and 18 for a HAB (the C7 table)", () => {
+    const mortar = activeWeapon("Mortar", "default");
+    const radio = structureOutcome(MARKER_STRUCTURES.deployable_fob, mortar);
+    assert.equal(radio.status, "shells");
+    assert.equal(radio.shells, 2);
+    assert.equal(radio.structure.maxHealth, 300);
+    assert.equal(structureOutcome(MARKER_STRUCTURES.deployable_hab, mortar).shells, 18);
+});
+
+test("structureOutcome: a burst farther than DIRECT_HIT_RADIUS is a near miss and needs more shells", () => {
+    const mortar = activeWeapon("Mortar", "default");
+    const direct = structureOutcome(MARKER_STRUCTURES.deployable_hab, mortar, DIRECT_HIT_RADIUS);
+    const near = structureOutcome(MARKER_STRUCTURES.deployable_hab, mortar, DIRECT_HIT_RADIUS + 2);
+    assert.ok(near.shells > direct.shells, `${near.shells} vs ${direct.shells}`);
+});
+
+test("structureOutcome: shells that do not explode (AP, machine guns) do no structure damage", () => {
+    const tank = activeWeapon("DF_Tank_AP_M256_Rh120", "default");
+    const gun = activeWeapon("DF_M2A1_50", "default");
+    for (const weapon of [tank, gun]) {
+        assert.deepEqual(Object.keys(structureOutcome(MARKER_STRUCTURES.deployable_fob, weapon)), ["status", "structure"]);
+        assert.equal(structureOutcome(MARKER_STRUCTURES.deployable_fob, weapon).status, "none");
+    }
+});
+
+test("structureOutcome: a weapon or a structure the game data does not cover gives nothing", () => {
+    assert.equal(structureOutcome(MARKER_STRUCTURES.deployable_fob, { name: "M109", shellName: "default", explosion: { outer: 75 } }), null);
+    assert.equal(structureOutcome("BP_Not_A_Deployable", activeWeapon("Mortar", "default")), null);
+});
+
+test("every projectile that does not explode does no damage to any structure, hit or near miss (no penetration is modelled)", () => {
+    for (const [name, ammo] of Object.entries(AMMO)) {
+        if (ammo.explosion) continue;
+        for (const structure of Object.values(STRUCTURES)) {
+            assert.equal(damageToStructure(structure, ammo, { directHit: true }).damage, 0, `${name} on ${structure.classes[0]}`);
+        }
+    }
+});
+
+test("SHELL_AMMO: every entry is a shell of weapons.js whose explosion is the projectile's", () => {
+    for (const [key, projectile] of Object.entries(SHELL_AMMO)) {
+        const [weaponName, shellName] = key.split("/");
+        const shell = WEAPONS.find((weapon) => weapon.name === weaponName)?.shells.find((candidate) => candidate.name === shellName);
+        assert.ok(shell, `${key} is not in weapons.js`);
+        const { explosion } = AMMO[projectile] ?? {};
+        assert.ok(explosion, `${key}: ${projectile} has no explosion in the game data`);
+        assert.ok(near2(explosion.damage, shell.explosionDamage) && near2(explosion.inner, shell.explosionRadius[0]) && near2(explosion.outer, shell.explosionRadius[1]) && near2(explosion.falloff, shell.damageFallOff), `${key} against ${projectile}`);
+    }
+});
+
+test("SHELL_AMMO: every shell of weapons.js that explodes and is not listed is one the game data cannot tell from another projectile", () => {
+    const listed = new Set(Object.keys(SHELL_AMMO));
+    const unlisted = WEAPONS.flatMap((weapon) => weapon.shells.map((shell) => ({ key: `${weapon.name}/${shell.name}`, shell }))).filter(({ key, shell }) => shell.explosionRadius[1] > 0 && !listed.has(key));
+    // Howitzers, rocket artillery and modded weapons are not in the game data; the rest are listed here so that a
+    // new weapon is noticed
+    assert.deepEqual(unlisted.map(({ key }) => key).sort(), [
+        "BM-21Grad/default", "DF_C90_CR/default", "DF_DZJ_08/default", "DF_M203_M320_GP_25_HK79_SL40/default", "DF_RPG_28/default",
+        "DF_Tank_HEAT_HE_Leopard_2A6_Rh120/default", "DF_Tank_HEAT_HE_M1128_MGS_M68A2/default", "DF_Tank_HEAT_HE_M1A1_M1A2_M256/default",
+        "HIMARS/default", "M109/default", "M1064M121/nearSurface", "M777/default", "MO120RTF1/MO-LONG", "MO120RTF1/MO-MEDIUM", "MO120RTF1/MO-SHORT",
+        "MTLB_FAB500/default", "PZL07/Air-Burst", "PZL07/High-Explosive", "T62.DUMP.TRUCK/default", "TOS-1A/default", "Ural-HellCannon/default", "type_63/default",
+    ].sort());
+});
+
+test("MARKER_STRUCTURES: every marker icon names a structure of the game data", () => {
+    for (const [icon, className] of Object.entries(MARKER_STRUCTURES)) {
+        assert.ok(findStructure(className), `${icon}: ${className}`);
     }
 });

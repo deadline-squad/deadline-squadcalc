@@ -6,6 +6,12 @@ import { heightAt, pathAt, solveElevation, trajectory } from "./squadBallistics.
 // (SquadHeightmap.resolution) when that is finer, so a wall between two samples of the 0.5 m maps is not skipped
 const OBSTACLE_STEP = 1;
 
+// When the target has a height of its own (a floor, a window, a roof of the volume layer) the line of fire is checked
+// up to the target point itself, which is in free space: the last metres of a steep shell are what tells a room from
+// the roof over it. The samples stop this many metres before it, the last segment ends at the target.
+// A ground target keeps TARGET_CLEARANCE (its own spot is not checked).
+const ELEVATED_TARGET_SAMPLE_END = 0.5;
+
 export default class SquadFiringSolution {
 
     /**
@@ -15,8 +21,10 @@ export default class SquadFiringSolution {
      * @param {number|string} heightPadding - weapon height above the ground, meters
      * @param {LatLng} [heightLatLng=targetLatLng] - point whose ground height the shell must land at:
      *   the target when the aim is moved off it to correct the fire (squadTargetMarker.getAimLatLng)
+     * @param {number|null} [targetHeight=null] - height the shell must land at, in the heightmap's heights, when the
+     *   target is not on the ground (squadTargetMarker.getHeightChoice); the ground height of `heightLatLng` if null
      */
-    constructor(weaponLatLng, targetLatLng, map, heightPadding, heightLatLng = targetLatLng) {
+    constructor(weaponLatLng, targetLatLng, map, heightPadding, heightLatLng = targetLatLng, targetHeight = null) {
         this.map = map;
         this.activeWeapon = App.activeWeapon;
         this.weaponLatLng = weaponLatLng;
@@ -29,7 +37,8 @@ export default class SquadFiringSolution {
         this.velocity = App.activeWeapon.getVelocity(this.distance);
         this.shot = App.activeWeapon.getShot(this.gravity);
         this.weaponHeight = this.map.heightmap.getHeight(weaponLatLng) + parseFloat(heightPadding);
-        this.targetHeight = this.map.heightmap.getHeight(heightLatLng);
+        this.elevatedTarget = targetHeight !== null;
+        this.targetHeight = this.elevatedTarget ? targetHeight : this.map.heightmap.getHeight(heightLatLng);
         // False while the heightmap loads and when it failed to load: both heights are 0, the solution is
         // for flat ground
         this.hasHeightData = this.map.heightmap.jsonPng.length > 0 && !this.map.heightmap.failed;
@@ -145,12 +154,14 @@ export default class SquadFiringSolution {
         const weapon = App.activeWeapon;
         const key = [
             this.map.activeMap.name, weapon.name, weapon.velocity, angle, this.weaponHeight,
-            this.weaponLatLng.lat, this.weaponLatLng.lng, this.targetLatLng.lat, this.targetLatLng.lng,
+            this.weaponLatLng.lat, this.weaponLatLng.lng, this.targetLatLng.lat, this.targetLatLng.lng, this.targetHeight,
         ].join("|");
 
         return volume.lookup(key, () => {
             const distances = [];
-            for (let x = MUZZLE_CLEARANCE; x <= this.distance - TARGET_CLEARANCE; x += OBSTACLE_STEP) distances.push(x);
+            const sampleEnd = this.distance - (this.elevatedTarget ? ELEVATED_TARGET_SAMPLE_END : TARGET_CLEARANCE);
+            for (let x = MUZZLE_CLEARANCE; x <= sampleEnd; x += OBSTACLE_STEP) distances.push(x);
+            if (this.elevatedTarget && distances.length) distances.push(this.distance);
             const points = new Float64Array(distances.length * 3);
             distances.forEach((x, i) => {
                 const { x: worldX, y: worldY } = volume.toWorld({

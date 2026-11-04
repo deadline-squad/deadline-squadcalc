@@ -9,6 +9,8 @@ import { Ellipse } from "./libs/leaflet-ellipse.js";
 import { squadMarker } from "./squadMarker.js";
 import { damageField, hitProbability, roundsNeeded, KILL_DAMAGE, WOUND_DAMAGE } from "./squadDamage.js";
 import { notifyBridgeChange } from "./smcConnector.js";
+import { findNearbyStructure, describeStructure } from "./structureInfo.js";
+import { MIN_OPENING } from "./targetHeights.js";
 import i18next from "i18next";
 
 const CARPET_MAX_TARGETS = 10;
@@ -42,6 +44,9 @@ const COVER_ZONE_BUDGET_MS = 8;
 const COVER_CACHE_SIZE = 64;
 const coverZoneImages = new Map();
 const hitProbabilities = new Map();
+
+// Target whose information dialog is open: the heights offered by the volume layer arrive after the dialog
+let dialogTarget = null;
 
 // Damage zones waiting to be computed, one task of COVER_ZONE_BUDGET_MS at a time (a MessageChannel
 // message starts each, so input and rendering run between them): redrawing every target when the weapon
@@ -186,10 +191,14 @@ export const squadTargetMarker = squadMarker.extend({
 
         this.isDragging = false;
 
+        // Height the user chose for the target from the volume layer ({kind, height, above}, squadVolume.heightsAt);
+        // null: on the ground
+        this.heightChoice = null;
+
         // Create marker
         this.addTo(this.map.activeTargetsMarkers);
         this.miniCircle = new CircleMarker(latlng, this.miniCircleOptions).addTo(this.map.markersGroup);
-        this.firingSolution1 = new SquadFiringSolution(this.map.activeWeaponsMarkers.getLayers()[0].getLatLng(), this.getAimLatLng(), this.map, this.map.activeWeaponsMarkers.getLayers()[0].heightPadding, this.getLatLng());
+        this.firingSolution1 = new SquadFiringSolution(this.map.activeWeaponsMarkers.getLayers()[0].getLatLng(), this.getAimLatLng(), this.map, this.map.activeWeaponsMarkers.getLayers()[0].heightPadding, this.getLatLng(), this.getTargetHeight());
 
         // Report target to squadcalc API
         if (!options.uid && !options.skipApiReport && App.activeWeapon.heatmap) {
@@ -216,7 +225,7 @@ export const squadTargetMarker = squadMarker.extend({
 
         // If two weapons already on the map
         if (this.map.activeWeaponsMarkers.getLayers().length === 2) {
-            this.firingSolution2 = new SquadFiringSolution(this.map.activeWeaponsMarkers.getLayers()[1].getLatLng(), this.getLatLng(), this.map, this.map.activeWeaponsMarkers.getLayers()[1].heightPadding);
+            this.firingSolution2 = new SquadFiringSolution(this.map.activeWeaponsMarkers.getLayers()[1].getLatLng(), this.getLatLng(), this.map, this.map.activeWeaponsMarkers.getLayers()[1].heightPadding, this.getLatLng(), this.getTargetHeight());
             this.calcMarker1.setContent(`1. ${html1}`);
             const [html2, clipboard2] = this.getContent(this.firingSolution2, this.map.activeWeaponsMarkers.getLayers()[1].angleType);
             this.calcMarker2.setContent(`2. ${html2}`).openOn(this.map);
@@ -436,7 +445,7 @@ export const squadTargetMarker = squadMarker.extend({
             content += `<br><span class="calcNoHeight">⚠ <span data-i18n="common:noHeightData">${i18next.t("common:noHeightData")}</span></span>`;
         }
         content += this.formatRounds(firingSolution, shownArcs);
-        if (firingSolution === this.firingSolution1) content += this.formatCorrection();
+        if (firingSolution === this.firingSolution1) content += this.formatCorrection() + this.formatHeightChoice();
 
         if (App.userSettings.showBearing) content += `<br><span class=bearingUiCalc>${BEARING.toFixed(1)}<span data-i18n="common:°">${i18next.t("common:°")}</span></span>`;
         if (App.userSettings.showTimeOfFlight) content += `<br><span class=bearingUiCalc>${timeOfFlight}</span>`;
@@ -755,6 +764,28 @@ export const squadTargetMarker = squadMarker.extend({
 
 
     /**
+     * Height of the target when the user put it off the ground: only while the volume layer can answer (set off,
+     * or a map change, and the target is on the ground again)
+     * @returns {number|null} - in the heightmap's heights (SquadHeightmap.getHeight); null for the ground
+     */
+    getTargetHeight: function() {
+        return this.heightChoice && this.map.volume.ready ? this.heightChoice.height : null;
+    },
+
+
+    /**
+     * Popup line of the height the user chose for the target
+     * @returns {string} - HTML line, empty for a target on the ground
+     */
+    formatHeightChoice: function() {
+        if (this.getTargetHeight() === null) return "";
+        const { kind, above } = this.heightChoice;
+        const meters = `<span data-i18n="common:m">${i18next.t("common:m")}</span>`;
+        return `<br><span class="calcTargetHeight">⌖ ${i18next.t(`common:targetHeight_${kind}`)} ${above >= 0 ? "+" : ""}${above.toFixed(1)}${meters}</span>`;
+    },
+
+
+    /**
      * Popup line of the fire correction: bursts marked and how far the aim moved off the target
      * @returns {string} - HTML line, empty without marked bursts
      */
@@ -905,13 +936,13 @@ export const squadTargetMarker = squadMarker.extend({
     updateCalc: function(copy = false){
         let clipboard;
         this.dropStaleImpacts();
-        this.firingSolution1 = new SquadFiringSolution(this.map.activeWeaponsMarkers.getLayers()[0].getLatLng(), this.getAimLatLng(), this.map, this.map.activeWeaponsMarkers.getLayers()[0].heightPadding, this.getLatLng());
+        this.firingSolution1 = new SquadFiringSolution(this.map.activeWeaponsMarkers.getLayers()[0].getLatLng(), this.getAimLatLng(), this.map, this.map.activeWeaponsMarkers.getLayers()[0].heightPadding, this.getLatLng(), this.getTargetHeight());
         const [html1, clipboard1] = this.getContent(this.firingSolution1, this.map.activeWeaponsMarkers.getLayers()[0].angleType);
         this.calcMarker1.setContent(html1);
         clipboard = clipboard1;
 
         if (this.map.activeWeaponsMarkers.getLayers().length === 2) {
-            this.firingSolution2 = new SquadFiringSolution(this.map.activeWeaponsMarkers.getLayers()[1].getLatLng(), this.getLatLng(), this.map, this.map.activeWeaponsMarkers.getLayers()[1].heightPadding);
+            this.firingSolution2 = new SquadFiringSolution(this.map.activeWeaponsMarkers.getLayers()[1].getLatLng(), this.getLatLng(), this.map, this.map.activeWeaponsMarkers.getLayers()[1].heightPadding, this.getLatLng(), this.getTargetHeight());
             const [html2, clipboard2] = this.getContent(this.firingSolution2, this.map.activeWeaponsMarkers.getLayers()[1].angleType);
             this.calcMarker1.setContent(`1. ${html1}`);
             this.calcMarker2.setContent(`2. ${html2}`).openOn(this.map);
@@ -1012,8 +1043,6 @@ export const squadTargetMarker = squadMarker.extend({
 
     _handleClick: function() {
         const DIALOG = document.getElementById("calcInformation");
-        let simulation2;
-        let weaponPos2;
 
         $("#sim1").addClass("active");
         $("#sim2").removeClass("active");
@@ -1025,26 +1054,77 @@ export const squadTargetMarker = squadMarker.extend({
         $("#canvasControls > .active").first().removeClass("active");
         $("#canvasControls > button").first().addClass("active");
 
-        const weaponPos1 = this.map.activeWeaponsMarkers.getLayers()[0].getLatLng();
-        const { path: heightPath1, weaponIndex: weaponIndex1, targetIndex: targetIndex1 } = this._map.heightmap.getHeightPath(weaponPos1, this.getLatLng());
-        const simulation1 = new SquadSimulation("#sim1", this.firingSolution1, heightPath1, this.map.activeWeaponsMarkers.getLayers()[0].angleType, App.activeWeapon.unit, 0, weaponIndex1, targetIndex1);
-        $("#canvasControls").css("display", "none");
-
-        if (this.map.activeWeaponsMarkers.getLayers().length === 2){
-            $("#canvasControls").css("display", "block");
-            weaponPos2 = this.map.activeWeaponsMarkers.getLayers()[1].getLatLng();
-            const { path: heightPath2, weaponIndex: weaponIndex2, targetIndex: targetIndex2 } = this._map.heightmap.getHeightPath(weaponPos2, this.getLatLng());
-            simulation2 = new SquadSimulation("#sim2", this.firingSolution2, heightPath2, this.map.activeWeaponsMarkers.getLayers()[1].angleType, App.activeWeapon.unit, 0, weaponIndex2, targetIndex2);
-        }
+        this.drawSimulations();
+        dialogTarget = this;
+        this.showTargetOptions();
 
         // If the user close the modal, stop the animation
         // ...or it does crazy stuff if he reopen it before the animation runs out
-        DIALOG.addEventListener("close", function(){
-            cancelAnimationFrame(simulation1.animationFrame);
-            if (simulation2){ cancelAnimationFrame(simulation2.animationFrame);}
-        });
+        DIALOG.addEventListener("close", () => {
+            this.simulations.forEach((simulation) => cancelAnimationFrame(simulation.animationFrame));
+            dialogTarget = null;
+        }, { once: true });
 
         DIALOG.showModal();
+    },
+
+
+    /**
+     * Draw the trajectory simulation of each weapon in the information dialog
+     */
+    drawSimulations: function() {
+        this.simulations?.forEach((simulation) => cancelAnimationFrame(simulation.animationFrame));
+
+        const weapons = this.map.activeWeaponsMarkers.getLayers();
+        const { path: heightPath1, weaponIndex: weaponIndex1, targetIndex: targetIndex1 } = this._map.heightmap.getHeightPath(weapons[0].getLatLng(), this.getLatLng());
+        this.simulations = [new SquadSimulation("#sim1", this.firingSolution1, heightPath1, weapons[0].angleType, App.activeWeapon.unit, 0, weaponIndex1, targetIndex1)];
+        $("#canvasControls").css("display", "none");
+
+        if (weapons.length === 2){
+            $("#canvasControls").css("display", "block");
+            const { path: heightPath2, weaponIndex: weaponIndex2, targetIndex: targetIndex2 } = this._map.heightmap.getHeightPath(weapons[1].getLatLng(), this.getLatLng());
+            this.simulations.push(new SquadSimulation("#sim2", this.firingSolution2, heightPath2, weapons[1].angleType, App.activeWeapon.unit, 0, weaponIndex2, targetIndex2));
+        }
+    },
+
+
+    /**
+     * Fill the target options of the information dialog: the structure under the target (a deployable marker
+     * within STRUCTURE_RADIUS) and the shells that destroy it, and, when the volume layer is on and has a
+     * file for the map, the heights the target can have at this point. A row without content stays hidden.
+     */
+    showTargetOptions: async function() {
+        const structureRow = document.getElementById("structureRow");
+        const heightRow = document.getElementById("targetHeightRow");
+        const select = document.getElementById("targetHeightSelect");
+        heightRow.hidden = true;
+
+        const nearby = findNearbyStructure(this.map, this.getLatLng());
+        const line = nearby && describeStructure(nearby.icon, App.activeWeapon, nearby.distance);
+        structureRow.hidden = !line;
+        if (line) structureRow.querySelector(".infStructure").textContent = line;
+
+        const found = await this.map.volume.heightsAt(this.getLatLng());
+        if (dialogTarget !== this || !found?.choices.length) return;
+
+        // The heightmap fuses buildings with the landscape: where it stands above it, the default "ground" is the top
+        // of the building and the landscape under it is a choice of its own
+        const meters = i18next.t("common:m");
+        const label = (kind, above) => `${i18next.t(`common:targetHeight_${kind}`)}${above === 0 ? "" : ` ${above > 0 ? "+" : ""}${above.toFixed(1)}${meters}`}`;
+        const choices = [...found.choices];
+        const mapAbove = this.map.heightmap.getHeight(this.getLatLng()) - found.landscape;
+        if (Math.abs(mapAbove) >= MIN_OPENING) choices.push({ kind: "landscape", height: found.landscape, above: 0 });
+        const options = [{ text: label("ground", Math.abs(mapAbove) >= MIN_OPENING ? mapAbove : 0), choice: null }];
+        choices.forEach((choice) => options.push({ text: label(choice.kind, choice.above), choice }));
+        select.replaceChildren(...options.map(({ text }, index) => new Option(text, String(index))));
+        const current = this.getTargetHeight() === null ? -1 : options.findIndex(({ choice }) => choice?.kind === this.heightChoice.kind && Math.abs(choice.height - this.heightChoice.height) < 1e-6);
+        select.selectedIndex = Math.max(current, 0);
+        select.onchange = () => {
+            this.heightChoice = options[select.selectedIndex].choice;
+            this.updateCalc();
+            this.drawSimulations();
+        };
+        heightRow.hidden = false;
     },
 
     // Keep the marker on map & update calc while dragging
@@ -1084,6 +1164,8 @@ export const squadTargetMarker = squadMarker.extend({
     
     _handleDragStart: function () {
         this.isDragging = true;
+        // The heights offered belong to the point where the target was
+        this.heightChoice = null;
         this.map.mouseLocationPopup.close();
         this.map.off("pointermove", this.map._handleMouseMove);
 

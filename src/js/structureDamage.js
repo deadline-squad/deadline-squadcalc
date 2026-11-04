@@ -22,6 +22,10 @@
  */
 import { damageAtDistance } from "./squadDamage.js";
 import { STRUCTURES, AMMO } from "../data/structureDamage.js";
+import { SHELL_AMMO } from "../data/structureLinks.js";
+
+/** A shell that bursts within this many meters of a structure counts as a direct hit on it, meters */
+export const DIRECT_HIT_RADIUS = 1;
 
 /**
  * The structure entry that has a deployable class
@@ -62,6 +66,29 @@ export function damageToStructure(structure, ammo, { directHit = false, distance
 export function shellsToDestroy(structure, ammo, options) {
     const { damage } = damageToStructure(structure, ammo, options);
     return damage > 0 ? Math.ceil(structure.maxHealth / damage - 1e-9) : Infinity;
+}
+
+/**
+ * What the selected weapon and shell do to a structure, for the target dialog and the marker popups: shells to
+ * destroy it from full health with the model above (INFERRED combination, see the header). One shell per count, each
+ * landing where aimed: the spread is not part of it.
+ * @param {string} className - Blueprint class of the structure (a value of MARKER_STRUCTURES)
+ * @param {{name: string, shellName: string, explosion: {outer: number}}} weapon - the active weapon (weapons.js
+ *   `name`, the selected shell's `name`) with the raw explosion of that shell (squadWeapons.changeShell)
+ * @param {number} [distance=0] - meters from the burst to the structure; a direct hit up to DIRECT_HIT_RADIUS
+ * @returns {{status: "shells", shells: number, structure: object, ammo: object}|{status: "none", structure: object}|null}
+ *   `shells` is the count; `none` when the shell does no damage to the structure (it does not explode: AP and
+ *   machine-gun rounds, or its damage type is not one the structure takes); null when the structure or the shell is
+ *   not in the game data (SHELL_AMMO)
+ */
+export function structureOutcome(className, weapon, distance = 0) {
+    const structure = findStructure(className);
+    if (!structure) return null;
+    if (!(weapon.explosion?.outer > 0)) return { status: "none", structure };
+    const ammo = AMMO[SHELL_AMMO[`${weapon.name}/${weapon.shellName}`]];
+    if (!ammo) return null;
+    const shells = shellsToDestroy(structure, ammo, { directHit: distance <= DIRECT_HIT_RADIUS, distance });
+    return Number.isFinite(shells) ? { status: "shells", shells, structure, ammo } : { status: "none", structure };
 }
 
 export { STRUCTURES, AMMO };

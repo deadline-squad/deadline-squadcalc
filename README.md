@@ -68,6 +68,16 @@
 </details>
 
 <details>
+  <summary><b>Target heights and structure damage</b></summary>
+  </br>
+  With <i>Object volumes in the line of fire</i> on and a map that has volume files, clicking a target opens its dialog with a <i>Target height</i> list: the floors, ceilings, roof, windows and doorways found by a vertical ray through the voxel column at the target (open windows and doorways are holes, closed windows are solid, a door is open or absent; they are recognised from the shape of the walls). The chosen height is used for the elevation, the height difference and the line-of-fire check, and shows in the target's popup. <i>Ground</i>, the default, is the heightmap's height as before.
+  </br></br>
+  Clicking a deployable marker (FOB radio, HAB, mortar, HMG, GMG, AA gun, ammo crate, repair station) shows how many shells of the selected ammunition destroy it from full health; the target dialog shows the same for a target within 5 m of such a marker. Health and damage-type multipliers are the game's, how the game combines them is inferred and not verified in game. Armour-piercing and machine-gun rounds do no structure damage. Method and data: <code>tools/volumetric/docs/structure-damage.md</code> of the deployment repository.
+
+  </br>
+</details>
+
+<details>
   <summary><b>Spread and Damages radiuses</b></summary>  
   </br>
   Reduce teamkilling and maximize your damage by visualizing the spread of your shells and the range of their explosions.  
