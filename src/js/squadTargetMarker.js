@@ -100,6 +100,14 @@ function processCoverQueue() {
 
 export const squadTargetMarker = squadMarker.extend({
 
+    options: {
+        keyboard: true,
+    },
+
+    getAccessibleName: function() {
+        return i18next.t("tooltips:targetMarker");
+    },
+
     initialize: function (latlng, options, map) {
 
         squadMarker.prototype.initialize.call(this, latlng, options, map);

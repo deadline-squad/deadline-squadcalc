@@ -146,7 +146,7 @@ export default class SquadFactions {
                 if (asset.displayName.includes("Drone") || asset.displayName.includes("UAV")) tactical = "drone";
                 $("#pinnedVehiclesTab").append(`
                     <div class="pinnedVehicles animate__animated animate__fadeInLeft" data-vehiclename="${asset.displayName}" data-vehtype="${tactical}" data-vehicon="${tactical}"data-respawntime="${asset.delay}">
-                        <button type="button" class="btn-pined" aria-label="Select Factions">
+                        <button type="button" class="btn-pined" data-i18n-aria-label="vehicles:${asset.displayName}" aria-label="${i18next.t(asset.displayName, { ns: "vehicles" })}">
                             <img src="/img/icons/shared/commander/${asset.icon}.webp" alt="Faction Icon"/>
                         </button>
                         <div class="pinedVehiclesMeta">
@@ -169,7 +169,7 @@ export default class SquadFactions {
 
                 $("#pinnedVehiclesTab").append(`
                     <div class="pinnedVehicles animate__animated animate__fadeInLeft" data-vehiclename="${vehicle.type}" data-vehtype="${vehicle.vehType}" data-vehicon="${vehicle.icon}" data-respawntime="${vehicle.respawnTime}">
-                        <button type="button" class="btn-pined" aria-label="Select Factions">
+                        <button type="button" class="btn-pined" data-i18n-aria-label="vehicles:${vehicle.type}" aria-label="${i18next.t(vehicle.type, { ns: "vehicles" })}">
                             <img src="/img/icons/default/vehicles/${vehicle.icon}.svg" alt="Faction Icon"/>
                         </button>
                         <div class="pinedVehiclesMeta">

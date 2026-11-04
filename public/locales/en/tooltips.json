@@ -92,5 +92,17 @@
     "heightmapFailed": "No height data",
     "heightmapFailedDesc": "The heightmap of this map failed to load: firing solutions assume flat ground (height 0).",
     "heightmapCoarse": "Coarse heights",
-    "heightmapCoarseDesc": "The precise heightmap of this map could not be downloaded (network): heights come from the coarse 8-bit heightmap, up to 2 m off. Reload the page to try again."
+    "heightmapCoarseDesc": "The precise heightmap of this map could not be downloaded (network): heights come from the coarse 8-bit heightmap, up to 2 m off. Reload the page to try again.",
+    "mapLayers": "Map layers",
+    "moreMapTools": "More map tools",
+    "closeDialog": "Close",
+    "sessionToggle": "Shared session",
+    "selectServer": "Server",
+    "selectMap": "Map",
+    "selectLayer": "Layer",
+    "selectWeapon": "Weapon",
+    "selectAmmo": "Ammunition",
+    "selectLanguage": "Language",
+    "weaponMarker": "Weapon",
+    "targetMarker": "Target"
 }

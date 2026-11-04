@@ -12,6 +12,7 @@ import SquadServersBrowser from "./squadServersBrowser.js";
 import SquadSession from "./squadSession.js";
 import SquadFiringSolution from "./squadFiringSolution.js";
 import SquadSettings from "./squadSettings.js";
+import { observeAriaPressed } from "./accessibility.js";
 import packageInfo from "../../package.json";
 import { marked, Renderer } from "marked";
 
@@ -904,6 +905,8 @@ export default class SquadCalc {
             }
         });
 
+
+        observeAriaPressed();
 
         $("#mapLayerMenu").find("button.layers").on("click", (event) => {
 
