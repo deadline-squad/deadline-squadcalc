@@ -107,5 +107,5 @@
     "weaponMarker": "Arme",
     "targetMarker": "Cible",
     "targetHeightDesc": "Hauteurs trouvées en ce point dans la couche de volumes : les étages, plafonds, toits, fenêtres et portes qu'une ligne verticale traverse. Les fenêtres et portes sont des ouvertures, reconnues à la forme des murs et non aux données de bâtiments du jeu. La solution de tir et la ligne de tir utilisent la hauteur choisie.",
-    "structureDamageDesc": "Obus de la munition choisie qui détruisent la structure depuis sa vie complète, chacun tombant dessus. La vie et les multiplicateurs par type de dégâts viennent du jeu ; la façon dont le jeu les combine est déduite des noms de champs et n'a pas été vérifiée en jeu. La dispersion n'est pas incluse."
+    "structureDamageDesc": "Obus de la munition choisie qui détruisent la structure depuis sa vie complète, chacun tombant dessus. La vie, les multiplicateurs par type de dégâts et la façon dont le jeu les applique (dégâts minimum, coup direct contre tir manqué, distance) viennent du jeu, lus dans le code du serveur. Les dégâts de l'impact d'un coup direct et l'explosion secondaire des mortiers sont déduits. La dispersion n'est pas incluse."
 }

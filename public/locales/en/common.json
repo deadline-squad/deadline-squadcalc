@@ -92,7 +92,7 @@
     "targetHeight_doorway": "Doorway",
     "targetHeight_ceiling": "Ceiling",
     "targetHeight_roof": "Roof",
-    "structureShells": "Shells to destroy (inferred)",
+    "structureShells": "Shells to destroy",
     "structureNoDamage": "no structure damage",
     "structureFob": "FOB radio",
     "structureHab": "HAB",

@@ -92,7 +92,7 @@
     "targetHeight_doorway": "门洞",
     "targetHeight_ceiling": "天花板",
     "targetHeight_roof": "屋顶",
-    "structureShells": "摧毁所需炮弹数（推算）",
+    "structureShells": "摧毁所需炮弹数",
     "structureNoDamage": "对建筑无伤害",
     "structureFob": "FOB 电台",
     "structureHab": "HAB",

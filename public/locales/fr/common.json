@@ -92,7 +92,7 @@
     "targetHeight_doorway": "Porte",
     "targetHeight_ceiling": "Plafond",
     "targetHeight_roof": "Toit",
-    "structureShells": "Obus pour détruire (estimé)",
+    "structureShells": "Obus pour détruire",
     "structureNoDamage": "aucun dégât aux structures",
     "structureFob": "Radio FOB",
     "structureHab": "HAB",

@@ -92,7 +92,7 @@
     "targetHeight_doorway": "Дверний проріз",
     "targetHeight_ceiling": "Стеля",
     "targetHeight_roof": "Дах",
-    "structureShells": "Снарядів для знищення (розрахунково)",
+    "structureShells": "Снарядів для знищення",
     "structureNoDamage": "немає шкоди спорудам",
     "structureFob": "Радіостанція FOB",
     "structureHab": "HAB",
