@@ -54,12 +54,20 @@ lo, hi = t.min(axis=(0, 1)), t.max(axis=(0, 1))
 index = TriangleIndex(t, np.ones(len(t), np.uint8), lo[0], lo[1], hi[0] - lo[0], hi[1] - lo[1])
 ref_t = np.full(n_seg, np.nan)
 ref_tri = np.full(n_seg, -1, np.int32)
-for i in range(n_seg):
-    if i % 2000 == 0:
-        print("ref", i, flush=True)
+
+
+def first_hit(i):
     tt, tid, _ = index.hits(p0[i], p1[i], 1)
-    if len(tt):
-        ref_t[i], ref_tri[i] = tt[0], tid[0]
+    return (tt[0], tid[0]) if len(tt) else (np.nan, -1)
+
+
+if __name__ == "__main__":
+    import multiprocessing as mp
+    with mp.get_context("fork").Pool(8) as pool:
+        for i, (tt, tid) in enumerate(pool.imap(first_hit, range(n_seg), chunksize=50)):
+            ref_t[i], ref_tri[i] = tt, tid
+            if i % 2000 == 0:
+                print("ref", i, flush=True)
 ref_t.tofile(f"{out}/ref_t.bin")
 ref_tri.tofile(f"{out}/ref_tri.bin")
 json.dump({"window": [x0, y0, window], "triangles": int(len(t)), "segments": n_seg, "mask_bit": bit,
