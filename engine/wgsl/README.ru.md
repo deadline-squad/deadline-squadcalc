@@ -9,7 +9,8 @@ WebGPU-устройстве.
 | `trace.wgsl` | Точки входа `trace_segments` (один поток на отрезок) и `trace_trajectories` (один поток на траекторию из N отрезков, возвращает первый перекрытый). |
 | `heatmap.wgsl` | Точка входа `heatmap`: один поток на кандидата-позицию стрельбы, обе дуги. |
 | `voxel.wgsl` | Точка входа `voxel_segments`: один поток на отрезок, первый занятый воксель файла `VCOL1` обходом колонок по DDA (без BVH). |
-| `gpu.mjs` | Хост: `parseBvh`, `requestDevice`, `BallisticsGpu` (`traceSegments`, `traceTrajectories`, `heatmap`). Работает в браузере и в любом WebGPU-рантайме. |
+| `gpu.mjs` | Хост: `parseBvh`, `requestDevice` (запрашивает и `timestamp-query`, если он есть), `BallisticsGpu` (`traceSegments`, `traceTrajectories`, `heatmap`), `VoxelGpu`; каждый вызов ядра возвращает `elapsedMs` (от submit до завершения) и `gpuMs` (метки времени GPU, `null` без расширения). Работает в браузере и в любом WebGPU-рантайме. |
+| `bench/` | Статическая страница GPU-бенчмарка (`bench.html`): замеряет все четыре ядра на видеокарте того, кто её открыл, и сверяет с f64-эталонами, см. `bench/README.ru.md`. |
 | `test/` | `make_fixture.py` (реальные треугольники Фаллуджи + точный эталон float64), `bvh_tools.mjs` (тестовый JS-экспортёр BVH и CPU-копии в f64), `run.mjs` (прогон). |
 
 ## Формат BVH (читается, не меняется)
