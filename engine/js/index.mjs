@@ -56,6 +56,16 @@ export class Engine {
     }
 
     /**
+     * Registers a precision region: the exact triangles around one target, built offline by `build_region.py`.
+     * @param {string} reference - the name requests use in `environment.region_ref`
+     * @param {string} vcolReference - the voxel columns it was built against (load them first)
+     * @param {Uint8Array} bytes - an `RTRI1` file, gzip or already decompressed
+     */
+    loadRegion(reference, vcolReference, bytes) {
+        this.#inner.load_region(reference, vcolReference, bytes);
+    }
+
+    /**
      * Answers a request.
      * @param {object} request - see README.md
      * @returns {object} the response
@@ -84,6 +94,22 @@ export class Engine {
     voxelFirstBlock(reference, segment) {
         const hit = this.#inner.voxel_first_block(reference, Float64Array.from(segment));
         return hit.length ? { column: hit[0], row: hit[1], z: hit[2], t: hit[3] } : null;
+    }
+
+    /**
+     * First obstacle of a segment in the precision pass: voxels away from the region's square or its triangles
+     * near a voxel inside it.
+     * @param {string} reference - the region
+     * @param {string} vcolReference - the voxel columns it was loaded against
+     * @param {number[]} segment - x0, y0, z0, x1, y1, z1, in the frame of the file
+     * @returns {{t: number, voxel: {column: number, row: number, z: number}}|{t: number, triangle: number}|null}
+     */
+    precisionFirstBlock(reference, vcolReference, segment) {
+        const hit = this.#inner.precision_first_block(reference, vcolReference, Float64Array.from(segment));
+        if (!hit.length) return null;
+        return hit[1] === 0
+            ? { t: hit[0], voxel: { column: hit[2], row: hit[3], z: hit[4] } }
+            : { t: hit[0], triangle: hit[2] };
     }
 }
 

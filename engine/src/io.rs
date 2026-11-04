@@ -23,6 +23,7 @@ use crate::flight::Flight;
 use crate::heightmap::Heightmap;
 use crate::materials;
 use crate::path::{trajectory_segments, Segment};
+use crate::precision::{PrecisionRegion, RegionFile};
 use crate::trace::{first_hit_along, Scene};
 use crate::voxel::VoxelColumns;
 use crate::weapon::{deg_to_rad, rad_to_deg, Weapon};
@@ -69,6 +70,11 @@ pub struct Environment {
     /// then in the frame of the file, see [`crate::voxel`].
     #[serde(default)]
     pub vcol_ref: Option<String>,
+    /// Name of a precision region in [`Resources`] (an `RTRI1` file path for the CLI); needs `vcol_ref`. Inside the
+    /// region's square a path that comes near a voxel is tested against the region's exact triangles instead of
+    /// being blocked by the voxel, see [`crate::precision`].
+    #[serde(default)]
+    pub region_ref: Option<String>,
 }
 
 /// Which arc to fire.
@@ -182,6 +188,8 @@ pub enum EngineError {
     UnknownBvh(String),
     /// The request names voxel columns that were not loaded.
     UnknownVcol(String),
+    /// The request names a precision region that was not loaded.
+    UnknownRegion(String),
     /// A value is not usable (message).
     Invalid(String),
 }
@@ -193,6 +201,7 @@ impl fmt::Display for EngineError {
             EngineError::UnknownHeightmap(r) => write!(f, "heightmap_ref {r:?} was not loaded"),
             EngineError::UnknownBvh(r) => write!(f, "bvh_buffer_ref {r:?} was not loaded"),
             EngineError::UnknownVcol(r) => write!(f, "vcol_ref {r:?} was not loaded"),
+            EngineError::UnknownRegion(r) => write!(f, "region_ref {r:?} was not loaded"),
             EngineError::Invalid(m) => write!(f, "invalid request: {m}"),
         }
     }
@@ -206,6 +215,7 @@ pub struct Resources {
     heightmaps: HashMap<String, Heightmap>,
     bvhs: HashMap<String, BvhSet>,
     vcols: HashMap<String, VoxelColumns>,
+    regions: HashMap<String, PrecisionRegion>,
 }
 
 impl Resources {
@@ -229,9 +239,31 @@ impl Resources {
         self.vcols.insert(reference.to_string(), columns);
     }
 
+    /// Registers a precision region under `reference`, built against the voxel columns registered as
+    /// `vcol_reference` (the ones requests must then name with `vcol_ref`).
+    ///
+    /// # Errors
+    /// [`EngineError::UnknownVcol`] if `vcol_reference` is not registered, [`EngineError::Invalid`] if the
+    /// triangles cannot form a hierarchy.
+    pub fn add_region(
+        &mut self,
+        reference: &str,
+        vcol_reference: &str,
+        file: RegionFile,
+    ) -> Result<(), EngineError> {
+        let columns = self
+            .vcols
+            .get(vcol_reference)
+            .ok_or_else(|| EngineError::UnknownVcol(vcol_reference.to_string()))?;
+        let region = PrecisionRegion::from_file(columns, file)
+            .map_err(|e| EngineError::Invalid(format!("region {reference}: {e}")))?;
+        self.regions.insert(reference.to_string(), region);
+        Ok(())
+    }
+
     /// Loads the files a request names: `heightmap_ref` is a `.png` (16-bit grayscale) or a raw `.g16` path,
     /// `bvh_buffer_ref` a `bvh.bin` path or a directory whose `*.bin` files are the parts of a [`BvhSet`],
-    /// `vcol_ref` a `VCOL1` file (gzip or decompressed).
+    /// `vcol_ref` a `VCOL1` file (gzip or decompressed), `region_ref` an `RTRI1` file (loaded after the voxel columns).
     /// Refs already registered are kept.
     ///
     /// # Errors
@@ -288,6 +320,19 @@ impl Resources {
             let columns = VoxelColumns::from_bytes(&bytes).map_err(|e| fail("vcol", path, &e))?;
             self.add_vcol(path, columns);
         }
+        if let Some(path) = environment
+            .region_ref
+            .as_deref()
+            .filter(|p| !self.has_region(p))
+        {
+            let vcol = environment
+                .vcol_ref
+                .as_deref()
+                .ok_or_else(|| EngineError::Invalid("region_ref needs vcol_ref".to_string()))?;
+            let bytes = std::fs::read(path).map_err(|e| fail("region", path, &e))?;
+            let file = RegionFile::from_bytes(&bytes).map_err(|e| fail("region", path, &e))?;
+            self.add_region(path, vcol, file)?;
+        }
         Ok(())
     }
 
@@ -310,6 +355,16 @@ impl Resources {
     pub fn has_vcol(&self, reference: &str) -> bool {
         self.vcols.contains_key(reference)
     }
+
+    /// The precision region registered under `reference`.
+    pub fn region(&self, reference: &str) -> Option<&PrecisionRegion> {
+        self.regions.get(reference)
+    }
+
+    /// Whether a precision region is registered under `reference`.
+    pub fn has_region(&self, reference: &str) -> bool {
+        self.regions.contains_key(reference)
+    }
 }
 
 /// Parses a JSON request and answers it as JSON.
@@ -325,7 +380,7 @@ pub fn run_json(input: &str, resources: &Resources) -> Result<String, EngineErro
 /// Answers a request.
 ///
 /// # Errors
-/// [`EngineError::UnknownHeightmap`] / [`EngineError::UnknownBvh`] / [`EngineError::UnknownVcol`] for refs that are not in `resources`,
+/// [`EngineError::UnknownHeightmap`] / [`EngineError::UnknownBvh`] / [`EngineError::UnknownVcol`] / [`EngineError::UnknownRegion`] for refs that are not in `resources`,
 /// [`EngineError::Invalid`] for a non-finite position or velocity.
 pub fn run(request: &Request, resources: &Resources) -> Result<Response, EngineError> {
     let finite = request
@@ -364,6 +419,20 @@ pub fn run(request: &Request, resources: &Resources) -> Result<Response, EngineE
                 .get(r)
                 .ok_or_else(|| EngineError::UnknownVcol(r.clone()))?,
         ),
+        None => None,
+    };
+    let region = match &environment.region_ref {
+        Some(r) => {
+            if voxels.is_none() {
+                return Err(EngineError::Invalid("region_ref needs vcol_ref".into()));
+            }
+            Some(
+                resources
+                    .regions
+                    .get(r)
+                    .ok_or_else(|| EngineError::UnknownRegion(r.clone()))?,
+            )
+        }
         None => None,
     };
 
@@ -444,11 +513,20 @@ pub fn run(request: &Request, resources: &Resources) -> Result<Response, EngineE
             hit_triangle = Some((hit.hit.part, hit.hit.triangle));
         }
     }
-    if let Some(hit) = voxels.and_then(|v| v.first_block_along(&segments)) {
-        if hit.time < impact_time {
+    let layer_hit = match (voxels, region) {
+        (Some(columns), Some(region)) => region
+            .first_block_along(columns, &segments)
+            .map(|hit| (hit.point, hit.time)),
+        (Some(columns), None) => columns
+            .first_block_along(&segments)
+            .map(|hit| (hit.point, hit.time)),
+        (None, _) => None,
+    };
+    if let Some((point, time)) = layer_hit {
+        if time < impact_time {
             occluded = true;
-            impact = hit.point;
-            impact_time = hit.time;
+            impact = point;
+            impact_time = time;
             hit_triangle = None;
         }
     }
@@ -739,6 +817,86 @@ mod tests {
             &resources,
         );
         assert!((r["collision_details"]["point"][1].as_f64().unwrap() - 100.0).abs() < 1e-9);
+    }
+
+    /// A marked voxel row at Y = 300..300.5 across the line of fire and, 0.4 m before it, no triangle: the voxels
+    /// block the path, the exact triangles of the region (none) let it through.
+    #[test]
+    fn a_region_overrules_a_voxel_the_triangles_do_not_touch() {
+        let mut resources = Resources::new();
+        resources.add_vcol("wall", voxel_wall(600));
+        let file = RegionFile {
+            bounds: [-20.0, 250.0, 20.0, 350.0],
+            margin: 0.6,
+            triangles: vec![[
+                [100.0, 100.0, 0.0],
+                [101.0, 100.0, 0.0],
+                [100.0, 101.0, 0.0],
+            ]],
+        };
+        resources.add_region("near-target", "wall", file).unwrap();
+        let plain = r#","environment":{"vcol_ref":"wall"},"options":{"arc":"low"}"#;
+        let precise = r#","environment":{"vcol_ref":"wall","region_ref":"near-target"},"options":{"arc":"low"}"#;
+        assert_eq!(
+            run_text(&request(plain), &resources)["occlusion_status"],
+            "occluded"
+        );
+        assert_eq!(
+            run_text(&request(precise), &resources)["occlusion_status"],
+            "clear"
+        );
+    }
+
+    #[test]
+    fn a_region_triangle_is_the_impact_instead_of_the_voxel_behind_it() {
+        let mut resources = Resources::new();
+        resources.add_vcol("wall", voxel_wall(600));
+        let file = RegionFile {
+            bounds: [-20.0, 250.0, 20.0, 350.0],
+            margin: 0.6,
+            triangles: vec![[
+                [-10.0, 299.8, -10.0],
+                [10.0, 299.8, -10.0],
+                [0.0, 299.8, 400.0],
+            ]],
+        };
+        resources.add_region("near-target", "wall", file).unwrap();
+        let r = run_text(
+            &request(
+                r#","environment":{"vcol_ref":"wall","region_ref":"near-target"},"options":{"arc":"low"}"#,
+            ),
+            &resources,
+        );
+        assert_eq!(r["occlusion_status"], "occluded");
+        let y = r["collision_details"]["point"][1].as_f64().unwrap();
+        assert!((y - 299.8).abs() < 1e-4, "impact at Y = {y}");
+    }
+
+    #[test]
+    fn a_region_needs_voxel_columns_and_must_be_loaded() {
+        let mut resources = Resources::new();
+        resources.add_vcol("wall", voxel_wall(600));
+        let file = RegionFile {
+            bounds: [0.0, 0.0, 1.0, 1.0],
+            margin: 0.6,
+            triangles: Vec::new(),
+        };
+        assert!(matches!(
+            resources.add_region("r", "missing", file.clone()),
+            Err(EngineError::UnknownVcol(_))
+        ));
+        resources.add_region("r", "wall", file).unwrap();
+        assert!(matches!(
+            run_json(&request(r#","environment":{"region_ref":"r"}"#), &resources),
+            Err(EngineError::Invalid(_))
+        ));
+        assert!(matches!(
+            run_json(
+                &request(r#","environment":{"vcol_ref":"wall","region_ref":"nope"}"#),
+                &resources
+            ),
+            Err(EngineError::UnknownRegion(_))
+        ));
     }
 
     #[test]

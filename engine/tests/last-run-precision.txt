@@ -1,0 +1,53 @@
+     Running tests/precision_parity.rs (target/release/deps/precision_parity-6c7e2fc834a90c19)
+
+running 1 test
+jensen: regions
+jensen: 100000 segments, 29732 exact blocked
+voxel walk alone                             false clear  129 ( 14 grazing)  false blocked  3948 ( 2637 grazing)  wrong 4.08 %  without grazing 1.43 %
+  7.73 us per segment (one thread)
+  16 regions of 300 m x 300 m: file bytes min 57 median 99533 max 5041780 total 8646198; triangles min 0 max 2778978
+precision pass, target at the segment end    false clear    8 (  1 grazing)  false blocked   279 (  185 grazing)  wrong 0.29 %  without grazing 0.10 %
+  sent to the exact pass 42013 = 42.01 %, 8.85 us per segment (one thread)
+precision pass, target at the segment start  false clear    0 (  0 grazing)  false blocked     3 (    2 grazing)  wrong 0.00 %  without grazing 0.00 %
+  sent to the exact pass 44638 = 44.64 %, 11.96 us per segment (one thread)
+exact triangles of the whole window (3594819 triangles) in every segment's reach:
+margin 0 m, region = window                  false clear  129 ( 14 grazing)  false blocked     0 (    0 grazing)  wrong 0.13 %  without grazing 0.12 %
+  sent to the exact pass 33551 = 33.55 %, 10.42 us per segment (one thread)
+margin 0.25 m, region = window               false clear    0 (  0 grazing)  false blocked     0 (    0 grazing)  wrong 0.00 %  without grazing 0.00 %
+  sent to the exact pass 39060 = 39.06 %, 9.72 us per segment (one thread)
+margin 0.3 m, region = window                false clear    0 (  0 grazing)  false blocked     0 (    0 grazing)  wrong 0.00 %  without grazing 0.00 %
+  sent to the exact pass 40822 = 40.82 %, 8.22 us per segment (one thread)
+margin 0.5 m, region = window                false clear    0 (  0 grazing)  false blocked     0 (    0 grazing)  wrong 0.00 %  without grazing 0.00 %
+  sent to the exact pass 40822 = 40.82 %, 8.41 us per segment (one thread)
+margin 0.6 m, region = window                false clear    0 (  0 grazing)  false blocked     0 (    0 grazing)  wrong 0.00 %  without grazing 0.00 %
+  sent to the exact pass 44981 = 44.98 %, 8.57 us per segment (one thread)
+margin 1 m, region = window                  false clear    0 (  0 grazing)  false blocked     0 (    0 grazing)  wrong 0.00 %  without grazing 0.00 %
+  sent to the exact pass 46388 = 46.39 %, 10.38 us per segment (one thread)
+
+kokan: regions
+kokan: 100000 segments, 12709 exact blocked
+voxel walk alone                             false clear   83 (  9 grazing)  false blocked  8331 ( 3840 grazing)  wrong 8.41 %  without grazing 4.57 %
+  12.12 us per segment (one thread)
+  16 regions of 300 m x 300 m: file bytes min 1035970 median 2475953 max 3523304 total 38040251; triangles min 315706 max 1097166
+precision pass, target at the segment end    false clear    4 (  1 grazing)  false blocked   858 (  391 grazing)  wrong 0.86 %  without grazing 0.47 %
+  sent to the exact pass 36977 = 36.98 %, 14.40 us per segment (one thread)
+precision pass, target at the segment start  false clear    0 (  0 grazing)  false blocked   103 (   54 grazing)  wrong 0.10 %  without grazing 0.05 %
+  sent to the exact pass 40361 = 40.36 %, 20.59 us per segment (one thread)
+exact triangles of the whole window (8085424 triangles) in every segment's reach:
+margin 0 m, region = window                  false clear   83 (  9 grazing)  false blocked     0 (    0 grazing)  wrong 0.08 %  without grazing 0.07 %
+  sent to the exact pass 20957 = 20.96 %, 10.43 us per segment (one thread)
+margin 0.25 m, region = window               false clear    5 (  0 grazing)  false blocked     0 (    0 grazing)  wrong 0.01 %  without grazing 0.01 %
+  sent to the exact pass 30649 = 30.65 %, 15.00 us per segment (one thread)
+margin 0.3 m, region = window                false clear    1 (  0 grazing)  false blocked     0 (    0 grazing)  wrong 0.00 %  without grazing 0.00 %
+  sent to the exact pass 32989 = 32.99 %, 15.35 us per segment (one thread)
+margin 0.5 m, region = window                false clear    1 (  0 grazing)  false blocked     0 (    0 grazing)  wrong 0.00 %  without grazing 0.00 %
+  sent to the exact pass 32989 = 32.99 %, 16.83 us per segment (one thread)
+margin 0.6 m, region = window                false clear    0 (  0 grazing)  false blocked     0 (    0 grazing)  wrong 0.00 %  without grazing 0.00 %
+  sent to the exact pass 40715 = 40.72 %, 18.47 us per segment (one thread)
+margin 1 m, region = window                  false clear    0 (  0 grazing)  false blocked     0 (    0 grazing)  wrong 0.00 %  without grazing 0.00 %
+  sent to the exact pass 42824 = 42.82 %, 17.90 us per segment (one thread)
+
+test the_precision_pass_agrees_with_the_exact_tracer_better_than_the_voxel_walk ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 127.36s
+

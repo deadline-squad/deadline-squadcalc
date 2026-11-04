@@ -72,6 +72,50 @@ test("voxel columns from a VCOL1 file answer segment queries and requests", () =
     assert.throws(() => engine.solve(request({ environment: { vcol_ref: "nope" } })), /nope/);
 });
 
+test("a precision region replaces the voxel wall by the exact triangle in front of it", () => {
+    // A VCOL1 wall (decompressed form): row 600 of a 200 x 1400 grid of 0.5 m columns from (-50, 0), heights 0..400
+    const bytes = [];
+    const varint = (value) => {
+        while (value >= 0x80) {
+            bytes.push((value & 0x7f) | 0x80);
+            value >>>= 7;
+        }
+        bytes.push(value);
+    };
+    const header = new DataView(new ArrayBuffer(40));
+    [...Buffer.from("VCOL1\0\0\0")].forEach((byte, i) => header.setUint8(i, byte));
+    [-50, 0, 0.5, 1, 0].forEach((value, i) => header.setFloat32(8 + 4 * i, value, true));
+    [200, 1400, 200].forEach((value, i) => header.setUint32(28 + 4 * i, value, true));
+    for (let column = 0; column < 200; column++) [column === 0 ? 600 * 200 : 1, 1, 0, 399].forEach(varint);
+    const wall = Uint8Array.from([...new Uint8Array(header.buffer), ...bytes]);
+    // tests/data/wall.rtri: square x -20..20, y 250..350, margin 0.6, one triangle across the path at y = 299.8
+    const region = readFileSync(here("../../tests/data/wall.rtri"));
+
+    const engine = new Engine();
+    engine.loadVcol("wall", wall);
+    engine.loadRegion("near", "wall", region);
+    const environment = { vcol_ref: "wall", region_ref: "near" };
+    const shot = (extra) => request({ pos_target: [0, 600, 0], options: { arc: "low" }, ...extra });
+    const voxelOnly = engine.solve(shot({ environment: { vcol_ref: "wall" } }));
+    assert.ok(Math.abs(voxelOnly.collision_details.point[1] - 300) < 1e-9);
+    const precise = engine.solve(shot({ environment }));
+    assert.equal(precise.occlusion_status, "occluded");
+    assert.ok(Math.abs(precise.collision_details.point[1] - 299.8) < 1e-4);
+
+    const hit = engine.precisionFirstBlock("near", "wall", [0, 0, 10, 0, 600, 10]);
+    assert.ok(Math.abs(hit.t - 299.8 / 600) < 1e-6);
+    assert.equal(typeof hit.triangle, "number");
+    // Beside the triangle's 20 m width the voxel row is walked in the region: it is near, no triangle: clear
+    assert.equal(engine.precisionFirstBlock("near", "wall", [15, 270, 10, 15, 330, 10]), null);
+    // Outside the square the voxels decide
+    const outside = engine.precisionFirstBlock("near", "wall", [30, 0, 10, 30, 600, 10]);
+    assert.deepEqual(outside.voxel, { column: 160, row: 600, z: 10 });
+    assert.throws(() => engine.loadRegion("x", "missing", region), /missing/);
+    assert.throws(() => engine.loadRegion("x", "wall", new Uint8Array([1, 2, 3])), /not an RTRI1 file/);
+    assert.throws(() => engine.precisionFirstBlock("nope", "wall", [0, 0, 0, 1, 1, 1]), /unknown region/);
+    assert.throws(() => engine.solve(shot({ environment: { vcol_ref: "wall", region_ref: "nope" } })), /nope/);
+});
+
 test("the SIMD128 triangle test equals the scalar one bit for bit", () => {
     assert.equal(plain.has_simd(), false);
     assert.equal(simd.has_simd(), true);

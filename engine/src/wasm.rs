@@ -3,6 +3,7 @@
 use crate::bvh::{triangles_from_le_bytes, BuildOptions, Bvh, BvhSet, MAX_TRIANGLES};
 use crate::heightmap::Heightmap;
 use crate::io::{run_json, Resources};
+use crate::precision::{HitKind, RegionFile};
 use crate::trace::{segment_triangle_f32, Scene};
 use crate::voxel::VoxelColumns;
 use wasm_bindgen::prelude::*;
@@ -89,6 +90,20 @@ impl Engine {
         Ok(())
     }
 
+    /// Registers the contents of an `RTRI1` file (gzip, or already decompressed) as the precision region
+    /// `reference`, built against the voxel columns registered as `vcol_reference` (load those first).
+    pub fn load_region(
+        &mut self,
+        reference: &str,
+        vcol_reference: &str,
+        bytes: &[u8],
+    ) -> Result<(), JsError> {
+        let file = RegionFile::from_bytes(bytes).map_err(js_error)?;
+        self.resources
+            .add_region(reference, vcol_reference, file)
+            .map_err(js_error)
+    }
+
     /// Answers a JSON request (see `README.md`) with a JSON response.
     pub fn run(&self, request_json: &str) -> Result<String, JsError> {
         run_json(request_json, &self.resources).map_err(js_error)
@@ -137,6 +152,47 @@ impl Engine {
                     f64::from(hit.z),
                     hit.t,
                 ],
+                None => Vec::new(),
+            },
+        )
+    }
+
+    /// The precision pass for the segment `p0 -> p1` (6 numbers): the voxel columns `vcol_reference` decide it
+    /// away from the region `reference`'s triangles. `[t, 0, column, row, z]` for a voxel, `[t, 1, triangle]` for
+    /// a triangle of the region, or an empty array if the segment is clear.
+    pub fn precision_first_block(
+        &self,
+        reference: &str,
+        vcol_reference: &str,
+        segment: &[f64],
+    ) -> Result<Vec<f64>, JsError> {
+        let region = self
+            .resources
+            .region(reference)
+            .ok_or_else(|| JsError::new("unknown region"))?;
+        let columns = self
+            .resources
+            .vcol(vcol_reference)
+            .ok_or_else(|| JsError::new("unknown vcol"))?;
+        if segment.len() != 6 {
+            return Err(JsError::new("a segment is 6 numbers"));
+        }
+        Ok(
+            match region.first_block(
+                columns,
+                [segment[0], segment[1], segment[2]],
+                [segment[3], segment[4], segment[5]],
+            ) {
+                Some(hit) => match hit.kind {
+                    HitKind::Voxel(voxel) => vec![
+                        hit.t,
+                        0.0,
+                        f64::from(voxel.column),
+                        f64::from(voxel.row),
+                        f64::from(voxel.z),
+                    ],
+                    HitKind::Triangle(triangle) => vec![hit.t, 1.0, f64::from(triangle)],
+                },
                 None => Vec::new(),
             },
         )
