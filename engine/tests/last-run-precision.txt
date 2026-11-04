@@ -51,3 +51,36 @@ test the_precision_pass_agrees_with_the_exact_tracer_better_than_the_voxel_walk 
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 127.36s
 
+
+
+fallujah: ENGINE_PRECISION_ONE_REGION_AT_A_TIME=1 (the 16 regions hold 64.4 M triangles and do not fit 3 GB together), no margin sweep
+(a region of the whole window would hold 45.3 M triangles). Machine load average about 20 on 8 cores: times are not comparable with the runs above.
+fallujah: regions
+  region_-290_-220.rtri: 18258419 bytes, 4621387 triangles, decoded in 0.660 s, hierarchy and grown voxels in 6.864 s
+  region_-290_-470.rtri: 10954231 bytes, 2972420 triangles, decoded in 0.469 s, hierarchy and grown voxels in 4.241 s
+  region_-290_-720.rtri: 7268555 bytes, 2157193 triangles, decoded in 0.248 s, hierarchy and grown voxels in 3.218 s
+  region_-290_30.rtri: 20264278 bytes, 5245283 triangles, decoded in 0.638 s, hierarchy and grown voxels in 7.194 s
+  region_-40_-220.rtri: 17383660 bytes, 4282060 triangles, decoded in 0.510 s, hierarchy and grown voxels in 6.228 s
+  region_-40_-470.rtri: 9440072 bytes, 2579120 triangles, decoded in 0.266 s, hierarchy and grown voxels in 3.902 s
+  region_-40_-720.rtri: 6481078 bytes, 1809268 triangles, decoded in 0.212 s, hierarchy and grown voxels in 2.494 s
+  region_-40_30.rtri: 15903749 bytes, 3852761 triangles, decoded in 0.478 s, hierarchy and grown voxels in 5.818 s
+  region_210_-220.rtri: 26001993 bytes, 7258717 triangles, decoded in 1.079 s, hierarchy and grown voxels in 10.375 s
+  region_210_-470.rtri: 12256965 bytes, 3255628 triangles, decoded in 0.355 s, hierarchy and grown voxels in 4.509 s
+  region_210_-720.rtri: 13414490 bytes, 3566870 triangles, decoded in 0.480 s, hierarchy and grown voxels in 4.896 s
+  region_210_30.rtri: 13870677 bytes, 4125011 triangles, decoded in 0.475 s, hierarchy and grown voxels in 5.630 s
+  region_460_-220.rtri: 22233436 bytes, 6448469 triangles, decoded in 1.047 s, hierarchy and grown voxels in 8.713 s
+  region_460_-470.rtri: 16702271 bytes, 4446054 triangles, decoded in 0.681 s, hierarchy and grown voxels in 6.236 s
+  region_460_-720.rtri: 12427550 bytes, 3223183 triangles, decoded in 0.374 s, hierarchy and grown voxels in 4.152 s
+  region_460_30.rtri: 16350867 bytes, 4559414 triangles, decoded in 0.573 s, hierarchy and grown voxels in 6.344 s
+fallujah: 100000 segments, 45071 exact blocked
+voxel walk alone                             false clear  494 ( 67 grazing)  false blocked  5609 ( 3437 grazing)  wrong 6.10 %  without grazing 2.60 %
+  69.83 us per segment (one thread)
+  16 regions of 300 m x 300 m: file bytes min 6481078 median 15903749 max 26001993 total 239212291; triangles min 1809268 max 7258717
+precision pass, target at the segment end    false clear   35 (  2 grazing)  false blocked   409 (  268 grazing)  wrong 0.44 %  without grazing 0.17 %
+  sent to the exact pass 60119 = 60.12 %, 50.02 us per segment (one thread)
+precision pass, target at the segment start  false clear    7 (  1 grazing)  false blocked    37 (   24 grazing)  wrong 0.04 %  without grazing 0.02 %
+  sent to the exact pass 65089 = 65.09 %, 85.77 us per segment (one thread)
+
+test the_precision_pass_agrees_with_the_exact_tracer_better_than_the_voxel_walk ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 329.31s

@@ -57,20 +57,20 @@ def landscape_window(slug, x0, y0, size):
 
 
 def window_triangles(paths, x0, y0, size):
-    """float32 [n, 3, 3] visibility-blocking triangles whose box meets the window."""
-    kept = []
+    """Yield, shard by shard, float32 [n, 3, 3] visibility-blocking triangles whose box meets the window.
+
+    One shard at a time is held, so a window of tens of millions of triangles (Fallujah: 37.9 M, 1.4 GB) streams."""
     for path in paths:
         data = np.load(path)
         tris, mask = data["tris"], data["mask"]
         low, high = tris.min(axis=1), tris.max(axis=1)
         near = (mask & collision.VISIBILITY != 0) & (high[:, 0] >= x0) & (low[:, 0] <= x0 + size) & (high[:, 1] >= y0) & (low[:, 1] <= y0 + size)
-        kept.append(tris[near])
+        yield tris[near]
         del data, tris, mask, low, high
-    return np.concatenate(kept)
 
 
-def check_rebuild(tris, grid, occupied, actors, x0, y0, size):
-    """How well the window's triangles rebuild the file's voxels inside the window (same builder as the file)."""
+def check_rebuild(chunks, grid, occupied, actors, x0, y0, size):
+    """How well the window's triangles (an iterable of arrays) rebuild the file's voxels inside the window (same builder as the file)."""
     cols = occupied >> columns.Z_BITS
     col_x, col_y = cols % grid.width, cols // grid.width
     lo_x, lo_y = int((x0 - grid.min_x) / grid.cell), int((y0 - grid.min_y) / grid.cell)
@@ -81,7 +81,7 @@ def check_rebuild(tris, grid, occupied, actors, x0, y0, size):
         cx, cy = c % grid.width, c // grid.width
         return (cx >= lo_x) & (cx < lo_x + span) & (cy >= lo_y) & (cy < lo_y + span)
 
-    rebuilt, _, _ = columns.build_keys(iter([tris]), grid)
+    rebuilt, _, _ = columns.build_keys(chunks, grid)
     rebuilt = rebuilt[inside(rebuilt)]
     stored = occupied[inside(occupied)]
     missing = rebuilt[~np.isin(rebuilt, stored)]
@@ -152,12 +152,19 @@ def main():
     x0, y0 = eval_los.densest_window(occupied, grid, args.window)
     print("window", x0, y0, args.window, "voxels", len(occupied), flush=True)
     land, actors = landscape_window(args.slug, x0, y0, args.window)
-    tris = window_triangles(args.tris, x0, y0, args.window)
-    print("triangles in window", len(tris), flush=True)
-    tris.astype("<f4").tofile(args.prefix + ".tris.bin")
-    check = check_rebuild(tris, grid, occupied, actors, x0, y0, args.window)
+    in_window_triangles = 0
+
+    def stream_to_file(chunks, out):
+        nonlocal in_window_triangles
+        for chunk in chunks:
+            chunk.astype("<f4").tofile(out)
+            in_window_triangles += len(chunk)
+            yield chunk
+
+    with open(args.prefix + ".tris.bin", "wb") as out:
+        check = check_rebuild(stream_to_file(window_triangles(args.tris, x0, y0, args.window), out), grid, occupied, actors, x0, y0, args.window)
+    print("triangles in window", in_window_triangles, flush=True)
     print("rebuild check", check, flush=True)
-    del tris
 
     in_window = occupied[(lambda c: (c % grid.width * grid.cell + grid.min_x >= x0) & (c % grid.width * grid.cell + grid.min_x < x0 + args.window)
                                     & (c // grid.width * grid.cell + grid.min_y >= y0) & (c // grid.width * grid.cell + grid.min_y < y0 + args.window))(occupied >> columns.Z_BITS)]
