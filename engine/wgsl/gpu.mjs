@@ -1,5 +1,5 @@
 /**
- * WebGPU host for the Squad ballistics compute shaders (trace.wgsl, heatmap.wgsl).
+ * WebGPU host for the Squad ballistics compute shaders (trace.wgsl, heatmap.wgsl, voxel.wgsl).
  *
  * Runs unchanged in a browser and in any WebGPU runtime: it only needs a GPUDevice, the engine's `bvh.bin`
  * bytes and the three WGSL sources. Layouts and limits are documented in README.md.
@@ -13,6 +13,7 @@ const NODE_BYTES = 32;
 const TRIANGLE_BYTES = 48;
 const SEGMENT_BYTES = 32;
 const HIT_BYTES = 32;
+const VOXEL_HIT_BYTES = 16;
 const CELL_BYTES = 16;
 const NO_HIT = 0xffffffff;
 const ACCUMULATE = 1;
@@ -358,6 +359,205 @@ export class BallisticsGpu {
 
     destroy() {
         this.chunks.forEach((chunk) => chunk.destroy());
+    }
+}
+
+const VCOL_MAGIC = 'VCOL1\0\0\0';
+const VCOL_HEADER_BYTES = 40;
+
+/**
+ * @typedef {Object} VoxelColumns
+ * @property {{minX: number, minY: number, cell: number, dz: number, zMin: number, width: number, height: number}} header
+ * @property {Uint32Array} ids - occupied column ids (row * width + column), ascending
+ * @property {Uint32Array} first - columnCount + 1 offsets into the runs (in runs, not in numbers)
+ * @property {Uint32Array} runs - [start, end) height-index pairs
+ */
+
+/**
+ * Decodes a `VCOL1` file (layout of tools/volumetric/py/codec.py) into the arrays voxel.wgsl reads.
+ * @param {ArrayBuffer|Uint8Array} file - the gzip file, or its decompressed contents
+ * @returns {Promise<VoxelColumns>}
+ * @throws {Error} if the magic is wrong or the data is truncated
+ */
+export async function parseVcol(file) {
+    let bytes = file instanceof Uint8Array ? file : new Uint8Array(file);
+    if (bytes[0] === 0x1f && bytes[1] === 0x8b) {
+        const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+        bytes = new Uint8Array(await new Response(stream).arrayBuffer());
+    }
+    if (bytes.length < VCOL_HEADER_BYTES || new TextDecoder().decode(bytes.subarray(0, 8)) !== VCOL_MAGIC) {
+        throw new Error('not a VCOL1 file');
+    }
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const header = {
+        minX: view.getFloat32(8, true), minY: view.getFloat32(12, true), cell: view.getFloat32(16, true),
+        dz: view.getFloat32(20, true), zMin: view.getFloat32(24, true),
+        width: view.getUint32(28, true), height: view.getUint32(32, true),
+    };
+    const columnCount = view.getUint32(36, true);
+    let position = VCOL_HEADER_BYTES;
+    const varint = () => {
+        let value = 0;
+        for (let shift = 0; ; shift += 7) {
+            if (position >= bytes.length) throw new Error('VCOL1 data ends too early');
+            const byte = bytes[position++];
+            value += (byte & 0x7f) * 2 ** shift;
+            if (byte < 0x80) return value;
+        }
+    };
+    const ids = new Uint32Array(columnCount);
+    const first = new Uint32Array(columnCount + 1);
+    let runs = new Uint32Array(1 << 20);
+    let runCount = 0;
+    let id = 0;
+    for (let column = 0; column < columnCount; column++) {
+        id += varint();
+        ids[column] = id;
+        first[column] = runCount;
+        let end = 0;
+        for (let left = varint(); left > 0; left--) {
+            const start = end + varint();
+            end = start + varint() + 1;
+            if (2 * runCount + 2 > runs.length) {
+                const grown = new Uint32Array(runs.length * 2);
+                grown.set(runs);
+                runs = grown;
+            }
+            runs[2 * runCount] = start;
+            runs[2 * runCount + 1] = end;
+            runCount++;
+        }
+    }
+    first[columnCount] = runCount;
+    return { header, ids, first, runs: runs.slice(0, 2 * runCount) };
+}
+
+/** Fetches voxel.wgsl next to this module and returns its text. */
+export async function fetchVoxelShader(base = import.meta.url) {
+    return (await fetch(new URL('voxel.wgsl', base))).text();
+}
+
+/**
+ * Pipeline and buffers for tracing segments through voxel columns (voxel.wgsl).
+ */
+export class VoxelGpu {
+    /**
+     * @param {GPUDevice} device
+     * @param {string} source - the text of voxel.wgsl (see fetchVoxelShader)
+     * @param {VoxelColumns} columns - see parseVcol
+     * @returns {Promise<VoxelGpu>}
+     * @throws {Error} on any shader compile message, or if an array exceeds maxStorageBufferBindingSize
+     */
+    static async create(device, source, columns) {
+        const voxels = new VoxelGpu(device, columns);
+        await voxels.compile(source);
+        return voxels;
+    }
+
+    constructor(device, columns) {
+        this.device = device;
+        this.header = columns.header;
+        this.columnCount = columns.ids.length;
+        const limit = device.limits.maxStorageBufferBindingSize;
+        for (const array of [columns.ids, columns.first, columns.runs]) {
+            if (array.byteLength > limit) throw new Error(`voxel array of ${array.byteLength} bytes exceeds maxStorageBufferBindingSize (${limit})`);
+        }
+        this.buffers = [columns.ids, columns.first, columns.runs].map((array) => {
+            const buffer = device.createBuffer({ size: Math.max(16, array.byteLength), usage: STORAGE | COPY_DST });
+            device.queue.writeBuffer(buffer, 0, array);
+            return buffer;
+        });
+        this.bindGroupLayout = device.createBindGroupLayout({
+            entries: [
+                { binding: 0, visibility: SHADER_COMPUTE, buffer: { type: 'uniform' } },
+                { binding: 1, visibility: SHADER_COMPUTE, buffer: { type: 'read-only-storage' } },
+                { binding: 2, visibility: SHADER_COMPUTE, buffer: { type: 'read-only-storage' } },
+                { binding: 3, visibility: SHADER_COMPUTE, buffer: { type: 'read-only-storage' } },
+                { binding: 4, visibility: SHADER_COMPUTE, buffer: { type: 'read-only-storage' } },
+                { binding: 5, visibility: SHADER_COMPUTE, buffer: { type: 'storage' } },
+            ],
+        });
+    }
+
+    async compile(source) {
+        const module = this.device.createShaderModule({ code: source, label: 'voxel.wgsl' });
+        /** @type {{type: string, message: string}[]} compiler messages, empty when clean */
+        this.compilerMessages = (await module.getCompilationInfo()).messages.map((m) => ({ type: m.type, message: m.message }));
+        if (this.compilerMessages.length) throw new Error(`shader compiler messages: ${JSON.stringify(this.compilerMessages)}`);
+        this.pipeline = await this.device.createComputePipelineAsync({
+            layout: this.device.createPipelineLayout({ bindGroupLayouts: [this.bindGroupLayout] }),
+            compute: { module, entryPoint: 'voxel_segments' },
+        });
+    }
+
+    /**
+     * First occupied voxel every segment enters.
+     * @param {Float64Array|number[]} segments - 6 numbers per segment (p0.xyz, p1.xyz) in the frame of the file;
+     *   the grid origin is subtracted in float64 before the narrowing to f32
+     * @returns {Promise<{count: number, t: Float32Array, column: Uint32Array, row: Uint32Array, z: Uint32Array, elapsedMs: number}>}
+     *   t is the entry fraction of the segment (1 when clear), column is NO_HIT (0xFFFFFFFF) when clear
+     */
+    async traceSegments(segments) {
+        const count = segments.length / 6;
+        const { header } = this;
+        const local = new Float32Array(count * 8);
+        for (let i = 0; i < count; i++) {
+            for (const [k, offset] of [[0, 0], [1, 4]]) {
+                local[8 * i + offset] = segments[6 * i + 3 * k] - header.minX;
+                local[8 * i + offset + 1] = segments[6 * i + 3 * k + 1] - header.minY;
+                local[8 * i + offset + 2] = segments[6 * i + 3 * k + 2] - header.zMin;
+            }
+        }
+        const make = (size, usage, data) => {
+            const buffer = this.device.createBuffer({ size: Math.max(16, size), usage });
+            if (data) this.device.queue.writeBuffer(buffer, 0, data);
+            return buffer;
+        };
+        const words = new DataView(new ArrayBuffer(32));
+        [count, this.columnCount, header.width, header.height].forEach((v, i) => words.setUint32(4 * i, v, true));
+        words.setFloat32(16, header.cell, true);
+        words.setFloat32(20, header.dz, true);
+        const params = make(32, UNIFORM | COPY_DST, new Uint8Array(words.buffer));
+        const input = make(count * SEGMENT_BYTES, STORAGE | COPY_DST, local);
+        const output = make(count * VOXEL_HIT_BYTES, STORAGE | COPY_SRC);
+        const bindGroup = this.device.createBindGroup({
+            layout: this.bindGroupLayout,
+            entries: [
+                { binding: 0, resource: { buffer: params } },
+                ...this.buffers.map((buffer, i) => ({ binding: 1 + i, resource: { buffer } })),
+                { binding: 4, resource: { buffer: input } },
+                { binding: 5, resource: { buffer: output } },
+            ],
+        });
+        const started = performance.now();
+        const encoder = this.device.createCommandEncoder();
+        const pass = encoder.beginComputePass();
+        pass.setPipeline(this.pipeline);
+        pass.setBindGroup(0, bindGroup);
+        pass.dispatchWorkgroups(...dispatchSize(count));
+        pass.end();
+        const staging = make(count * VOXEL_HIT_BYTES, MAP_READ | COPY_DST);
+        encoder.copyBufferToBuffer(output, 0, staging, 0, count * VOXEL_HIT_BYTES);
+        this.device.queue.submit([encoder.finish()]);
+        await this.device.queue.onSubmittedWorkDone();
+        const elapsedMs = performance.now() - started;
+        await staging.mapAsync(1);
+        const raw = staging.getMappedRange().slice(0);
+        [params, input, output, staging].forEach((b) => b.destroy());
+        const f32 = new Float32Array(raw);
+        const u32 = new Uint32Array(raw);
+        const result = { count, t: new Float32Array(count), column: new Uint32Array(count), row: new Uint32Array(count), z: new Uint32Array(count), elapsedMs };
+        for (let i = 0; i < count; i++) {
+            result.t[i] = f32[4 * i];
+            result.column[i] = u32[4 * i + 1];
+            result.row[i] = u32[4 * i + 2];
+            result.z[i] = u32[4 * i + 3];
+        }
+        return result;
+    }
+
+    destroy() {
+        this.buffers.forEach((b) => b.destroy());
     }
 }
 

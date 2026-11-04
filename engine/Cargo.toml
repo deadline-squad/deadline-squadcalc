@@ -31,6 +31,7 @@ simd = []
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
 png = { version = "0.17", default-features = false }
 rayon = { version = "1", optional = true }
 wasm-bindgen = { version = "=0.2.130", optional = true }

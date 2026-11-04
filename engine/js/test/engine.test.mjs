@@ -55,6 +55,23 @@ test("unknown refs are reported as errors", () => {
     assert.throws(() => new Engine().solve(request({ environment: { bvh_buffer_ref: "nope" } })), /nope/);
 });
 
+test("voxel columns from a VCOL1 file answer segment queries and requests", () => {
+    // tests/data/tiny.vcol: 0.5 m columns from (100, -50), dz 0.25 from z = -10; voxel (10, 5, 8) is x 105..105.5,
+    // y -47.5..-47, z -8..-7.75
+    const file = readFileSync(here("../../tests/data/tiny.vcol"));
+    const engine = new Engine();
+    engine.loadVcol("tiny", file);
+    const hit = engine.voxelFirstBlock("tiny", [103, -47.25, -7.9, 107, -47.25, -7.9]);
+    assert.deepEqual([hit.column, hit.row, hit.z], [10, 5, 8]);
+    assert.ok(Math.abs(hit.t - 0.5) < 1e-12);
+    assert.equal(engine.voxelFirstBlock("tiny", [103, -47.25, -6, 107, -47.25, -6]), null);
+    assert.throws(() => engine.voxelFirstBlock("nope", [0, 0, 0, 1, 1, 1]), /unknown vcol/);
+    assert.throws(() => engine.loadVcol("bad", new Uint8Array([1, 2, 3])), /not a VCOL1 file/);
+    // A shot that stays clear of the 20 m x 20 m grid is clear, not unchecked
+    assert.equal(engine.solve(request({ environment: { vcol_ref: "tiny" } })).occlusion_status, "clear");
+    assert.throws(() => engine.solve(request({ environment: { vcol_ref: "nope" } })), /nope/);
+});
+
 test("the SIMD128 triangle test equals the scalar one bit for bit", () => {
     assert.equal(plain.has_simd(), false);
     assert.equal(simd.has_simd(), true);
