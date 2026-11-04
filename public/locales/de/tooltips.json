@@ -107,5 +107,5 @@
     "weaponMarker": "Waffe",
     "targetMarker": "Ziel",
     "targetHeightDesc": "Höhen an diesem Punkt aus der Volumenschicht: die Stockwerke, Decken, Dächer, Fenster und Türöffnungen, die eine senkrechte Linie schneidet. Fenster und Türöffnungen sind offene Löcher, erkannt an der Form der Wände, nicht an den Gebäudedaten des Spiels. Schussberechnung und Schusslinie nutzen die gewählte Höhe.",
-    "structureDamageDesc": "Granaten der gewählten Munition, die das Bauwerk von voller Gesundheit zerstören, jede trifft es. Gesundheit und Schadensart-Faktoren stammen aus dem Spiel; wie das Spiel sie zu Schaden verrechnet, ist aus den Feldnamen abgeleitet und im Spiel nicht geprüft. Die Streuung ist nicht enthalten."
+    "structureDamageDesc": "Granaten der gewählten Munition, die das Bauwerk von voller Gesundheit zerstören, jede trifft es. Gesundheit, Schadensart-Faktoren und die Art, wie das Spiel sie anwendet (Mindestschaden, Volltreffer gegen Nahtreffer, Entfernung), stammen aus dem Spiel und sind aus dem Servercode gelesen. Der Schaden des Aufpralls beim Volltreffer und die Sekundärexplosion der Mörser sind abgeleitet. Die Streuung ist nicht enthalten."
 }

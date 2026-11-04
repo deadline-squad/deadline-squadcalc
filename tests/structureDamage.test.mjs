@@ -6,18 +6,28 @@ import { WEAPONS } from "../src/data/weapons.js";
 
 const near = (actual, expected, message) => assert.ok(Math.abs(actual - expected) < 1e-6, `${message ?? ""} ${actual} vs ${expected}`);
 
-// A made-up structure and shell, to check the arithmetic alone
-const wall = { maxHealth: 100, damageTypes: { Frag: { modifier: 0.5, direct: 1, indirect: 0.2, directRadial: 0 } } };
-const shell = { damageType: "Frag", impactDamage: 40, explosion: { damage: 100, inner: 1, outer: 11, falloff: 1 }, secondary: null };
-const secondaryShell = { ...shell, secondary: { damage: 60, inner: 1, outer: 6, falloff: 1, damageType: "Frag" } };
+// A made-up structure and shell, to check the arithmetic alone. Each case is a rule read from the server binary
+// (tools/volumetric/docs/native-rules.md, ASQDeployable::TakeDamage and the engine's radial damage)
+const wall = { maxHealth: 100, damageTypes: { Frag: { modifier: 0.5, direct: 1, indirect: 0.2 } } };
+const shell = { damageType: "Frag", impactDamage: 40, explosion: { damage: 100, minimum: 0, inner: 1, outer: 11, falloff: 1, distanceFromImpact: 0 }, secondary: null };
+const secondaryShell = { ...shell, secondary: { damage: 60, minimum: 0, inner: 1, outer: 6, falloff: 1, distanceFromImpact: 0, damageType: "Frag" } };
+const withExplosion = (explosion) => ({ ...shell, explosion: { ...shell.explosion, ...explosion } });
 
-test("direct hit: impact damage times the modifier, and the radial damage times directRadial", () => {
+test("direct hit: the impact is amount times modifier with no hit multiplier, the radial part uses the direct multiplier, not the direct-radial one", () => {
     const hit = damageToStructure(wall, shell, { directHit: true });
     near(hit.impact, 20);
-    near(hit.explosion, 0);
-    near(hit.damage, 20);
-    const radialToo = damageToStructure({ ...wall, damageTypes: { Frag: { ...wall.damageTypes.Frag, directRadial: 1 } } }, shell, { directHit: true });
-    near(radialToo.explosion, 50);
+    near(hit.explosion, 100 * 0.5 * 1);
+    near(hit.damage, 70);
+    const doubled = { ...wall, damageTypes: { Frag: { ...wall.damageTypes.Frag, direct: 2, directRadial: 0 } } };
+    near(damageToStructure(doubled, shell, { directHit: true }).impact, 20);
+    near(damageToStructure(doubled, shell, { directHit: true }).explosion, 100);
+});
+
+test("direct hit: a type whose directRadial multiplier is 0 (the ammunition crate) still takes the full radial damage", () => {
+    const crate = findStructure("BP_Ammocrate");
+    assert.equal(crate.damageTypes.BP_BasicHeatDamageType.directRadial, undefined);
+    const heat = AMMO.BP_Projectile_125mm_HEAT;
+    near(damageToStructure(crate, heat, { directHit: true }).explosion, 200 * 1 * 1);
 });
 
 test("near miss: only the explosion, scaled by the modifier and the indirect multiplier, falling off with distance", () => {
@@ -26,10 +36,39 @@ test("near miss: only the explosion, scaled by the modifier and the indirect mul
     near(damageToStructure(wall, shell, { distance: 11 }).damage, 0);
 });
 
+test("near miss: a type that passes damage only on a direct hit does nothing to a near miss, and the impact is not counted", () => {
+    const strict = { maxHealth: 100, damageTypes: { Frag: { ...wall.damageTypes.Frag, onlyDirect: true } } };
+    assert.equal(damageToStructure(strict, shell, { distance: 1 }).damage, 0);
+    assert.equal(shellsToDestroy(strict, shell, { distance: 1 }), Infinity);
+    near(damageToStructure(strict, shell, { directHit: true }).damage, 20 + 50);
+});
+
+test("minimum damage is a floor the modifier does not scale: it applies inside the outer radius, even where the modified damage is smaller", () => {
+    const heat = withExplosion({ damage: 200, minimum: 35, inner: 3.5, outer: 16, falloff: 2 });
+    const hesco = { maxHealth: 200, damageTypes: { Frag: { modifier: 0.01, direct: 1, indirect: 1 } } };
+    near(damageToStructure(hesco, heat, { directHit: true }).explosion, 2);
+    near(damageToStructure(hesco, heat, { distance: 10 }).explosion, 35 + (2 - 35) * Math.pow(1 - 6.5 / 12.5, 2));
+    near(damageToStructure(hesco, heat, { distance: 15.9 }).explosion, 35 + (2 - 35) * Math.pow(1 - 12.4 / 12.5, 2));
+    assert.equal(damageToStructure(hesco, heat, { distance: 16 }).explosion, 0, "beyond the outer radius the structure is not in the burst at all");
+});
+
+test("the burst origin is distanceFromImpact off the surface: a direct hit is that far from the structure, a near miss is measured from it", () => {
+    const high = withExplosion({ inner: 0, outer: 11, falloff: 1, distanceFromImpact: 1 });
+    near(damageToStructure(wall, high, { directHit: true }).explosion, 100 * 0.5 * (1 - 1 / 11));
+    near(damageToStructure(wall, high, { distance: 3 }).explosion, 100 * 0.5 * 0.2 * (1 - Math.hypot(3, 1) / 11));
+    assert.equal(damageToStructure(wall, high, { distance: 10.97 }).explosion, 0, "hypot(10.97, 1) is beyond the outer radius");
+});
+
 test("a damage type the structure does not list does no damage and needs infinitely many shells", () => {
     const other = { ...shell, damageType: "Kinetic" };
     assert.equal(damageToStructure(wall, other, { directHit: true }).damage, 0);
     assert.equal(shellsToDestroy(wall, other, { directHit: true }), Infinity);
+});
+
+test("damage types match by exact class: a name that only extends a listed one is not listed", () => {
+    for (const name of ["Frag_C", "BP_Frag", "frag", "Fra"]) {
+        assert.equal(damageToStructure(wall, { ...shell, damageType: name }, { directHit: true }).damage, 0, name);
+    }
 });
 
 test("the secondary explosion adds its own damage unless it is switched off", () => {
@@ -37,16 +76,21 @@ test("the secondary explosion adds its own damage unless it is switched off", ()
     assert.equal(damageToStructure(wall, secondaryShell, { distance: 1, secondary: false }).secondary, 0);
 });
 
-test("the secondary explosion uses the modifier of its own damage type", () => {
+test("the secondary explosion uses the modifier of its own damage type, its own minimum and the only-direct rule", () => {
     const explosive = { ...secondaryShell, secondary: { ...secondaryShell.secondary, damageType: "Explosives" } };
-    const both = { maxHealth: 100, damageTypes: { Frag: wall.damageTypes.Frag, Explosives: { modifier: 1, direct: 1, indirect: 1, directRadial: 1 } } };
+    const both = { maxHealth: 100, damageTypes: { Frag: wall.damageTypes.Frag, Explosives: { modifier: 1, direct: 1, indirect: 1 } } };
     near(damageToStructure(both, explosive, { distance: 1 }).secondary, 60);
     assert.equal(damageToStructure(wall, explosive, { distance: 1 }).secondary, 0);
+    const floored = { ...secondaryShell, secondary: { ...secondaryShell.secondary, minimum: 5 } };
+    near(damageToStructure(wall, floored, { distance: 5.5 }).secondary, 5 + (60 * 0.5 * 0.2 - 5) * 0.1);
+    const strict = { maxHealth: 100, damageTypes: { Frag: { ...wall.damageTypes.Frag, onlyDirect: true } } };
+    assert.equal(damageToStructure(strict, secondaryShell, { distance: 1 }).secondary, 0);
 });
 
 test("shells to destroy rounds up", () => {
-    assert.equal(shellsToDestroy(wall, shell, { directHit: true }), 5);
-    assert.equal(shellsToDestroy({ ...wall, maxHealth: 101 }, shell, { directHit: true }), 6);
+    assert.equal(shellsToDestroy(wall, shell, { directHit: true }), 2);
+    assert.equal(shellsToDestroy(wall, { ...shell, explosion: null }, { directHit: true }), 5);
+    assert.equal(shellsToDestroy({ ...wall, maxHealth: 101 }, { ...shell, explosion: null }, { directHit: true }), 6);
 });
 
 test("game data: the mortar round (M252 / 2B14 / L16 / Type 63) against the FOB radio and a HAB (build 26005357)", () => {
@@ -55,33 +99,47 @@ test("game data: the mortar round (M252 / 2B14 / L16 / Type 63) against the FOB 
     const hab = findStructure("US_Hab_Desert");
     assert.equal(radio.maxHealth, 300);
     assert.equal(hab.maxHealth, 500);
-    // Fragmentation: 0.1 on the radio, 0.01 on the HAB, for 10 impact + 350 explosion at 0 m;
-    // the secondary 250 is BP_Explosives_Damagetype: 0.5 on the radio, 0.1 on the HAB
-    near(damageToStructure(radio, mortar, { directHit: true }).damage, (10 + 350) * 0.1 + 250 * 0.5);
-    near(damageToStructure(hab, mortar, { directHit: true }).damage, (10 + 350) * 0.01 + 250 * 0.1);
+    // Fragmentation: 0.1 on the radio, 0.01 on the HAB; the secondary 250 is BP_Explosives_Damagetype: 0.5 on the
+    // radio, 0.1 on the HAB. The impact is 10 * modifier; the bursts are 1 m (primary) and 0.5 m (secondary, inside its 1 m inner radius) off the surface
+    const primary = (1 - 1 / 40) ** 7;
+    near(damageToStructure(radio, mortar, { directHit: true }).damage, 10 * 0.1 + 350 * 0.1 * primary + 250 * 0.5 );
+    near(damageToStructure(hab, mortar, { directHit: true }).damage, 10 * 0.01 + 350 * 0.01 * primary + 250 * 0.1 );
     assert.equal(shellsToDestroy(radio, mortar, { directHit: true }), 2);
     assert.equal(shellsToDestroy(hab, mortar, { directHit: true }), 18);
 });
 
-test("game data: a HEAT round hurts a HAB through its direct-hit damage", () => {
+test("game data: a 125 mm HEAT round hurts a HAB through its direct-hit damage; near a HESCO barrier its minimum damage dominates", () => {
     const heat = AMMO.BP_Projectile_125mm_HEAT;
-    const hit = damageToStructure(findStructure("US_Hab_Desert"), heat, { directHit: true });
-    near(hit.impact, 1900 * 0.031579);
-    assert.equal(shellsToDestroy(findStructure("US_Hab_Desert"), heat, { directHit: true }), 8);
+    const hab = findStructure("US_Hab_Desert");
+    near(damageToStructure(hab, heat, { directHit: true }).impact, 1900 * 0.031579);
+    assert.equal(shellsToDestroy(hab, heat, { directHit: true }), 8);
+    const hesco = findStructure("BP_Hesco_USA_Desert");
+    near(damageToStructure(hesco, heat, { directHit: true }).explosion, 2);
+    // docs/native-rules.md 1.2: about 27 at 10 m
+    assert.equal(damageToStructure(hesco, heat, { distance: 10 }).explosion.toFixed(1), "27.4");
 });
 
-test("data invariants: positive health, known classes, every ammunition damage type is one of the structures'", () => {
+test("data invariants: positive health, known classes, every ammunition damage type is one of the structures', no direct-radial field", () => {
     const structureTypes = new Set(Object.values(STRUCTURES).flatMap((s) => Object.keys(s.damageTypes)));
     for (const [id, structure] of Object.entries(STRUCTURES)) {
         assert.ok(structure.maxHealth > 0, id);
         assert.ok(structure.classes.includes(id), id);
         assert.equal(findStructure(id), structure);
+        for (const type of Object.values(structure.damageTypes)) assert.equal("directRadial" in type, false, id);
     }
     for (const [id, ammo] of Object.entries(AMMO)) {
         assert.ok(ammo.weapons.length > 0, id);
         assert.ok(ammo.damageType === null || structureTypes.has(ammo.damageType), `${id}: ${ammo.damageType}`);
+        for (const explosion of [ammo.explosion, ammo.secondary]) assert.ok(!explosion || explosion.minimum >= 0, id);
     }
     assert.equal(findStructure("NoSuchClass"), undefined);
+});
+
+test("game data: ExplosiveMinimumDamage is set for the ten projectiles of docs/native-rules.md section 5", () => {
+    const withMinimum = Object.entries(AMMO).filter(([, ammo]) => ammo.explosion?.minimum > 0).map(([id, ammo]) => `${id}=${ammo.explosion.minimum}`).sort();
+    assert.equal(withMinimum.length, 10);
+    assert.ok(withMinimum.includes("BP_Projectile_125mm_HEAT=35"));
+    assert.ok(withMinimum.includes("BP_Projectile_Hell_Cannon=1"));
 });
 
 test("game data: armour-piercing and machine-gun rounds have no explosion and do no structure damage here", () => {

@@ -92,7 +92,7 @@
     "targetHeight_doorway": "Türöffnung",
     "targetHeight_ceiling": "Decke",
     "targetHeight_roof": "Dach",
-    "structureShells": "Granaten zum Zerstören (geschätzt)",
+    "structureShells": "Granaten zum Zerstören",
     "structureNoDamage": "kein Schaden an Bauwerken",
     "structureFob": "FOB-Funkgerät",
     "structureHab": "HAB",

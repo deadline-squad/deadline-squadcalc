@@ -92,7 +92,7 @@
     "targetHeight_doorway": "Дверной проём",
     "targetHeight_ceiling": "Потолок",
     "targetHeight_roof": "Крыша",
-    "structureShells": "Снарядов для уничтожения (расчётно)",
+    "structureShells": "Снарядов для уничтожения",
     "structureNoDamage": "нет урона постройкам",
     "structureFob": "Радиостанция FOB",
     "structureHab": "HAB",
