@@ -50,7 +50,7 @@ const chunkBuilds = halves.map((ids) => {
     const soup = new Float32Array(ids.length * 9);
     ids.forEach((id, k) => soup.set(triangles.subarray(9 * id, 9 * id + 9), 9 * k));
     const built = buildBvh(soup);
-    return { buffer: built.buffer, original: Uint32Array.from(built.order, (k) => ids[k]) };
+    return { buffer: built.buffer };
 });
 
 const files = new Map([
@@ -146,24 +146,64 @@ for (let i = 0; i < segmentCount; i++) {
 }
 console.log(`float64 JS BVH traversal of ${segmentCount} segments: ${Date.now() - t0} ms`);
 const cpuCmp = compare('JS f64 BVH vs python reference', cpuT, cpuTri, toOriginal);
-check(cpuCmp.disagreements.length === 0 && cpuCmp.idDiffReal === 0, 'BVH + exporter layout: f64 traversal equals the exact reference');
-
 const gpuCmp = compare('GPU f32 vs python reference', gpuRun.t, Uint32Array.from(gpuRun.tri), toOriginal);
-const triOrig = (id) => order[id];
-for (const d of gpuCmp.disagreements) {
-    const i = d.i;
+
+// Adjudication: every segment where the three tracers differ beyond 1 mm (hit/no-hit or t) is traced by brute
+// force over all triangles in float64 (no BVH, no tiles); the triangle in dispute gets its numeric margin.
+const segLength = (i) => Math.hypot(segments[6 * i + 3] - segments[6 * i], segments[6 * i + 4] - segments[6 * i + 1], segments[6 * i + 5] - segments[6 * i + 2]);
+const answers = (i) => ({
+    ref: Number.isFinite(refT[i]) ? { t: refT[i], tri: refTri[i] } : null,
+    cpu: cpuTri[i] !== NO_HIT ? { t: cpuT[i], tri: order[cpuTri[i]] } : null,
+    gpu: gpuRun.tri[i] !== NO_HIT ? { t: gpuRun.t[i], tri: order[gpuRun.tri[i]] } : null,
+});
+const differs = (x, y, len) => (x === null) !== (y === null) || (x && Math.abs(x.t - y.t) * len > 1e-3);
+function brute(i) {
     const s = segments.subarray(6 * i, 6 * i + 6);
-    const o = [s[0], s[1], s[2]], dir = [s[3] - s[0], s[4] - s[1], s[5] - s[2]];
-    const len = Math.hypot(...dir);
-    const id = d.refHit ? refTri[i] : triOrig(gpuRun.tri[i]);
-    const hit = moller(triangles.subarray(9 * id, 9 * id + 9), 0, o, dir, 3);
-    d.detail = { segment: i, direction: d.refHit ? 'reference hits, GPU misses' : 'GPU hits, reference misses', tri: id,
-        baryMargin: hit.margin, inside: hit.ok, tMarginM: Math.min(hit.t, 1 - hit.t) * len };
+    const o = [s[0], s[1], s[2]], d = [s[3] - s[0], s[4] - s[1], s[5] - s[2]];
+    let best = null;
+    for (let k = 0; k < triangles.length / 9; k++) {
+        const h = moller(triangles, 9 * k, o, d, 3);
+        if (h && h.ok && (!best || h.t < best.t)) best = { t: h.t, tri: k };
+    }
+    return best;
 }
-gpuCmp.disagreements.forEach((d) => console.log('  disagreement', JSON.stringify(d.detail)));
-const worst = gpuCmp.disagreements.reduce((m, d) => Math.max(m, Math.abs(d.detail.baryMargin)), 0);
-check(gpuCmp.disagreements.length <= Math.ceil(segmentCount * 1e-3) && gpuCmp.idDiffReal === 0,
-    `GPU vs reference: ${gpuCmp.disagreements.length} hit/no-hit disagreements of ${segmentCount} (worst barycentric margin ${worst.toExponential(2)}), ${gpuCmp.idDiffReal} wrong triangles`);
+/** Distance in metres by which triangle `id` is from being hit (positive) or missed (0 = inside) by segment i. */
+function marginMetres(i, id) {
+    const s = segments.subarray(6 * i, 6 * i + 6);
+    const o = [s[0], s[1], s[2]], d = [s[3] - s[0], s[4] - s[1], s[5] - s[2]];
+    const h = moller(triangles, 9 * id, o, d, 3);
+    if (!h) return 0;
+    const v = triangles.subarray(9 * id, 9 * id + 9);
+    const edge = Math.max(Math.hypot(v[3] - v[0], v[4] - v[1], v[5] - v[2]), Math.hypot(v[6] - v[0], v[7] - v[1], v[8] - v[2]));
+    return Math.max(0, -h.margin * edge, -h.t * segLength(i), (h.t - 1) * segLength(i));
+}
+const verdict = { refWrong: 0, cpuWrong: 0, gpuWrong: 0 };
+const gpuGrazing = [], gpuReal = [];
+let disputed = 0;
+for (let i = 0; i < segmentCount; i++) {
+    const a = answers(i), len = segLength(i);
+    if (!differs(a.ref, a.cpu, len) && !differs(a.ref, a.gpu, len)) continue;
+    disputed++;
+    const truth = brute(i);
+    const wrong = (x) => differs(x, truth, len);
+    if (wrong(a.ref)) verdict.refWrong++;
+    if (wrong(a.cpu)) verdict.cpuWrong++;
+    if (wrong(a.gpu)) {
+        verdict.gpuWrong++;
+        // the triangle only one side hits decides: the GPU's own hit, or the true first hit the GPU missed
+        const id = a.gpu && (!truth || a.gpu.t < truth.t) ? a.gpu.tri : truth.tri;
+        const margin = marginMetres(i, id);
+        const record = { segment: i, kind: a.gpu ? (truth ? 'GPU hits a different/earlier triangle' : 'GPU hit, truth miss') : 'GPU miss, truth hit', tri: id, tTruth: truth?.t ?? null, tGpu: a.gpu?.t ?? null, missByMetres: margin, tToEndMetres: Math.min(truth ? truth.t : 1, 1 - (truth ? truth.t : 0)) * len };
+        (margin < 1e-3 || record.tToEndMetres < 1e-3 ? gpuGrazing : gpuReal).push(record);
+    }
+}
+console.log(`adjudication by float64 brute force over all ${triangles.length / 9} triangles: ${disputed} disputed segments; wrong against brute force: python reference ${verdict.refWrong}, JS f64 BVH ${verdict.cpuWrong}, GPU f32 ${verdict.gpuWrong}`);
+gpuGrazing.forEach((r) => console.log('  GPU grazing', JSON.stringify(r)));
+gpuReal.forEach((r) => console.log('  GPU NOT grazing', JSON.stringify(r)));
+const maxGraze = gpuGrazing.reduce((m, r) => Math.max(m, Math.min(r.missByMetres, r.tToEndMetres)), 0);
+console.log(`GPU f32 vs exact: ${segmentCount - verdict.gpuWrong} of ${segmentCount} segments agree; ${gpuGrazing.length} grazing (largest numeric margin ${maxGraze.toExponential(2)} m), ${gpuReal.length} real errors`);
+check(verdict.cpuWrong === 0, 'BVH + exporter layout: f64 traversal equals brute force on every disputed segment');
+check(gpuReal.length === 0, 'GPU: every disagreement with the exact result is a grazing hit below 1 mm');
 
 // 3. throughput
 const timing = await inPage(['/bvh.bin'], toArray(segments), `
@@ -218,10 +258,13 @@ check(trajMismatch <= 2 && trajHits > 50, `trace_trajectories matches the f64 fi
 const chunked = await inPage(['/chunk0.bin', '/chunk1.bin'], toArray(segments), `
     const r = await engine.traceSegments(new Float32Array(argument));
     return { t: Array.from(r.t), tri: Array.from(r.tri) };`);
-const base0 = new Uint32Array(chunkBuilds[0].buffer, 0, 2)[1];
-const chunkOriginal = (id) => (id < base0 ? chunkBuilds[0].original[id] : chunkBuilds[1].original[id - base0]);
-const chunkCmp = compare('GPU 2-chunk (accumulate) vs python reference', chunked.t, Uint32Array.from(chunked.tri), chunkOriginal);
-check(chunkCmp.disagreements.length <= gpuCmp.disagreements.length + 2 && chunkCmp.idDiffReal === 0, 'multi-chunk split over two BVHs gives the single-BVH result');
+let chunkDiff = 0;
+for (let i = 0; i < segmentCount; i++) {
+    const same = chunked.tri[i] === NO_HIT ? gpuRun.tri[i] === NO_HIT : gpuRun.tri[i] !== NO_HIT && Math.abs(chunked.t[i] - gpuRun.t[i]) * segLength(i) < 1e-3;
+    if (!same) chunkDiff++;
+}
+console.log(`2-chunk accumulate vs single BVH on the GPU: ${chunkDiff} segments differ`);
+check(chunkDiff <= 2, 'multi-chunk split over two BVHs gives the single-BVH result');
 
 // 6. heatmap vs f64 CPU
 const hm = (() => {
