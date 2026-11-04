@@ -7,3 +7,5 @@ pub mod heightmap;
 pub mod path;
 pub mod trace;
 pub mod weapon;
+pub mod io;
+pub mod materials;

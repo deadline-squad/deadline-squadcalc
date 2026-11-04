@@ -146,16 +146,16 @@ impl Heightmap {
         self.height
     }
 
-    /// Height in metres of a sample level.
-    fn level_to_z(&self, level: f64) -> f64 {
-        (level / 65535.0 * 2.0 - 1.0) * self.z_scale
-    }
-
     /// Height at world `(x, y)` on the game's collision surface: every quad of four samples is two triangles
     /// split along the diagonal from its `(row, col)` corner to its `(row + 1, col + 1)` corner, and the
     /// height is interpolated on the triangle the point is in. Returns 0 more than half a sample outside the
     /// grid (the edge sample within half a sample).
     pub fn height_at(&self, x: f64, y: f64) -> f64 {
+        self.height_at_scaled(x, y, self.z_scale)
+    }
+
+    /// As [`Heightmap::height_at`] with another `z_scale` (the one of a request's environment).
+    pub fn height_at_scaled(&self, x: f64, y: f64, z_scale: f64) -> f64 {
         let rows = self.height;
         let cols = self.width;
         let mut row = (self.origin_y - y) / self.resolution;
@@ -181,7 +181,7 @@ impl Heightmap {
                 + (at(row0 + 1, col0) - corner) * row_weight
                 + (at(row0 + 1, col0 + 1) - at(row0 + 1, col0)) * col_weight
         };
-        self.level_to_z(level)
+        (level / 65535.0 * 2.0 - 1.0) * z_scale
     }
 }
 
