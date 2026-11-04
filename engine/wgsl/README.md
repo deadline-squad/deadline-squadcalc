@@ -9,7 +9,8 @@ harness that runs them on a real WebGPU device.
 | `trace.wgsl` | Entry points `trace_segments` (one invocation per ray segment) and `trace_trajectories` (one invocation per trajectory of N segments, returns the first occluded one). |
 | `heatmap.wgsl` | Entry point `heatmap`: one invocation per candidate firing position, both arcs. |
 | `voxel.wgsl` | Entry point `voxel_segments`: one invocation per segment, first occupied voxel of a `VCOL1` file by voxel-column DDA (no BVH). |
-| `gpu.mjs` | Host: `parseBvh`, `requestDevice`, `BallisticsGpu` (`traceSegments`, `traceTrajectories`, `heatmap`). Runs in a browser or any WebGPU runtime. |
+| `gpu.mjs` | Host: `parseBvh`, `requestDevice` (also asks for `timestamp-query` when offered), `BallisticsGpu` (`traceSegments`, `traceTrajectories`, `heatmap`), `VoxelGpu`; every kernel call returns `elapsedMs` (submit to done) and `gpuMs` (GPU timestamps, `null` without the feature). Runs in a browser or any WebGPU runtime. |
+| `bench/` | Static GPU benchmark page (`bench.html`): times all four kernels on the opener's own GPU and checks them against the f64 mirrors, see `bench/README.md`. |
 | `test/` | `make_fixture.py` (real Fallujah triangles + exact float64 reference), `bvh_tools.mjs` (test-only JS BVH exporter and f64 CPU mirrors), `run.mjs` (the test run). |
 
 ## BVH layout (read, never changed here)

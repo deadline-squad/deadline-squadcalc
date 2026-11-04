@@ -25,6 +25,7 @@ const UNIFORM = 0x40;
 const COPY_SRC = 0x04;
 const COPY_DST = 0x08;
 const MAP_READ = 0x01;
+const QUERY_RESOLVE = 0x200;
 const SHADER_COMPUTE = 0x4; // GPUShaderStage.COMPUTE
 
 /**
@@ -57,20 +58,68 @@ export function parseBvh(buffer) {
 }
 
 /**
- * Requests a device with the adapter's own storage-buffer limits (the WebGPU default is 128 MiB).
+ * Requests a device with the adapter's own storage-buffer limits (the WebGPU default is 128 MiB) and, when the
+ * adapter offers it, the `timestamp-query` feature that the kernels use to report `gpuMs`.
  * @param {GPU} gpu - navigator.gpu
- * @returns {Promise<{device: GPUDevice, adapterInfo: GPUAdapterInfo}>}
+ * @param {GPURequestAdapterOptions} [adapterOptions] - for example `{ powerPreference: 'high-performance' }` to
+ *   pick the discrete GPU of a laptop
+ * @returns {Promise<{device: GPUDevice, adapterInfo: GPUAdapterInfo, adapter: GPUAdapter}>}
  */
-export async function requestDevice(gpu) {
-    const adapter = await gpu.requestAdapter();
+export async function requestDevice(gpu, adapterOptions = {}) {
+    const adapter = await gpu.requestAdapter(adapterOptions);
     if (!adapter) throw new Error('no WebGPU adapter');
     const device = await adapter.requestDevice({
+        requiredFeatures: adapter.features.has('timestamp-query') ? ['timestamp-query'] : [],
         requiredLimits: {
             maxStorageBufferBindingSize: adapter.limits.maxStorageBufferBindingSize,
             maxBufferSize: adapter.limits.maxBufferSize,
         },
     });
-    return { device, adapterInfo: adapter.info };
+    return { device, adapterInfo: adapter.info, adapter };
+}
+
+/**
+ * Duration of the compute passes of one dispatch as measured by the GPU (`timestamp-query`). Inert, and
+ * `finish()` resolves to null, when the device was created without the feature.
+ */
+class PassTimer {
+    constructor(device) {
+        this.enabled = device.features.has('timestamp-query');
+        if (!this.enabled) return;
+        this.querySet = device.createQuerySet({ type: 'timestamp', count: 2 });
+        this.resolveBuffer = device.createBuffer({ size: 16, usage: QUERY_RESOLVE | COPY_SRC });
+        this.readBuffer = device.createBuffer({ size: 16, usage: MAP_READ | COPY_DST });
+    }
+
+    /**
+     * Descriptor for `beginComputePass`: the first pass writes the start stamp, the last one the end stamp.
+     * @param {number} index - position of the pass among the passes of this dispatch
+     * @param {number} total - number of passes
+     */
+    passDescriptor(index = 0, total = 1) {
+        if (!this.enabled || (index !== 0 && index !== total - 1)) return {};
+        const timestampWrites = { querySet: this.querySet };
+        if (index === 0) timestampWrites.beginningOfPassWriteIndex = 0;
+        if (index === total - 1) timestampWrites.endOfPassWriteIndex = 1;
+        return { timestampWrites };
+    }
+
+    /** Records the copy of both stamps; call after the last pass and before `encoder.finish()`. */
+    resolve(encoder) {
+        if (!this.enabled) return;
+        encoder.resolveQuerySet(this.querySet, 0, 2, this.resolveBuffer, 0);
+        encoder.copyBufferToBuffer(this.resolveBuffer, 0, this.readBuffer, 0, 16);
+    }
+
+    /** @returns {Promise<number|null>} milliseconds between the stamps, null without the feature */
+    async finish() {
+        if (!this.enabled) return null;
+        await this.readBuffer.mapAsync(MAP_READ);
+        const [begin, end] = new BigUint64Array(this.readBuffer.getMappedRange().slice(0));
+        this.readBuffer.unmap();
+        [this.querySet, this.resolveBuffer, this.readBuffer].forEach((resource) => resource.destroy());
+        return Number(end - begin) / 1e6;
+    }
 }
 
 function dispatchSize(count) {
@@ -220,7 +269,7 @@ export class BallisticsGpu {
     /**
      * First hit of every segment p0 -> p1 against all chunks.
      * @param {Float32Array} segments - 6 floats per segment: p0.xyz, p1.xyz
-     * @returns {Promise<{count: number, t: Float32Array, tri: Uint32Array, seg: Uint32Array, point: Float32Array, elapsedMs: number}>}
+     * @returns {Promise<{count: number, t: Float32Array, tri: Uint32Array, seg: Uint32Array, point: Float32Array, elapsedMs: number, gpuMs: number|null}>}
      *   t is the segment fraction (1 on a miss), tri the hit triangle in global leaf order (NO_HIT = 0xFFFFFFFF
      *   on a miss), point the hit position (the segment end on a miss), seg the segment's own index
      */
@@ -228,6 +277,7 @@ export class BallisticsGpu {
         const count = segments.length / 6;
         const segmentBuffer = this.buffer(count * SEGMENT_BYTES, STORAGE | COPY_DST, this.packSegments(segments));
         const hitBuffer = this.buffer(count * HIT_BYTES, STORAGE | COPY_SRC | COPY_DST);
+        const timer = new PassTimer(this.device);
         const started = performance.now();
         const encoder = this.device.createCommandEncoder();
         const uniforms = [];
@@ -237,18 +287,20 @@ export class BallisticsGpu {
             uniforms.push(params);
             // Chunks run one after another so each sees the closer hit of the previous ones; the pass
             // boundary orders the read-modify-write of hits[].
-            const pass = encoder.beginComputePass();
+            const pass = encoder.beginComputePass(timer.passDescriptor(i, this.chunks.length));
             pass.setPipeline(this.segmentsPipeline);
             pass.setBindGroup(0, this.bindGroup(params, chunk, segmentBuffer, hitBuffer));
             pass.dispatchWorkgroups(...dispatchSize(count));
             pass.end();
         });
+        timer.resolve(encoder);
         this.device.queue.submit([encoder.finish()]);
         await this.device.queue.onSubmittedWorkDone();
         const elapsedMs = performance.now() - started;
+        const gpuMs = await timer.finish();
         const hits = BallisticsGpu.unpackHits(await this.read(hitBuffer, count * HIT_BYTES), count);
         [segmentBuffer, hitBuffer, ...uniforms].forEach((b) => b.destroy());
-        return { ...hits, elapsedMs };
+        return { ...hits, elapsedMs, gpuMs };
     }
 
     bindGroup(params, chunk, input, output) {
@@ -270,7 +322,7 @@ export class BallisticsGpu {
      * @param {Float32Array} segments - 6 floats per segment, `segmentsPerTrajectory` consecutive segments per trajectory
      * @param {number} segmentsPerTrajectory
      * @param {number} [endTrimMetres=0] - ignored length at the start of the first and the end of the last segment
-     * @returns {Promise<{count: number, t: Float32Array, tri: Uint32Array, seg: Uint32Array, point: Float32Array, elapsedMs: number}>}
+     * @returns {Promise<{count: number, t: Float32Array, tri: Uint32Array, seg: Uint32Array, point: Float32Array, elapsedMs: number, gpuMs: number|null}>}
      *   seg is the occluded segment index within the trajectory, NO_HIT when the trajectory is clear
      */
     async traceTrajectories(segments, segmentsPerTrajectory, endTrimMetres = 0) {
@@ -285,19 +337,22 @@ export class BallisticsGpu {
         view.setFloat32(20, endTrimMetres, true);
         this.device.queue.writeBuffer(params, 0, view.buffer);
 
+        const timer = new PassTimer(this.device);
         const started = performance.now();
         const encoder = this.device.createCommandEncoder();
-        const pass = encoder.beginComputePass();
+        const pass = encoder.beginComputePass(timer.passDescriptor());
         pass.setPipeline(this.trajectoriesPipeline);
         pass.setBindGroup(0, this.bindGroup(params, chunk, segmentBuffer, hitBuffer));
         pass.dispatchWorkgroups(...dispatchSize(count));
         pass.end();
+        timer.resolve(encoder);
         this.device.queue.submit([encoder.finish()]);
         await this.device.queue.onSubmittedWorkDone();
         const elapsedMs = performance.now() - started;
+        const gpuMs = await timer.finish();
         const hits = BallisticsGpu.unpackHits(await this.read(hitBuffer, count * HIT_BYTES), count);
         [segmentBuffer, hitBuffer, params].forEach((b) => b.destroy());
-        return { ...hits, elapsedMs };
+        return { ...hits, elapsedMs, gpuMs };
     }
 
     /**
@@ -315,7 +370,7 @@ export class BallisticsGpu {
      * @param {number} [options.chords=32] - chords per trajectory
      * @param {{data: Uint16Array, width: number, height: number, x: number, y: number, texel: number, zMin: number, zMax: number}} options.heightmap
      *   16-bit samples row-major, world position of texel (0, 0), texel size in m, heights of values 0 and 65535
-     * @returns {Promise<{cells: Float32Array, elapsedMs: number}>} 2 cells per candidate (low arc, high arc), 4 floats
+     * @returns {Promise<{cells: Float32Array, elapsedMs: number, gpuMs: number|null}>} 2 cells per candidate (low arc, high arc), 4 floats
      *   each: state (0 clear, 1 blocked, 2 unreachable), clearance m, distance weight, path fraction
      */
     async heatmap(options) {
@@ -342,19 +397,22 @@ export class BallisticsGpu {
         const cellBuffer = this.buffer(candidates * 2 * CELL_BYTES, STORAGE | COPY_SRC);
         const params = this.buffer(112, UNIFORM | COPY_DST, new Uint8Array(words));
 
+        const timer = new PassTimer(this.device);
         const started = performance.now();
         const encoder = this.device.createCommandEncoder();
-        const pass = encoder.beginComputePass();
+        const pass = encoder.beginComputePass(timer.passDescriptor());
         pass.setPipeline(this.heatmapPipeline);
         pass.setBindGroup(0, this.bindGroup(params, chunk, heightmapBuffer, cellBuffer));
         pass.dispatchWorkgroups(...dispatchSize(candidates));
         pass.end();
+        timer.resolve(encoder);
         this.device.queue.submit([encoder.finish()]);
         await this.device.queue.onSubmittedWorkDone();
         const elapsedMs = performance.now() - started;
+        const gpuMs = await timer.finish();
         const cells = new Float32Array(await this.read(cellBuffer, candidates * 2 * CELL_BYTES));
         [heightmapBuffer, cellBuffer, params].forEach((b) => b.destroy());
-        return { cells, elapsedMs };
+        return { cells, elapsedMs, gpuMs };
     }
 
     destroy() {
@@ -494,7 +552,7 @@ export class VoxelGpu {
      * First occupied voxel every segment enters.
      * @param {Float64Array|number[]} segments - 6 numbers per segment (p0.xyz, p1.xyz) in the frame of the file;
      *   the grid origin is subtracted in float64 before the narrowing to f32
-     * @returns {Promise<{count: number, t: Float32Array, column: Uint32Array, row: Uint32Array, z: Uint32Array, elapsedMs: number}>}
+     * @returns {Promise<{count: number, t: Float32Array, column: Uint32Array, row: Uint32Array, z: Uint32Array, elapsedMs: number, gpuMs: number|null}>}
      *   t is the entry fraction of the segment (1 when clear), column is NO_HIT (0xFFFFFFFF) when clear
      */
     async traceSegments(segments) {
@@ -529,24 +587,27 @@ export class VoxelGpu {
                 { binding: 5, resource: { buffer: output } },
             ],
         });
+        const timer = new PassTimer(this.device);
         const started = performance.now();
         const encoder = this.device.createCommandEncoder();
-        const pass = encoder.beginComputePass();
+        const pass = encoder.beginComputePass(timer.passDescriptor());
         pass.setPipeline(this.pipeline);
         pass.setBindGroup(0, bindGroup);
         pass.dispatchWorkgroups(...dispatchSize(count));
         pass.end();
         const staging = make(count * VOXEL_HIT_BYTES, MAP_READ | COPY_DST);
+        timer.resolve(encoder);
         encoder.copyBufferToBuffer(output, 0, staging, 0, count * VOXEL_HIT_BYTES);
         this.device.queue.submit([encoder.finish()]);
         await this.device.queue.onSubmittedWorkDone();
         const elapsedMs = performance.now() - started;
+        const gpuMs = await timer.finish();
         await staging.mapAsync(1);
         const raw = staging.getMappedRange().slice(0);
         [params, input, output, staging].forEach((b) => b.destroy());
         const f32 = new Float32Array(raw);
         const u32 = new Uint32Array(raw);
-        const result = { count, t: new Float32Array(count), column: new Uint32Array(count), row: new Uint32Array(count), z: new Uint32Array(count), elapsedMs };
+        const result = { count, t: new Float32Array(count), column: new Uint32Array(count), row: new Uint32Array(count), z: new Uint32Array(count), elapsedMs, gpuMs };
         for (let i = 0; i < count; i++) {
             result.t[i] = f32[4 * i];
             result.column[i] = u32[4 * i + 1];
