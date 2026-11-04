@@ -1,3 +1,10 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.22.0** *(2026-11-04)*
+
+</br><img src="https://img.shields.io/badge/-new%20feature-green">  
+- A Relief layer in the layers menu: the terrain of the map shaded from its precise heightmap alone, without colours, roads or labels, so cliffs, ridges, ditches and the outline of every building and wall stand out. Four lights (north, north-west, west, south-west) are blended by the slope's direction, so no slope is lost in its own shadow, and an anisotropic sky-view factor darkens hollows and the foot of walls. Each map is one PMTiles file read with range requests, and nothing is downloaded until the layer is selected: the layer's code is a separate 7.5 KB (gzip) script loaded at that moment, and the page's own scripts grow by 0.5 KB. Available for all 25 maps; a map without a relief file keeps showing the detailed map
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.21.0** *(2026-11-04)*
 
 </br><img src="https://img.shields.io/badge/-%20improv%20-orange">  
