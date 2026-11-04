@@ -44,7 +44,7 @@ aim = rng.random(n_seg) < 0.5
 other = t[rng.integers(0, len(t), n_seg)].mean(axis=1).astype(np.float64)
 rand_dir = rng.normal(size=(n_seg, 3))
 rand_dir /= np.linalg.norm(rand_dir, axis=1)[:, None]
-length = rng.uniform(5, window * 0.6, n_seg)
+length = rng.uniform(5, min(60.0, window * 0.6), n_seg)
 p1 = np.where(aim[:, None], other, p0 + rand_dir * length[:, None])
 p0 = p0.astype(np.float32).astype(np.float64)
 p1 = p1.astype(np.float32).astype(np.float64)
