@@ -62,10 +62,25 @@ the probe length, default 20 m) between an interior path point and the BVH surfa
 * To split: partition the triangle soup spatially (for example a kd split on the scene bounds) into parts that each fit, build one BVH per part, and pass them all as `chunks` to `BallisticsGpu.create`. `traceSegments` then runs one pass per chunk over the same `hits[]` buffer with `flags = ACCUMULATE` and `tri_base` = the number of triangles in the earlier chunks: later chunks only shorten `t_max` to the closest hit found so far, so the result equals a single BVH. Triangle ids are global in chunk order. Order the chunks by proximity to the ray bundle if you want the early-out to help.
 * Limits of the split: `traceTrajectories` and `heatmap` use the first chunk only (they would need the closest hit across chunks for every chord); for these keep the relevant area in one BVH. A single BVH is also capped at 2^24 - 1 triangles by the leaf encoding.
 
+## Last verified run
+
+Full output: `test/last-run.txt`. Device: headless Chromium WebGPU on the SwiftShader software adapter (CPU, no GPU on the
+test server). Window 100 x 100 m of Fallujah, 1 574 368 triangles, 1 048 575 BVH nodes, 20 000 random segments.
+
+* GPU f32 vs exact float64: 19 979 of 20 000 segments agree; 21 hit/no-hit disagreements, all grazing (segment ends exactly on a
+  triangle centroid, or the line misses an edge by at most 1.5e-5 m). No other disagreement, no wrong triangle beyond ties.
+* `reference.py` itself is wrong on 22 of the 20 000 segments (its tile list is sampled every 2 m along the segment and can skip a
+  tile whose triangle the segment clips); float64 brute force over all triangles was used to adjudicate, and the float64 BVH
+  traversal agrees with it on every segment. 11 more segments hit coplanar duplicate triangles with a different id at equal t.
+* `trace_trajectories`: 1 500 trajectories x 16 chords, 0 mismatches against the float64 first occluded segment.
+* Two-chunk accumulate vs one BVH: 0 differing segments. Heatmap: 784 candidates x 2 arcs, 0 state mismatches vs the float64 mirror.
+* Throughput on SwiftShader: about 20 000 segments/s (200 000-segment dispatch, kernel only). This is a CPU number; real GPUs are not measured.
+* `naga` 30.0.1 validates both concatenated shaders ("Validation successful", no warnings); Chromium's tint compiles them with 0 messages.
+
 ## Tests
 
 ```
-python3 -I engine/wgsl/test/make_fixture.py <fallujah_tris.npz> ~/agl/tools/volumetric/py <dataDir> 20000 150 1   # numpy needed
+python3 -I engine/wgsl/test/make_fixture.py <fallujah_tris.npz> ~/agl/tools/volumetric/py <dataDir>20000 100 1   # numpy needed
 node engine/wgsl/test/run.mjs <dataDir>
 ```
 
