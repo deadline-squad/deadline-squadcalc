@@ -4,6 +4,7 @@ use crate::bvh::{triangles_from_le_bytes, BuildOptions, Bvh, BvhSet, MAX_TRIANGL
 use crate::heightmap::Heightmap;
 use crate::io::{run_json, Resources};
 use crate::trace::{segment_triangle_f32, Scene};
+use crate::voxel::VoxelColumns;
 use wasm_bindgen::prelude::*;
 
 #[cfg(feature = "wasm-threads")]
@@ -81,6 +82,13 @@ impl Engine {
         Ok(())
     }
 
+    /// Registers the contents of a `VCOL1` file (gzip, or already decompressed) as `reference`.
+    pub fn load_vcol(&mut self, reference: &str, bytes: &[u8]) -> Result<(), JsError> {
+        let columns = VoxelColumns::from_bytes(bytes).map_err(js_error)?;
+        self.resources.add_vcol(reference, columns);
+        Ok(())
+    }
+
     /// Answers a JSON request (see `README.md`) with a JSON response.
     pub fn run(&self, request_json: &str) -> Result<String, JsError> {
         run_json(request_json, &self.resources).map_err(js_error)
@@ -103,6 +111,32 @@ impl Engine {
                 [segment[3], segment[4], segment[5]],
             ) {
                 Some(hit) => vec![f64::from(hit.part), f64::from(hit.triangle), hit.t],
+                None => Vec::new(),
+            },
+        )
+    }
+
+    /// First occupied voxel the segment `p0 -> p1` (6 numbers) enters in the columns `reference`:
+    /// `[column, row, z, t]`, or an empty array if the segment is clear.
+    pub fn voxel_first_block(&self, reference: &str, segment: &[f64]) -> Result<Vec<f64>, JsError> {
+        let columns = self
+            .resources
+            .vcol(reference)
+            .ok_or_else(|| JsError::new("unknown vcol"))?;
+        if segment.len() != 6 {
+            return Err(JsError::new("a segment is 6 numbers"));
+        }
+        Ok(
+            match columns.first_block(
+                [segment[0], segment[1], segment[2]],
+                [segment[3], segment[4], segment[5]],
+            ) {
+                Some(hit) => vec![
+                    f64::from(hit.column),
+                    f64::from(hit.row),
+                    f64::from(hit.z),
+                    hit.t,
+                ],
                 None => Vec::new(),
             },
         )

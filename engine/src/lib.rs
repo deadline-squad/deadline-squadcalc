@@ -12,6 +12,7 @@ pub mod io;
 pub mod materials;
 pub mod path;
 pub mod trace;
+pub mod voxel;
 #[cfg(all(feature = "wasm", target_arch = "wasm32"))]
 pub mod wasm;
 pub mod weapon;

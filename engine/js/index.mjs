@@ -47,6 +47,15 @@ export class Engine {
     }
 
     /**
+     * Registers voxel columns.
+     * @param {string} reference - the name requests use in `environment.vcol_ref`
+     * @param {Uint8Array} bytes - a `VCOL1` file, gzip as written by `codec.py` or already decompressed
+     */
+    loadVcol(reference, bytes) {
+        this.#inner.load_vcol(reference, bytes);
+    }
+
+    /**
      * Answers a request.
      * @param {object} request - see README.md
      * @returns {object} the response
@@ -64,6 +73,17 @@ export class Engine {
     firstHit(reference, segment) {
         const hit = this.#inner.first_hit(reference, Float64Array.from(segment));
         return hit.length ? { part: hit[0], triangle: hit[1], t: hit[2] } : null;
+    }
+
+    /**
+     * First occupied voxel a segment enters in registered voxel columns.
+     * @param {string} reference
+     * @param {number[]} segment - x0, y0, z0, x1, y1, z1, in the frame of the file
+     * @returns {{column: number, row: number, z: number, t: number}|null}
+     */
+    voxelFirstBlock(reference, segment) {
+        const hit = this.#inner.voxel_first_block(reference, Float64Array.from(segment));
+        return hit.length ? { column: hit[0], row: hit[1], z: hit[2], t: hit[3] } : null;
     }
 }
 

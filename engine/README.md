@@ -10,6 +10,8 @@ Rust core of the Squad ballistics engine for SquadCalc. Russian version: [README
 * **Queries** (`trace`): Moller-Trumbore segment/triangle test in `f64` (reference) and `f32` (GPU parity, optional
   SIMD128), stackless first-hit traversal, line-of-fire query for a whole trajectory.
 * **Heightmap** (`heightmap`): 16-bit G16 sampler with the game's triangle-diagonal rule.
+* **Voxel columns** (`voxel`): decoder of the `VCOL1` file (`tools/volumetric/py/codec.py`) and the segment query by
+  voxel-column DDA (first occupied voxel or clear), see [Voxel columns](#voxel-columns-vcol1).
 * **JSON interface** (`io`), a CLI (`squad-cli`) and wasm exports (`wasm`, feature `wasm`) with an ES-module wrapper
   in `js/`.
 
@@ -107,15 +109,18 @@ Response:
   paths: `.png` 16-bit grayscale or raw `.g16` for the heightmap; a `bvh.bin`, or a directory of `*.bin` parts, for the
   BVH). Both are optional: without a heightmap the ground is Z = 0, without a BVH the line of fire is not checked
   against obstacles. `environment.heightmap_resolution_m` (default 1) is the sample spacing for the CLI.
+* `environment.vcol_ref` names voxel columns (a `.vcol` path for the CLI, gzip or already decompressed). The path is
+  traced through them like through a BVH; the nearer of voxel, triangle and terrain is the impact. **Positions are then
+  in the frame of the file** (Unreal: Y south), see [Voxel columns](#voxel-columns-vcol1).
 * Heightmap grid: row 0 is the northern edge, `X = col * resolution`, `Y = -row * resolution` (SquadCalc's `lng`,
   `-lat`). Between samples each quad is two triangles split along the diagonal from `(row, col)` to
   `(row + 1, col + 1)`, as in `src/js/squadHeightmaps.js`; a point more than half a sample outside the grid has height 0.
   Raw `.g16`: `u32` width, `u32` height, then `u16` samples, little endian, row 0 first.
 * `elevation_mrad` is the elevation of the sight in milliradians.
   `null` fields and `occlusion_status: "no_solution"` mean the target cannot be reached.
-* `occlusion_status`: `clear`, `occluded` (the path meets a BVH triangle or the terrain before the target; the terrain
-  is checked every heightmap sample, leaving out 3 m at both ends like SquadCalc), `unchecked` (no heightmap, no
-  BVH), `no_solution`.
+* `occlusion_status`: `clear`, `occluded` (the path meets a BVH triangle, an occupied voxel or the terrain before the target; the terrain
+  is checked every heightmap sample, leaving out 3 m at both ends like SquadCalc), `unchecked` (no heightmap, BVH
+  or voxel columns), `no_solution`.
 * `collision_details.point` is the first obstacle on the path, or the target when the line of fire is clear.
 * **`material`, `lethality` and `splash_footprint_radius` are a stub** (`materials.rs`): the collision-semantics data
   has not been delivered, so every surface is `"unknown"`, lethality `1.0`, footprint radius `0.0` m. The call site
@@ -188,6 +193,94 @@ generation has no such misses; the shipped data set was repaired with the rechec
 only difference from a regeneration). The BVH never disagreed with the exact answer.
 
 
+## Voxel columns (`VCOL1`)
+
+The browser cannot hold the collision triangles of a map (Fallujah: 5.7 GB of BVH), but it can hold its voxel columns
+(Fallujah statics at 0.5 m x 0.25 m: 4.7 MB gzip). `voxel::VoxelColumns::from_bytes` reads the file of
+`tools/volumetric/py/codec.py` (layout there; gzip or already decompressed, malformed input is an error, never a
+panic). A voxel `(column, row, z)` is the half-open box `[min_x + column * cell, +cell) x [min_y + row * cell, +cell) x
+[z_min + z * dz, +dz)`; at most 4096 height indices per column. The positions of every query are in the frame the file
+was built in (Unreal: metres, X east, **Y south**), exactly as the triangles of a BVH built from `world_tris.py` are:
+convert before you ask if you work in the engine frame.
+
+`VoxelColumns::first_block(p0, p1)` returns the first occupied voxel the segment enters (`column`, `row`, `z`, the
+entry `t` in `0..=1`; `t = 0` if it starts inside one) or `None`. A 2D DDA (Amanatides-Woo) walks the `(column, row)`
+cells the segment crosses; inside a cell the runs of the column are tested against the segment's height range and the
+entry is computed in closed form, so the cost is the number of cells crossed, not the number of voxels. Every voxel
+the segment touches is seen (the sampled walk of `models.py` steps over corners). Parts of a segment outside the grid
+do not block. `first_blocks` does many segments (rayon with `threads`), `first_block_along` a whole trajectory.
+`wgsl/voxel.wgsl` is the same walk in `f32` (see `wgsl/README.md`). Browser: `Engine.loadVcol(ref, bytes)`,
+`Engine.voxelFirstBlock(ref, segment)`.
+
+Unit tests: `src/voxel.rs` (hand-made scenes; 5 000 random segments against a slab test of every voxel),
+`tests/voxel.rs` (a file written by `codec.py`, damaged files, the CLI), `src/io.rs` (JSON requests), `js/test/`.
+
+### Voxel DDA against the python model and the exact triangles
+
+100 000 random segments per map (`tools/make_voxel_segments.py`: 70 % start within 3 m of an occupied voxel, lengths
+3-500 m, inside the densest 1 km x 1 km window of the map, at least 0.25 m above the landscape, so the comparison is
+about objects). Maps with a small `.vcol` from `~/data/volumetric/maps/`: **Jensen** (statics only, 117 KB, 3 594 819
+triangles in the window) and **Kokan** (statics + foliage, 789 KB, 2 007 949 voxels, 8 085 424 triangles in the
+window). Exact = the BVH of this crate on the Visibility-blocking triangles that `world_tris.py` gives for those
+layers (the channel `build_columns.py` voxelises). The check inside `make_voxel_segments.py` rebuilds the voxels of the
+window from those triangles with the builder itself: 0 voxels of the file are missing from the rebuild and 0 rebuilt
+voxels above the landscape are missing from the file, so the file and the triangles describe the same scene.
+
+```sh
+# the generator runs in the squadcalc-heightmaps-py image (numpy, scipy) with tools/volumetric/py and tools/heightmaps/py
+# on PYTHONPATH and the landscape levels mounted (see tools/volumetric/README.md); <tris.npz> are world_tris.py shards
+python3 tools/make_voxel_segments.py jensen jensen.vcol out/jensen <tris.npz>... --count 100000
+ENGINE_VOXEL_DIR=out ENGINE_VOXEL_MAPS=jensen,kokan cargo test --release --features threads --test voxel_parity -- --ignored --nocapture
+sh js/build.sh && node wgsl/test/run_voxel.mjs out jensen,kokan      # the WGSL kernel and the wasm build on the same segments
+```
+
+| 100 000 segments | Jensen | Kokan |
+|---|---|---|
+| **DDA vs the sampled python voxel model** (`models.py`, step 0.0833 m) | | |
+| both clear / both blocked | 66 449 / 33 450 | 79 043 / 20 764 |
+| DDA blocked, model clear | 101 | 193 |
+| DDA clear, model blocked | **0** | **0** |
+| **DDA vs the exact triangles** | | |
+| exact blocked / clear | 29 732 / 70 268 | 12 709 / 87 291 |
+| false CLEAR (voxels let a hit through) | 129 (14 grazing, 115 not) | 83 (9 grazing, 74 not) |
+| false BLOCKED (voxels block, triangles do not) | 3 948 (2 637 grazing, 1 311 not) | 8 331 (3 840 grazing, 4 491 not) |
+| wrong, of all segments | 4.08 % | 8.41 % |
+| wrong without grazing | **1.43 %** | **4.57 %** |
+| **WGSL kernel (f32, SwiftShader) vs the exact triangles** | | |
+| false CLEAR / false BLOCKED | 128 / 3 948 | 83 / 8 330 |
+| wrong / without grazing | 4.08 % / 1.43 % | 8.41 % / 4.56 % |
+| **WGSL kernel vs the native f64 DDA** | | |
+| blocked/clear flips, other first voxel | 1, 9 | 1, 1 |
+
+How to read it:
+
+* **Grazing** = the exact answer flips when the segment is moved 0.25 m up, down or sideways (the definition of
+  `eval_los.py`). Those pairs are decided by sub-voxel placement and are counted apart.
+* **DDA against the python model.** The model samples every `min(cell, dz) / 3`; a sample is a point of the DDA's
+  walk, so the model can never block where the DDA is clear (0). The 101 / 193 segments the DDA blocks and the model
+  does not all cross the first voxel in a chord shorter than one sampling step (checked per segment in the test): the
+  sampled model steps over a voxel corner, the DDA does not. For 174 / 216 segments both are blocked but the model's
+  first blocked sample is further along than one step, for the same reason.
+* **False blocked.** A voxel is marked when a triangle meets it, so a segment that enters a marked voxel can still pass
+  up to a voxel diagonal (0.75 m) from the surface. Every one of the not-grazing cases (1 311 + 4 491) was checked: the
+  voxel the DDA reports overlaps a triangle (exact triangle-box overlap test). Kokan has more because its foliage
+  triangles are small and dense.
+* **False clear.** In all 115 + 74 not-grazing cases the voxel that holds the exact hit point is empty in the file: the
+  builder marks a voxel only if a sample point of its barycentric lattice (spacing 0.45 of the smallest voxel edge,
+  `columns.py`) lands in it, so a triangle that clips a voxel corner can be lost. The DDA itself never loses a voxel of
+  the file (0 DDA-clear / model-blocked above); `tests/voxel_parity.rs` fails on any not-grazing disagreement that
+  neither this nor the previous point explains.
+* **WGSL vs the native DDA** differ on 10 (Jensen) and 2 (Kokan) of 100 000 segments, at a voxel face where the
+  segment's f32 coordinates differ from f64; for each, the native DDA on the f32-rounded segment, or on a segment moved
+  by 1 mm, gives the GPU's answer. In the same voxel the entry point differs by at most 9.1e-3 m.
+* The wasm build equals the native DDA on all 200 000 segments.
+* Speed on this machine (shared, 100 000 segments, all threads): the DDA answers 416 000 (Jensen) and 167 000 (Kokan)
+  segments/s, the BVH 917 000 and 838 000. The BVH is faster but needs the triangles (hundreds of MB for these windows,
+  GB for a whole map); the DDA needs the 117-789 KB file. The WGSL kernel runs about 19 000 segments/s on SwiftShader
+  (a CPU; no GPU was measured).
+
+Full output: [`wgsl/test/last-run-voxel.txt`](wgsl/test/last-run-voxel.txt).
+
 ## WebAssembly
 
 ```sh
@@ -196,8 +289,8 @@ sh js/build.sh        # js/pkg (plain) and js/pkg-simd (SIMD128 triangle test)
 node --test js/test/  # loads the wasm in Node
 ```
 
-`js/index.mjs` is the ES-module wrapper (`loadEngine`, `Engine.solve`, `loadBvh`, `loadHeightmap`, `firstHit`,
-`buildBvh`, `segmentTriangle`). The SIMD128 build is the same code compiled with `-C target-feature=+simd128` and the
+`js/index.mjs` is the ES-module wrapper (`loadEngine`, `Engine.solve`, `loadBvh`, `loadHeightmap`, `loadVcol`,
+`firstHit`, `voxelFirstBlock`, `buildBvh`, `segmentTriangle`). The SIMD128 build is the same code compiled with `-C target-feature=+simd128` and the
 `simd` feature; the Node test checks that it returns the same `f32` results bit for bit as the scalar build.
 
 Threads: the `threads` feature turns on rayon (parallel BVH build and batch queries) natively. In the browser it needs

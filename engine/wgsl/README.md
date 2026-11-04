@@ -8,6 +8,7 @@ harness that runs them on a real WebGPU device.
 | `bvh_common.wgsl` | BVH structs, bindings 1-2, `trace_closest()`: stackless slab + Moller-Trumbore traversal. Prepended to the other two files by `gpu.mjs` (WGSL has no `#include`). |
 | `trace.wgsl` | Entry points `trace_segments` (one invocation per ray segment) and `trace_trajectories` (one invocation per trajectory of N segments, returns the first occluded one). |
 | `heatmap.wgsl` | Entry point `heatmap`: one invocation per candidate firing position, both arcs. |
+| `voxel.wgsl` | Entry point `voxel_segments`: one invocation per segment, first occupied voxel of a `VCOL1` file by voxel-column DDA (no BVH). |
 | `gpu.mjs` | Host: `parseBvh`, `requestDevice`, `BallisticsGpu` (`traceSegments`, `traceTrajectories`, `heatmap`). Runs in a browser or any WebGPU runtime. |
 | `test/` | `make_fixture.py` (real Fallujah triangles + exact float64 reference), `bvh_tools.mjs` (test-only JS BVH exporter and f64 CPU mirrors), `run.mjs` (the test run). |
 
@@ -55,6 +56,23 @@ the probe length, default 20 m) between an interior path point and the BVH surfa
 `weight = D0 / (D0 + D)` (D0 = `distanceScale`; 1 on the target, 0.5 at D0, a heavy tail so long range stays viable);
 `path fraction` where the first hit lies (blocked) or 1.
 
+## Voxel kernel (`voxel.wgsl`)
+
+Stand-alone (it does not use `bvh_common.wgsl`). `f32` in grid-local metres: the host subtracts the grid origin in
+`f64` (`VoxelGpu.traceSegments` does this). Same walk as `voxel::VoxelColumns::first_block` in the Rust core, see the
+engine README.
+
+| binding | content |
+|---|---|
+| 0 uniform | `Params` (count, column_count, width, height, cell, dz) |
+| 1 storage, read | column ids, sorted (binary search) |
+| 2 storage, read | first run of each column (`column_count + 1` entries) |
+| 3 storage, read | runs: `[start, end)` height-index pairs, two `u32` per run |
+| 4 storage, read | segments: 2 x `vec4` per segment (p0, p1) |
+| 5 storage, read_write | `VoxelHit` x count (16 B: `t` f32, `column`, `row`, `z`; clear = `column` `0xFFFFFFFF`) |
+
+`parseVcol` (`DecompressionStream`) turns the file into the three arrays; `VoxelGpu.create` uploads them.
+
 ## Limits and splitting a BVH over the binding limit
 
 * The WebGPU default `maxStorageBufferBindingSize` is 128 MiB (134 217 728 B); `requestDevice()` asks for the adapter's maximum instead (1 GiB on the SwiftShader adapter used for the tests; typical desktop GPUs 2-4 GiB). `maxBufferSize` and `maxComputeInvocationsPerWorkgroup` (>= 256) are no issue for 64 threads.
@@ -76,6 +94,7 @@ test server). Window 100 x 100 m of Fallujah, 1 574 368 triangles, 1 048 575 BVH
 * Two-chunk accumulate vs one BVH: 0 differing segments. Heatmap: 784 candidates x 2 arcs, 0 state mismatches vs the float64 mirror.
 * Throughput on SwiftShader: about 20 000 segments/s (200 000-segment dispatch, kernel only). This is a CPU number; real GPUs are not measured.
 * `naga` 30.0.1 validates both concatenated shaders ("Validation successful", no warnings); Chromium's tint compiles them with 0 messages.
+* Voxel kernel (`run_voxel.mjs`, Jensen and Kokan, 100 000 segments each): see `test/last-run-voxel.txt` and the table in `engine/README.md`. tint compiles `voxel.wgsl` with 0 messages; the wasm build equals the native DDA on all segments; GPU vs native f64 DDA differs on 10 / 2 segments, all explained by `f32` rounding at voxel faces; against the exact triangles 1.43 % (Jensen) and 4.56 % (Kokan) of segments are wrong without counting grazing pairs. About 19 000 segments/s on SwiftShader (a CPU).
 
 ## Tests
 
@@ -90,3 +109,9 @@ This server has no GPU and no Mesa Vulkan driver; Chromium ships SwiftShader (a 
 `navigator.gpu` device (`architecture: swiftshader`). Numbers from it measure a CPU, not a GPU. Set `EXPORTED_BVH=/path/bvh.bin`
 to trace the same segments through the Rust exporter's file as well. Shader validation is also done with `naga` 30.0.1 on the
 concatenated sources (`cat bvh_common.wgsl trace.wgsl > x.wgsl && naga x.wgsl`).
+
+Voxel kernel (needs `sh engine/js/build.sh` first; data from `engine/tools/make_voxel_segments.py`, see `engine/README.md`):
+
+```
+node engine/wgsl/test/run_voxel.mjs <dataDir> jensen,kokan
+```

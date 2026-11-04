@@ -8,6 +8,7 @@ WebGPU-устройстве.
 | `bvh_common.wgsl` | Структуры BVH, привязки 1-2, `trace_closest()`: обход без стека, slab-тест + Moller-Trumbore. `gpu.mjs` дописывает его перед остальными шейдерами (в WGSL нет `#include`). |
 | `trace.wgsl` | Точки входа `trace_segments` (один поток на отрезок) и `trace_trajectories` (один поток на траекторию из N отрезков, возвращает первый перекрытый). |
 | `heatmap.wgsl` | Точка входа `heatmap`: один поток на кандидата-позицию стрельбы, обе дуги. |
+| `voxel.wgsl` | Точка входа `voxel_segments`: один поток на отрезок, первый занятый воксель файла `VCOL1` обходом колонок по DDA (без BVH). |
 | `gpu.mjs` | Хост: `parseBvh`, `requestDevice`, `BallisticsGpu` (`traceSegments`, `traceTrajectories`, `heatmap`). Работает в браузере и в любом WebGPU-рантайме. |
 | `test/` | `make_fixture.py` (реальные треугольники Фаллуджи + точный эталон float64), `bvh_tools.mjs` (тестовый JS-экспортёр BVH и CPU-копии в f64), `run.mjs` (прогон). |
 
@@ -55,6 +56,23 @@ WebGPU-устройстве.
 `weight = D0 / (D0 + D)` (D0 = `distanceScale`; 1 над целью, 0,5 на D0, тяжёлый хвост - дальние позиции остаются годными);
 `path fraction` - где на пути первое попадание (блокировано) или 1.
 
+## Воксельное ядро (`voxel.wgsl`)
+
+Самостоятельное (`bvh_common.wgsl` не использует). `f32` в локальных метрах сетки: хост вычитает начало сетки в `f64`
+(это делает `VoxelGpu.traceSegments`). Обход тот же, что у `voxel::VoxelColumns::first_block` в Rust-ядре, см. README
+движка.
+
+| binding | содержимое |
+|---|---|
+| 0 uniform | `Params` (count, column_count, width, height, cell, dz) |
+| 1 storage, read | идентификаторы колонок по возрастанию (двоичный поиск) |
+| 2 storage, read | первый интервал каждой колонки (`column_count + 1` значений) |
+| 3 storage, read | интервалы: пары `[start, end)` индексов высоты, два `u32` на интервал |
+| 4 storage, read | отрезки: 2 x `vec4` на отрезок (p0, p1) |
+| 5 storage, read_write | `VoxelHit` x count (16 Б: `t` f32, `column`, `row`, `z`; свободно = `column` `0xFFFFFFFF`) |
+
+`parseVcol` (`DecompressionStream`) превращает файл в три массива, `VoxelGpu.create` загружает их.
+
 ## Лимиты и разбиение BVH сверх лимита привязки
 
 * По умолчанию `maxStorageBufferBindingSize` в WebGPU - 128 MiB (134 217 728 Б); `requestDevice()` запрашивает максимум адаптера (1 GiB у адаптера SwiftShader в тестах; у обычных видеокарт 2-4 GiB). `maxComputeInvocationsPerWorkgroup` (>= 256) для 64 потоков не проблема.
@@ -76,6 +94,7 @@ WebGPU-устройстве.
 * Два куска с accumulate против одного BVH: 0 различий. Heatmap: 784 кандидата x 2 дуги, 0 расхождений с float64-копией.
 * Скорость на SwiftShader: около 20 000 отрезков/с (диспатч 200 000 отрезков, только ядро). Это скорость CPU; на реальных GPU не измерялась.
 * `naga` 30.0.1 принимает оба склеенных шейдера без предупреждений; tint в Chromium компилирует их с 0 сообщений.
+* Воксельное ядро (`run_voxel.mjs`, Jensen и Kokan, по 100 000 отрезков): см. `test/last-run-voxel.txt` и таблицу в `engine/README.ru.md`. tint компилирует `voxel.wgsl` с 0 сообщений; сборка wasm совпадает с нативным DDA на всех отрезках; GPU против нативного f64 DDA расходится на 10 / 2 отрезках, все объяснены округлением `f32` на гранях вокселей; против точных треугольников ошибочны 1,43 % (Jensen) и 4,56 % (Kokan) отрезков без скользящих пар. Около 19 000 отрезков/с на SwiftShader (CPU).
 
 ## Тесты
 
@@ -90,3 +109,9 @@ node engine/wgsl/test/run.mjs <dataDir>
 устройство `navigator.gpu` (`architecture: swiftshader`). Скорость, полученная так, - это скорость CPU, не GPU. Переменная
 `EXPORTED_BVH=/path/bvh.bin` прогоняет те же отрезки через файл Rust-экспортёра. Шейдеры дополнительно проверяются `naga` 30.0.1
 на склеенных исходниках (`cat bvh_common.wgsl trace.wgsl > x.wgsl && naga x.wgsl`).
+
+Воксельное ядро (сначала `sh engine/js/build.sh`; данные из `engine/tools/make_voxel_segments.py`, см. `engine/README.ru.md`):
+
+```
+node engine/wgsl/test/run_voxel.mjs <dataDir> jensen,kokan
+```

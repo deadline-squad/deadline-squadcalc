@@ -24,6 +24,7 @@ use crate::heightmap::Heightmap;
 use crate::materials;
 use crate::path::{trajectory_segments, Segment};
 use crate::trace::{first_hit_along, Scene};
+use crate::voxel::VoxelColumns;
 use crate::weapon::{deg_to_rad, rad_to_deg, Weapon};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -64,6 +65,10 @@ pub struct Environment {
     /// Name of a BVH in [`Resources`] (a `bvh.bin` path for the CLI); none: the line of fire is not checked.
     #[serde(default)]
     pub bvh_buffer_ref: Option<String>,
+    /// Name of voxel columns in [`Resources`] (a `.vcol` path for the CLI); none: no voxel layer. Positions are
+    /// then in the frame of the file, see [`crate::voxel`].
+    #[serde(default)]
+    pub vcol_ref: Option<String>,
 }
 
 /// Which arc to fire.
@@ -159,8 +164,8 @@ pub struct Response {
     pub firing_solution: FiringSolution,
     /// Time of flight and apex.
     pub flight_data: FlightData,
-    /// `"clear"`, `"occluded"` (the path meets the BVH or the terrain before the target), `"unchecked"`
-    /// (no heightmap and no BVH given) or `"no_solution"`.
+    /// `"clear"`, `"occluded"` (the path meets the BVH, a voxel or the terrain before the target), `"unchecked"`
+    /// (no heightmap, BVH or voxel columns given) or `"no_solution"`.
     pub occlusion_status: String,
     /// Impact and its surface.
     pub collision_details: CollisionDetails,
@@ -175,6 +180,8 @@ pub enum EngineError {
     UnknownHeightmap(String),
     /// The request names a BVH that was not loaded.
     UnknownBvh(String),
+    /// The request names voxel columns that were not loaded.
+    UnknownVcol(String),
     /// A value is not usable (message).
     Invalid(String),
 }
@@ -185,6 +192,7 @@ impl fmt::Display for EngineError {
             EngineError::Json(e) => write!(f, "invalid request: {e}"),
             EngineError::UnknownHeightmap(r) => write!(f, "heightmap_ref {r:?} was not loaded"),
             EngineError::UnknownBvh(r) => write!(f, "bvh_buffer_ref {r:?} was not loaded"),
+            EngineError::UnknownVcol(r) => write!(f, "vcol_ref {r:?} was not loaded"),
             EngineError::Invalid(m) => write!(f, "invalid request: {m}"),
         }
     }
@@ -197,6 +205,7 @@ impl std::error::Error for EngineError {}
 pub struct Resources {
     heightmaps: HashMap<String, Heightmap>,
     bvhs: HashMap<String, BvhSet>,
+    vcols: HashMap<String, VoxelColumns>,
 }
 
 impl Resources {
@@ -215,8 +224,14 @@ impl Resources {
         self.bvhs.insert(reference.to_string(), bvh);
     }
 
+    /// Registers voxel columns under `reference`.
+    pub fn add_vcol(&mut self, reference: &str, columns: VoxelColumns) {
+        self.vcols.insert(reference.to_string(), columns);
+    }
+
     /// Loads the files a request names: `heightmap_ref` is a `.png` (16-bit grayscale) or a raw `.g16` path,
-    /// `bvh_buffer_ref` a `bvh.bin` path or a directory whose `*.bin` files are the parts of a [`BvhSet`].
+    /// `bvh_buffer_ref` a `bvh.bin` path or a directory whose `*.bin` files are the parts of a [`BvhSet`],
+    /// `vcol_ref` a `VCOL1` file (gzip or decompressed).
     /// Refs already registered are kept.
     ///
     /// # Errors
@@ -264,6 +279,15 @@ impl Resources {
             }
             self.add_bvh(path, BvhSet { parts });
         }
+        if let Some(path) = environment
+            .vcol_ref
+            .as_deref()
+            .filter(|p| !self.has_vcol(p))
+        {
+            let bytes = std::fs::read(path).map_err(|e| fail("vcol", path, &e))?;
+            let columns = VoxelColumns::from_bytes(&bytes).map_err(|e| fail("vcol", path, &e))?;
+            self.add_vcol(path, columns);
+        }
         Ok(())
     }
 
@@ -275,6 +299,16 @@ impl Resources {
     /// Whether a BVH is registered under `reference`.
     pub fn has_bvh(&self, reference: &str) -> bool {
         self.bvhs.contains_key(reference)
+    }
+
+    /// The voxel columns registered under `reference`.
+    pub fn vcol(&self, reference: &str) -> Option<&VoxelColumns> {
+        self.vcols.get(reference)
+    }
+
+    /// Whether voxel columns are registered under `reference`.
+    pub fn has_vcol(&self, reference: &str) -> bool {
+        self.vcols.contains_key(reference)
     }
 }
 
@@ -291,7 +325,7 @@ pub fn run_json(input: &str, resources: &Resources) -> Result<String, EngineErro
 /// Answers a request.
 ///
 /// # Errors
-/// [`EngineError::UnknownHeightmap`] / [`EngineError::UnknownBvh`] for refs that are not in `resources`,
+/// [`EngineError::UnknownHeightmap`] / [`EngineError::UnknownBvh`] / [`EngineError::UnknownVcol`] for refs that are not in `resources`,
 /// [`EngineError::Invalid`] for a non-finite position or velocity.
 pub fn run(request: &Request, resources: &Resources) -> Result<Response, EngineError> {
     let finite = request
@@ -320,6 +354,15 @@ pub fn run(request: &Request, resources: &Resources) -> Result<Response, EngineE
                 .bvhs
                 .get(r)
                 .ok_or_else(|| EngineError::UnknownBvh(r.clone()))?,
+        ),
+        None => None,
+    };
+    let voxels = match &environment.vcol_ref {
+        Some(r) => Some(
+            resources
+                .vcols
+                .get(r)
+                .ok_or_else(|| EngineError::UnknownVcol(r.clone()))?,
         ),
         None => None,
     };
@@ -401,6 +444,14 @@ pub fn run(request: &Request, resources: &Resources) -> Result<Response, EngineE
             hit_triangle = Some((hit.hit.part, hit.hit.triangle));
         }
     }
+    if let Some(hit) = voxels.and_then(|v| v.first_block_along(&segments)) {
+        if hit.time < impact_time {
+            occluded = true;
+            impact = hit.point;
+            impact_time = hit.time;
+            hit_triangle = None;
+        }
+    }
     if let Some(map) = heightmap {
         if let Some((point, time)) =
             first_terrain_hit(map, environment.z_scale, &segments, distance)
@@ -416,7 +467,7 @@ pub fn run(request: &Request, resources: &Resources) -> Result<Response, EngineE
     let surface = materials::lookup(hit_triangle);
     let status = if occluded {
         "occluded"
-    } else if bvh.is_some() || heightmap.is_some() {
+    } else if bvh.is_some() || heightmap.is_some() || voxels.is_some() {
         "clear"
     } else {
         "unchecked"
@@ -639,8 +690,66 @@ mod tests {
         assert!((-350.0..-249.0).contains(&y), "impact at Y = {y}");
     }
 
+    /// A wall of voxels across the line of fire (Y = 300, X in -50..50, Z in 0..400), grid in the request's frame.
+    fn voxel_wall(y_cell: u32) -> VoxelColumns {
+        let voxels: Vec<(u32, u32, u32)> = (0..200)
+            .flat_map(|column| (0..400).map(move |z| (column, y_cell, z)))
+            .collect();
+        VoxelColumns::from_voxels([-50.0, 0.0, 0.0], 0.5, 1.0, 200, 1400, &voxels).unwrap()
+    }
+
+    #[test]
+    fn a_voxel_wall_on_the_path_occludes_and_is_the_impact() {
+        let mut resources = Resources::new();
+        resources.add_vcol("wall", voxel_wall(600));
+        let r = run_text(
+            &request(r#","environment":{"vcol_ref":"wall"},"options":{"arc":"low"}"#),
+            &resources,
+        );
+        assert_eq!(r["occlusion_status"], "occluded");
+        let point = r["collision_details"]["point"].as_array().unwrap();
+        assert!((point[1].as_f64().unwrap() - 300.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn a_voxel_wall_beyond_the_target_leaves_the_line_clear() {
+        let mut resources = Resources::new();
+        resources.add_vcol("far", voxel_wall(1250));
+        let r = run_text(&request(r#","environment":{"vcol_ref":"far"}"#), &resources);
+        assert_eq!(r["occlusion_status"], "clear");
+    }
+
+    #[test]
+    fn the_nearer_of_a_voxel_and_a_triangle_is_the_impact() {
+        let near_wall: Vec<Triangle> = vec![[
+            [-50.0, 100.0, -10.0],
+            [50.0, 100.0, -10.0],
+            [0.0, 100.0, 400.0],
+        ]];
+        let mut resources = Resources::new();
+        resources.add_bvh(
+            "near",
+            BvhSet::build(near_wall, 10, BuildOptions::default()).unwrap(),
+        );
+        resources.add_vcol("wall", voxel_wall(600));
+        let r = run_text(
+            &request(
+                r#","environment":{"bvh_buffer_ref":"near","vcol_ref":"wall"},"options":{"arc":"low"}"#,
+            ),
+            &resources,
+        );
+        assert!((r["collision_details"]["point"][1].as_f64().unwrap() - 100.0).abs() < 1e-9);
+    }
+
     #[test]
     fn unknown_refs_and_bad_json_are_errors() {
+        assert!(matches!(
+            run_json(
+                &request(r#","environment":{"vcol_ref":"nope"}"#),
+                &Resources::new()
+            ),
+            Err(EngineError::UnknownVcol(_))
+        ));
         let r = run_json(
             &request(r#","environment":{"bvh_buffer_ref":"nope"}"#),
             &Resources::new(),
