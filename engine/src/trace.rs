@@ -381,7 +381,7 @@ mod tests {
             })
             .collect();
         let single = Bvh::build(&soup, BuildOptions::default()).unwrap();
-        let set = BvhSet::build(&soup, 7, BuildOptions::default()).unwrap();
+        let set = BvhSet::build(soup, 7, BuildOptions::default()).unwrap();
         for k in 0..20 {
             let p0 = [0.0, 0.0, 70.0 - k as f64];
             let p1 = [0.5, 0.0, -3.0];

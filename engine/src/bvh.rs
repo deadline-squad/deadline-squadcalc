@@ -122,6 +122,33 @@ pub fn triangles_from_le_bytes(bytes: &[u8]) -> Result<Vec<Triangle>, BvhError> 
         .collect())
 }
 
+/// Reads a triangle soup (see [`triangles_from_le_bytes`]) from a reader to its end in chunks, without
+/// holding the raw bytes and the triangles at the same time.
+///
+/// # Errors
+/// An I/O error, or `InvalidData` if the stream ends inside a triangle.
+pub fn triangles_from_reader(mut reader: impl std::io::Read) -> std::io::Result<Vec<Triangle>> {
+    const CHUNK_TRIANGLES: usize = 1 << 20;
+    let mut triangles = Vec::new();
+    let mut buffer = vec![0u8; CHUNK_TRIANGLES * 36];
+    loop {
+        let mut filled = 0;
+        while filled < buffer.len() {
+            let n = reader.read(&mut buffer[filled..])?;
+            if n == 0 {
+                break;
+            }
+            filled += n;
+        }
+        let chunk = triangles_from_le_bytes(&buffer[..filled])
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()))?;
+        triangles.extend(chunk);
+        if filled < buffer.len() {
+            return Ok(triangles);
+        }
+    }
+}
+
 /// Bounding box and centroid of one primitive.
 #[derive(Clone, Copy)]
 struct Prim {
@@ -633,26 +660,25 @@ pub struct BvhSet {
 }
 
 impl BvhSet {
-    /// Builds hierarchies of at most `max_triangles` triangles each (at most [`MAX_TRIANGLES`]).
+    /// Builds hierarchies of at most `max_triangles` triangles each (at most [`MAX_TRIANGLES`]). The soup is
+    /// consumed so that its memory is handed back part by part while the hierarchies are built (a map of 72
+    /// million triangles needs 2.6 GB for the soup and 3.5 GB for the hierarchies).
     ///
     /// # Errors
     /// As [`Bvh::build`].
-    pub fn build(triangles: &[Triangle], max_triangles: usize, options: BuildOptions) -> Result<BvhSet, BvhError> {
+    pub fn build(mut triangles: Vec<Triangle>, max_triangles: usize, options: BuildOptions) -> Result<BvhSet, BvhError> {
         let max_triangles = max_triangles.clamp(1, MAX_TRIANGLES);
-        let mut parts = Vec::new();
-        if triangles.len() <= max_triangles {
-            parts.push(Bvh::build(triangles, options)?);
-            return Ok(BvhSet { parts });
-        }
-        let prims: Vec<Prim> = triangles.iter().map(Prim::of).collect();
-        let mut order: Vec<u32> = (0..triangles.len() as u32).collect();
         let mut ranges = Vec::new();
-        split_parts(&mut order, &prims, max_triangles, 0, &mut ranges);
-        drop(prims);
-        for (start, end) in ranges {
-            let part: Vec<Triangle> = order[start..end].iter().map(|&i| triangles[i as usize]).collect();
-            parts.push(Bvh::build(&part, options)?);
+        split_parts(&mut triangles, max_triangles, 0, &mut ranges);
+
+        // Build from the end so that each finished range can be cut off and its memory returned
+        let mut parts = Vec::with_capacity(ranges.len());
+        for (start, _) in ranges.into_iter().rev() {
+            parts.push(Bvh::build(&triangles[start..], options)?);
+            triangles.truncate(start);
+            triangles.shrink_to_fit();
         }
+        parts.reverse();
         Ok(BvhSet { parts })
     }
 
@@ -667,25 +693,34 @@ impl BvhSet {
     }
 }
 
-/// Splits `order` recursively at the median of the longest centroid axis until each range has at most `max`
-/// triangles; pushes the `(start, end)` ranges of `order` in order.
-fn split_parts(order: &mut [u32], prims: &[Prim], max: usize, start: usize, out: &mut Vec<(usize, usize)>) {
-    if order.len() <= max {
-        out.push((start, start + order.len()));
+fn centroid(triangle: &Triangle, axis: usize) -> f32 {
+    (triangle[0][axis] + triangle[1][axis] + triangle[2][axis]) / 3.0
+}
+
+/// Splits `triangles` in place, recursively at the median centroid of the longest axis, until each range has at
+/// most `max` triangles; pushes the `(start, end)` ranges in order.
+fn split_parts(triangles: &mut [Triangle], max: usize, start: usize, out: &mut Vec<(usize, usize)>) {
+    if triangles.len() <= max {
+        out.push((start, start + triangles.len()));
         return;
     }
-    let mut centroids = Aabb::EMPTY;
-    for &i in order.iter() {
+    let mut low = [f32::INFINITY; 3];
+    let mut high = [f32::NEG_INFINITY; 3];
+    for t in triangles.iter() {
         for axis in 0..3 {
-            let c = prims[i as usize].centroid(axis);
-            centroids.min[axis] = centroids.min[axis].min(c);
-            centroids.max[axis] = centroids.max[axis].max(c);
+            let c = centroid(t, axis);
+            low[axis] = low[axis].min(c);
+            high[axis] = high[axis].max(c);
         }
     }
-    let middle = median_split(order, prims, &centroids);
-    let (left, right) = order.split_at_mut(middle);
-    split_parts(left, prims, max, start, out);
-    split_parts(right, prims, max, start + middle, out);
+    let axis = (0..3)
+        .max_by(|&a, &b| (high[a] - low[a]).total_cmp(&(high[b] - low[b])))
+        .unwrap_or(0);
+    let middle = triangles.len() / 2;
+    triangles.select_nth_unstable_by(middle, |a, b| centroid(a, axis).total_cmp(&centroid(b, axis)));
+    let (left, right) = triangles.split_at_mut(middle);
+    split_parts(left, max, start, out);
+    split_parts(right, max, start + middle, out);
 }
 
 #[cfg(feature = "threads")]
@@ -807,7 +842,7 @@ mod tests {
     #[test]
     fn set_splits_large_soups_and_keeps_every_triangle() {
         let soup = random_soup(2000, 11);
-        let set = BvhSet::build(&soup, 300, BuildOptions::default()).unwrap();
+        let set = BvhSet::build(soup, 300, BuildOptions::default()).unwrap();
         assert!(set.parts.len() >= 7);
         assert!(set.parts.iter().all(|p| p.triangles.len() <= 300));
         assert_eq!(set.triangle_count(), 2000);

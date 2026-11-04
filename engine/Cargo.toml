@@ -12,7 +12,7 @@ name = "squad_engine"
 crate-type = ["cdylib", "rlib"]
 
 [[bin]]
-name = "squad-engine"
+name = "squad-cli"
 path = "src/bin/cli.rs"
 
 [features]
@@ -39,4 +39,3 @@ console_error_panic_hook = { version = "0.1", optional = true }
 opt-level = 3
 lto = true
 codegen-units = 1
-panic = "abort"

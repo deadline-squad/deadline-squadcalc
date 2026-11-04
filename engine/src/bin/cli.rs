@@ -1,4 +1,4 @@
-//! `squad-engine [request.json]`: reads a JSON request (from the file, or from stdin without an argument),
+//! `squad-cli [request.json]`: reads a JSON request (from the file, or from stdin without an argument),
 //! loads the heightmap and BVH files it names and prints the JSON response. Exit status 1 and a message on
 //! stderr if the request cannot be answered. See `README.md` for the request format.
 
@@ -13,7 +13,7 @@ fn main() -> ExitCode {
             ExitCode::SUCCESS
         }
         Err(message) => {
-            eprintln!("squad-engine: {message}");
+            eprintln!("squad-cli: {message}");
             ExitCode::FAILURE
         }
     }

@@ -1,11 +1,11 @@
-//! End to end: the `squad-engine` binary with a `bvh.bin` written to disk and a request that names it.
+//! End to end: the `squad-cli` binary with a `bvh.bin` written to disk and a request that names it.
 
 use squad_engine::bvh::{BuildOptions, Bvh, Triangle};
 use std::io::Write;
 use std::process::{Command, Stdio};
 
 fn run_cli(args: &[&str], input: &str) -> (bool, String, String) {
-    let mut child = Command::new(env!("CARGO_BIN_EXE_squad-engine"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_squad-cli"))
         .args(args)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())

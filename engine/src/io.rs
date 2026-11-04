@@ -505,7 +505,7 @@ mod tests {
             [[-50.0, 300.0, -10.0], [50.0, 300.0, 400.0], [-50.0, 300.0, 400.0]],
         ];
         let mut resources = Resources::new();
-        resources.add_bvh("wall", BvhSet::build(&wall, 10, BuildOptions::default()).unwrap());
+        resources.add_bvh("wall", BvhSet::build(wall, 10, BuildOptions::default()).unwrap());
         let r = run_text(&request(r#","environment":{"bvh_buffer_ref":"wall"}"#), &resources);
         assert_eq!(r["occlusion_status"], "occluded");
         let point = r["collision_details"]["point"].as_array().unwrap();
@@ -519,7 +519,7 @@ mod tests {
     fn a_clear_line_of_fire_is_clear() {
         let far_wall: Vec<Triangle> = vec![[[500.0, 100.0, 0.0], [600.0, 100.0, 0.0], [550.0, 100.0, 50.0]]];
         let mut resources = Resources::new();
-        resources.add_bvh("far", BvhSet::build(&far_wall, 10, BuildOptions::default()).unwrap());
+        resources.add_bvh("far", BvhSet::build(far_wall, 10, BuildOptions::default()).unwrap());
         let r = run_text(&request(r#","environment":{"bvh_buffer_ref":"far"}"#), &resources);
         assert_eq!(r["occlusion_status"], "clear");
     }
