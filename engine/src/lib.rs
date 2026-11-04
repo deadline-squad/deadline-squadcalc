@@ -9,3 +9,5 @@ pub mod trace;
 pub mod weapon;
 pub mod io;
 pub mod materials;
+#[cfg(all(feature = "wasm", target_arch = "wasm32"))]
+pub mod wasm;

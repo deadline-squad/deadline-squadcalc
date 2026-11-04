@@ -22,6 +22,9 @@ default = []
 threads = ["dep:rayon"]
 # wasm-bindgen exports (build with `--target wasm32-unknown-unknown --features wasm`).
 wasm = ["dep:wasm-bindgen", "dep:console_error_panic_hook"]
+# Threads in the browser: `threads` plus wasm-bindgen-rayon. Needs a nightly toolchain with atomics and
+# build-std (see README.md); not part of the pinned stable build.
+wasm-threads = ["threads", "wasm", "dep:wasm-bindgen-rayon"]
 # SIMD128 triangle test (wasm32 built with `-C target-feature=+simd128`; ignored elsewhere).
 simd = []
 
@@ -30,7 +33,8 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 png = { version = "0.17", default-features = false }
 rayon = { version = "1", optional = true }
-wasm-bindgen = { version = "0.2", optional = true }
+wasm-bindgen = { version = "=0.2.130", optional = true }
+wasm-bindgen-rayon = { version = "1", optional = true }
 console_error_panic_hook = { version = "0.1", optional = true }
 
 [dev-dependencies]

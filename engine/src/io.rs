@@ -18,7 +18,7 @@
 //! boost, speed cap, muzzle offsets and elevation limits; its `velocity` is replaced by `v0`) and a top-level
 //! `options` object ([`Options`]). World frame and the meaning of the refs: see `README.md`.
 
-use crate::bvh::{Bvh, BvhSet};
+use crate::bvh::BvhSet;
 use crate::flight::Flight;
 use crate::heightmap::Heightmap;
 use crate::materials;
@@ -250,7 +250,7 @@ impl Resources {
             let mut parts = Vec::new();
             for file in files.drain(..) {
                 let bytes = std::fs::read(&file).map_err(|e| fail("bvh", path, &e))?;
-                parts.push(Bvh::from_bytes(&bytes).map_err(|e| fail("bvh", path, &e))?);
+                parts.push(crate::bvh::Bvh::from_bytes(&bytes).map_err(|e| fail("bvh", path, &e))?);
             }
             self.add_bvh(path, BvhSet { parts });
         }

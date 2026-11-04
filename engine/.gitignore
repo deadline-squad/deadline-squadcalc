@@ -1,4 +1,4 @@
 /target
 /pkg
-/js/pkg
+/js/pkg*
 *.bin
