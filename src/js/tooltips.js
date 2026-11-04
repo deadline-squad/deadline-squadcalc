@@ -524,6 +524,18 @@ tippy(".infTargetHeightTooltip", {
     },
 });
 
+tippy(".infPositionHeatTooltip", {
+    animation: "fade",
+    placement: "top",
+    touch: false,
+    appendTo: targetDialog,
+    theme: "infTooltips",
+    delay: [500, 0],
+    onShow(tip) {
+        tip.setContent(i18next.t("tooltips:positionHeatDesc"));
+    },
+});
+
 tippy(".infStructureTooltip", {
     animation: "fade",
     placement: "top",

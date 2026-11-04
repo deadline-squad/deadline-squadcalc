@@ -9,6 +9,8 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { gzipSync } from "node:zlib";
 import { fileURLToPath } from "node:url";
+import { KILL_DAMAGE } from "../src/js/squadDamage.js";
+import { HEAT } from "../src/js/positionHeatmap.js";
 import { classifyColumn } from "../src/js/targetHeights.js";
 import { COVERAGE, clearsStructures, computeCoveragePeaks, createRayClassifier } from "../src/js/squadCoverageRays.js";
 
@@ -94,6 +96,9 @@ const META = {
     volume: { ...entry(VOLUME_FILE), file: "volume.vcol", dz: GRID.dz, z_min_m: GRID.zMin, terrain: { ...entry(TERRAIN_FILE), file: "terrain.bin" } },
     generated: "2026-11-04T00:00:00Z",
 };
+
+// A bullet that flies straight, shouldered at 1.5 m
+const STRAIGHT_SHOT = { velocity: 800, gravity: 0, acceleration: 0, boostTime: 0, maxSpeed: 0, rotationFollowsVelocity: true, pivotHeight: 1.5, muzzleForward: 0, muzzleUp: 0 };
 
 const messages = [];
 let imported = false;
@@ -196,6 +201,63 @@ test("coverage: the rays through the wall are blocked beyond it, those through t
     // the ground ends 16 m north of the weapon, the targets beyond are out
     assert.deepEqual(throughWall, [1, 1, 1, 1, 3, 3, 3, 3, 0, 0], `wall: ${throughWall}`);
     assert.deepEqual(throughDoor, [1, 1, 1, 1, 1, 1, 1, 1, 0, 0], `doorway: ${throughDoor}`);
+});
+
+test("cover: a soldier behind the wall is covered, one in line with the doorway is not (the damage zone with the voxels as cover)", { skip: !engineBuilt }, async () => {
+    const send = await startWorker();
+    const explosion = { damage: 115, inner: 1.5, outer: 18, falloff: 1, distanceFromImpact: 0.08 };
+    // The round lands at (110, -36), 4 m south of the wall (y -40 to -39.5) and in line with the doorway (x 109 to 111, open to 2 m)
+    const request = { id: 3, explosion, cell: 1, impact: [110, -36], east: [1, 0], north: [0, -1], impactZ: 0 };
+    const [answer] = await send({ cover: request });
+    assert.equal(answer.covered, 3);
+    assert.equal(answer.size, 37);
+    const at = (field, east, north) => field[(18 - north) * 37 + 18 + east];
+
+    assert.ok(at(answer.exposed, -5, 7) > KILL_DAMAGE / 2, "the soldier behind the wall is in range of the blast");
+    assert.equal(at(answer.damage, -5, 7), 0, "behind the wall: covered");
+    assert.equal(at(answer.damage, 3, 7), 0, "behind the wall, beside the doorway: covered");
+    assert.ok(at(answer.damage, 0, 7) > 0, "in line with the doorway: the blast reaches him");
+    assert.equal(at(answer.damage, 0, 7), at(answer.exposed, 0, 7), "and the doorway costs nothing");
+    assert.ok(at(answer.damage, -5, -3) > 0, "on the explosion's side of the wall nothing is covered");
+
+    // A round that lands above the wall's top sees over it
+    const [over] = await send({ cover: { ...request, id: 4, impactZ: 6 } });
+    assert.ok(at(over.damage, -5, 7) > 0, "an explosion 6 m up sees the soldier behind a 2.5 m wall");
+
+    const [outside] = await send({ cover: { ...request, id: 5, impact: [500, 500] } });
+    assert.deepEqual(outside, { covered: 5, size: 0 }, "off the landscape");
+});
+
+test("heatmap: the positions behind the wall are blocked, those in line with the doorway are clear (voxel walk through the worker)", { skip: !engineBuilt }, async () => {
+    const send = await startWorker();
+    const params = { targetZ: 0, elevated: false, shot: STRAIGHT_SHOT, range: 20, cell: 2, rays: 4, elevationLimits: [-90, 90], angleOffset: 0, lifespan: 100, moa: 2 };
+    // Rays: 0 east, 1 north (y decreasing), 2 west, 3 south. A target at (x, -44) is north of the wall (y -40 to -39.5):
+    // the south ray runs from it through the wall; at x 110 through the doorway (109 to 111, open to 2 m), at x 105 into the wall
+    const run = async (x, region = null) => {
+        const [ready] = await send({ heatInit: { job: 1, params, target: [x, -44], east: [1, 0], north: [0, -1], region } });
+        assert.equal(ready.heatReady, 1);
+        assert.equal(ready.exact, false);
+        await send({ heatRays: { job: 1, first: 0, size: 4 } });
+        const [{ values, computeMs }] = await send({ heatFinish: 1 });
+        assert.ok(computeMs >= 0);
+        const stride = Math.floor(params.range / params.cell) + 1;
+        return (ray) => Array.from(values.subarray(ray * stride + 1, (ray + 1) * stride));
+    };
+    const clear = (value) => value >= HEAT.CLEAR_MIN;
+
+    // South ray, positions at 2, 4, ..., 20 m: the wall is 4 to 4.5 m from the target; 2 m is north of it (clear) and 4 m
+    // stands in the doorway (clear) or in the wall (out: the shooter's body is inside it)
+    const throughDoor = (await run(110))(3);
+    assert.ok(throughDoor.slice(0, 8).every(clear), `in line with the doorway: ${throughDoor}`);
+    const throughWall = (await run(105))(3);
+    assert.ok(clear(throughWall[0]), `north of the wall: ${throughWall}`);
+    assert.equal(throughWall[1], HEAT.OUT, "a shooter inside the wall does not count");
+    // The shooter at 6 m has the wall 1.5 m ahead, inside the 3 m the line of fire is not checked from the muzzle
+    assert.deepEqual(throughWall.slice(3, 8), new Array(5).fill(HEAT.BLOCKED), `south of the wall: ${throughWall}`);
+    assert.ok(throughDoor[3] > throughDoor[7], "closer is better");
+
+    // Along the wall, a ray east of the target stays on its side of the wall: clear
+    assert.ok((await run(110))(0).slice(0, 5).every(clear));
 });
 
 test("clearsStructures: tests only the samples with a structure, and only where the path is under its top", () => {

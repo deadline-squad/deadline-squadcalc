@@ -38,7 +38,7 @@ export const TARGET_CLEARANCE = 3;
  * @param {import("./squadBallistics.js").Shot} shot
  * @returns {boolean}
  */
-function isNumeric(shot) {
+export function isNumeric(shot) {
     return shot.gravity > 0 && (!isParabola(shot) || Boolean(shot.maxSpeed));
 }
 

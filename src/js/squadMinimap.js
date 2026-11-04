@@ -92,6 +92,8 @@ export const squadMinimap = Map.extend({
         this.activeWeaponsMarkers = new LayerGroup().addTo(this);
         this.volume = new SquadVolume(this);
         this.coverage = new SquadCoverage(this);
+        // The reverse-position heatmap (squadPositionHeatmap.js), created by the target dialog's button on demand
+        this.positionHeatmap = null;
         $(document).on("heightmap:loaded", () => this._handleHeightmapLoaded());
         this.targetGrids = new LayerGroup().addTo(this);
         this.activeMarkers = new LayerGroup().addTo(this);
@@ -443,6 +445,7 @@ export const squadMinimap = Map.extend({
 
         if (this.layer) this.layer.clear();
         this.coverage.clear();
+        this.positionHeatmap?.hide();
 
         // Empty and clear buttons of DOM elements
         $(".dropbtn8, .dropbtn9, .dropbtn10, .dropbtn11").empty();
@@ -465,6 +468,7 @@ export const squadMinimap = Map.extend({
         });
         // Weapon moved, deleted or raised: recomputed only if its inputs changed
         this.coverage.update();
+        this.positionHeatmap?.update();
         notifyBridgeChange();
     },
 

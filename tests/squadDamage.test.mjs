@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { damageAtDistance, impactDamage, isCovered, hitProbability, roundsNeeded, KILL_DAMAGE, WOUND_DAMAGE } from "../src/js/squadDamage.js";
+import { damageAtDistance, damageField, impactDamage, isCovered, hitProbability, roundsNeeded, KILL_DAMAGE, WOUND_DAMAGE } from "../src/js/squadDamage.js";
 import { Weapon } from "../src/js/squadWeapons.js";
 import { flat } from "./helpers.mjs";
 
@@ -56,4 +56,44 @@ test("rounds needed: 1 - (1 - p)^n reaches the confidence", () => {
     assert.equal(roundsNeeded(0.1), 22);
     assert.equal(roundsNeeded(0.1, 0.5), 7);
     assert.ok(WOUND_DAMAGE < KILL_DAMAGE);
+});
+
+
+test("damageField with objects: the volume layer's blocked() covers a soldier the landscape does not, between the clearances", () => {
+    const calls = [];
+    const wall = (east0, north0, z0, east1, north1) => {
+        calls.push([east0, north0, z0, east1, north1]);
+        return Math.min(east0, east1) <= 4 && Math.max(east0, east1) >= 4;
+    };
+    const field = damageField(flat, explosion, 1, {}, { impactZ: 0, blocked: wall });
+    const at = (east, north) => {
+        const middle = (field.size - 1) / 2;
+        return [field.damage[(middle - north) * field.size + middle + east], field.exposed[(middle - north) * field.size + middle + east]];
+    };
+
+    assert.ok(at(3, 0)[0] > 0, "before the wall");
+    const [behind, exposed] = at(8, 0);
+    assert.equal(behind, 0, "behind the wall");
+    assert.ok(exposed > 0, "the damage without cover is still reported");
+    assert.equal(at(-8, 0)[0] > 0, true, "the other side");
+
+    // The asked stretch of the line is the heightmap trace's: from 1 m off the explosion to 0.5 m short of the soldier
+    const [east0, north0, z0, east1] = calls.find(([, , , to]) => Math.abs(to - 7.5) < 1e-9);
+    assert.deepEqual([east0, north0], [1, 0]);
+    assert.ok(Math.abs(z0 - (0.08 + (0.9 - 0.08) / 8)) < 1e-9, `height at the first end ${z0}`);
+    assert.equal(east1, 7.5);
+});
+
+test("damageField with objects: the landscape still covers, and the impact height moves the explosion", () => {
+    const hill = (east) => (east > 3 && east < 5 ? 10 : 0);
+    const never = { impactZ: 0, blocked: () => false };
+    const hidden = damageField(hill, explosion, 1, {}, never);
+    const size = hidden.size;
+    const middle = (size - 1) / 2;
+    assert.equal(hidden.damage[middle * size + middle + 8], 0, "behind the hill");
+
+    // An explosion 6 m up is farther from a soldier on the ground than one on it
+    const low = damageField(flat, explosion, 1, {}, never);
+    const high = damageField(flat, explosion, 1, {}, { impactZ: 6, blocked: () => false });
+    assert.ok(high.exposed[middle * size + middle + 8] < low.exposed[middle * size + middle + 8]);
 });

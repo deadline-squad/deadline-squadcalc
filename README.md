@@ -68,6 +68,18 @@
 </details>
 
 <details>
+  <summary><b>Firing positions and the damage zone with cover</b></summary>
+  </br>
+  With <i>Object volumes in the line of fire</i> on, a map that has volume files and a direct-fire weapon (one with a sight and a spread) selected, the target dialog has a <i>Firing positions</i> button. It draws on the map the ground positions, up to the weapon's range (at most 2000 m), from where a shooter has a clear line of fire to the target at the height chosen for it (a floor, a window, a roof, or the ground). Green is a close position with room around the line, amber a far one or one where the line passes close to an obstacle, faint red a blocked one. The score counts the distance (a far position stays viable) and the clearance of the line of fire around obstacles, as wide as the weapon's spread. The line is the weapon's low trajectory from the muzzle; open windows and doorways let it through, closed windows and walls stop it, and no penetration is computed. It is off by default, loaded only when the button is pressed, and computed in the background.
+  </br></br>
+  The voxel walk errs on the side of blocking. Where the target lies at least 50 m inside the square of a <i>precision region</i> (the exact collision triangles of 150 m around a target, 0.1 to 5 MB, published for a few targets only, currently one on Jensen) the legend says <i>Exact triangles within N m of the target, voxels beyond</i> and the lines of fire that pass close to geometry within that square are decided by the exact triangles; otherwise it says <i>Voxels only</i>. Measured against the exact triangle tracer on a target in a Jensen building: no false clear and no false blocked position with the region, 1 and 275 (2 and 1 337 at another height) of 31 560 without it. Details, timings per map and the method: <a href="./engine/README.md">engine/README.md</a>.
+  </br></br>
+  The damage zone drawn around a target (the red, orange and blue circles of the explosion) uses the voxels as cover when the same setting is on: a soldier behind a wall is covered, one in line with an open doorway or window is not, and the round lands at the height chosen for the target.
+
+  </br>
+</details>
+
+<details>
   <summary><b>Target heights and structure damage</b></summary>
   </br>
   With <i>Object volumes in the line of fire</i> on and a map that has volume files, clicking a target opens its dialog with a <i>Target height</i> list: the floors, ceilings, roof, windows and doorways found by a vertical ray through the voxel column at the target (open windows and doorways are holes, closed windows are solid, a door is open or absent; they are recognised from the shape of the walls). The chosen height is used for the elevation, the height difference and the line-of-fire check, and shows in the target's popup. <i>Ground</i>, the default, is the heightmap's height as before.

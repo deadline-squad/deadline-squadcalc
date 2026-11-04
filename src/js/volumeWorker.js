@@ -30,12 +30,27 @@
  *     and `north` being the file-frame displacement of one metre east and north. The rays are sampled here (the
  *     landscape and the voxels), not on the page. Answers `{coverageBatch: job}` per batch and
  *     `{coverageValues: job, values}` (transferred) after the finish; a newer `coverageInit` drops the job.
+ *   - `{heatInit: {job, params, target, east, north, region}}`, then `{heatRays: {job, first, size}}` per batch and
+ *     `{heatFinish: job}`: the reverse-position heatmap (positionHeatmap.js) of a target at `target` (x, y), `east` and
+ *     `north` being the file-frame displacement of one metre east and north; `params` are those of
+ *     createPositionClassifier without `heightAt`, `pathBlocked` (the worker supplies the landscape and the engine);
+ *     `region` is the meta.json entry of a precision region of the target or null. The line of fire is traced with the
+ *     voxel-column walk, and inside the region with the exact triangles too (engine/README.md, "Precision pass").
+ *     Answers `{heatReady: job, exact, loadMs}` to the init (`exact`: the region was loaded), `{heatBatch: job}` per
+ *     batch and `{heatValues: job, values, computeMs}` (transferred) after the finish; a newer `heatInit` drops the job.
+ *   - `{cover: {id, explosion, cell, impact, east, north, impactZ}}`: the damage zone of an explosion (squadDamage.damageField)
+ *     with the objects as cover: `impact` is the (x, y) of the round, `east` and `north` the file-frame displacement of
+ *     one metre east and north, `impactZ` the height it lands at (file Z). Answers `{covered: id, damage, exposed, size}`
+ *     (the two fields transferred), or `{covered: id, size: 0}` where the impact is not on the landscape.
  */
 import { computeCoveragePeaks, createRayClassifier } from "./squadCoverageRays.js";
 import { decodeTerrain, terrainHeight } from "./volumeTerrain.js";
 import { MIN_OPENING, WALL_PROBE } from "./targetHeights.js";
+import { damageField } from "./squadDamage.js";
+import { createPositionClassifier } from "./positionHeatmap.js";
 
 const VOXEL = "volume";
+const REGION = "region";
 
 // Highest index of a voxel column (engine/README.md: at most 4096 height indices per column)
 const MAX_HEIGHT_INDICES = 4096;
@@ -45,12 +60,17 @@ const MAX_HEIGHT_INDICES = 4096;
 const COLUMN_SCAN_UP = 120;
 const COLUMN_SCAN_DOWN = 1;
 
+// URL of the map's files and the cache key their requests carry, for the files fetched later (precision regions)
+let mapBase = "";
+let mapQuery = "";
 let engine = null;
 let terrain = null;
 let topZ = 0;
 let bottomZ = 0;
 let voxelHeight = 0;
 let job = null;
+let heat = null;
+let regionLoaded = false;
 let queue = Promise.resolve();
 
 
@@ -96,6 +116,8 @@ async function load({ base, volume, generated, engineUrl, wasmUrl }) {
         fetchChecked(`${base}${volume.file}${query}`, volume),
         fetchChecked(`${base}${volume.terrain.file}${query}`, volume.terrain),
     ]);
+    mapBase = base;
+    mapQuery = query;
     engine = await loadEngine(wasmUrl);
     engine.loadVcol(VOXEL, vcol);
     terrain = decodeTerrain(await gunzip(terrainBytes));
@@ -243,6 +265,76 @@ function classifyRay(ray) {
 }
 
 
+/**
+ * Start a heatmap job: load the target's precision region, if it has one, and build the classifier of the rays
+ * @param {{job: number, params: object, target: number[], east: number[], north: number[], region: object|null}} init
+ * @returns {Promise<{exact: boolean, loadMs: number}>}
+ */
+async function startHeatmap({ job: id, params, target, east, north, region }) {
+    heat = null;
+    const started = performance.now();
+    regionLoaded = false;
+    if (region) {
+        // A region that cannot be loaded leaves the voxel walk to decide
+        try {
+            engine.loadRegion(REGION, VOXEL, await fetchChecked(`${mapBase}${region.file}${mapQuery}`, region));
+            regionLoaded = true;
+        } catch (error) {
+            console.warn("[VOLUME] The precision region could not be loaded, using the voxels alone:", error.message ?? error);
+        }
+    }
+    const loadMs = performance.now() - started;
+
+    const worldX = (e, n) => target[0] + e * east[0] + n * north[0];
+    const worldY = (e, n) => target[1] + e * east[1] + n * north[1];
+    const segment = new Array(6);
+    const firstBlock = regionLoaded
+        ? (seg) => engine.precisionFirstBlock(REGION, VOXEL, seg)
+        : (seg) => engine.voxelFirstBlock(VOXEL, seg);
+    const classifier = createPositionClassifier({
+        ...params,
+        heightAt: (e, n) => terrainHeight(terrain, worldX(e, n), worldY(e, n)),
+        pathBlocked: (points, count) => {
+            for (let i = 1; i < count; i++) {
+                for (let k = 0; k < 2; k++) {
+                    const p = 3 * (i - 1 + k);
+                    segment[3 * k] = worldX(points[p], points[p + 1]);
+                    segment[3 * k + 1] = worldY(points[p], points[p + 1]);
+                    segment[3 * k + 2] = points[p + 2];
+                }
+                if (firstBlock(segment)) return true;
+            }
+            return false;
+        },
+    });
+    heat = { id, classifier, values: new Uint8Array(params.rays * classifier.stride), computeMs: 0 };
+    return { exact: regionLoaded, loadMs };
+}
+
+
+/**
+ * The damage zone of an explosion with the landscape and the objects as cover
+ * @param {{explosion: object, cell: number, impact: number[], east: number[], north: number[], impactZ: number}} request
+ * @returns {{damage: Float32Array, exposed: Float32Array, size: number}|null} - null where the impact is off the landscape
+ */
+function coverZone({ explosion, cell, impact, east, north, impactZ }) {
+    if (Number.isNaN(terrainHeight(terrain, impact[0], impact[1]))) return null;
+    const worldX = (e, n) => impact[0] + e * east[0] + n * north[0];
+    const worldY = (e, n) => impact[1] + e * east[1] + n * north[1];
+    // Off the landscape no soldier stands, and nothing hides one: -Infinity keeps the horizon sweep finite
+    const heightAt = (e, n) => {
+        const ground = terrainHeight(terrain, worldX(e, n), worldY(e, n));
+        return Number.isNaN(ground) ? -Infinity : ground;
+    };
+    const objects = {
+        impactZ,
+        blocked: (e0, n0, z0, e1, n1, z1) => Boolean(engine.voxelFirstBlock(VOXEL, [worldX(e0, n0), worldY(e0, n0), z0, worldX(e1, n1), worldY(e1, n1), z1])),
+    };
+    const { damage, exposed, size } = damageField(heightAt, explosion, cell, {}, objects);
+    return { damage, exposed, size };
+}
+
+
 async function handle(data) {
     if (data.load) {
         await load(data.load);
@@ -251,6 +343,25 @@ async function handle(data) {
         postMessage({ traced: data.trace, hits: data.paths.map(firstHit) });
     } else if (data.column !== undefined) {
         postMessage({ columned: data.column, ...(columnAt(data.x, data.y) ?? { solids: null }) });
+    } else if (data.heatInit) {
+        const { exact, loadMs } = await startHeatmap(data.heatInit);
+        postMessage({ heatReady: data.heatInit.job, exact, loadMs });
+    } else if (data.heatRays) {
+        const { job: id, first, size } = data.heatRays;
+        if (heat?.id !== id) return;
+        const started = performance.now();
+        for (let ray = first; ray < first + size; ray++) heat.classifier.classifyRay(ray, heat.values);
+        heat.computeMs += performance.now() - started;
+        postMessage({ heatBatch: id });
+    } else if (data.heatFinish) {
+        if (heat?.id !== data.heatFinish) return;
+        const { values, computeMs } = heat;
+        heat = null;
+        postMessage({ heatValues: data.heatFinish, values, computeMs }, [values.buffer]);
+    } else if (data.cover) {
+        const zone = coverZone(data.cover);
+        if (!zone) postMessage({ covered: data.cover.id, size: 0 });
+        else postMessage({ covered: data.cover.id, ...zone }, [zone.damage.buffer, zone.exposed.buffer]);
     } else if (data.coverageInit) {
         startCoverage(data.coverageInit);
     } else if (data.coverageRays) {

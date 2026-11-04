@@ -293,6 +293,8 @@ export const squadTargetMarker = squadMarker.extend({
             console.debug(`[SESSION] Sent delete request for target with UID: ${this.uid}`);
         }
 
+        if (this.map.positionHeatmap?.isShownFor(this)) this.map.positionHeatmap.hide();
+
         // Unbind all custom event handlers
         this.off();
         cancelAnimationFrame(this.calcFrame);
@@ -641,7 +643,9 @@ export const squadTargetMarker = squadMarker.extend({
      * Draw where a round on the target kills, wounds, or is stopped by cover (squadDamage.damageField),
      * inside the damage circles. Needs the precise heightmap; recomputed only when the target, the
      * shell or the map changed, and hidden while the target is dragged. A zone seen before is drawn from
-     * the cache at once; a new one is queued and drawn when its turn comes (processCoverQueue).
+     * the cache at once; a new one is queued and drawn when its turn comes (processCoverQueue). With the
+     * volume layer on (squadVolume.js) the cover is its objects instead of the heightmap and the round lands at
+     * the target's height: the layer's worker computes the zone (coverZone), the queue is the fallback.
      */
     updateCoverZone: function() {
         if (!this.showsExplosion() || this.isDragging || !this.map.heightmap?.precise) {
@@ -651,7 +655,9 @@ export const squadTargetMarker = squadMarker.extend({
 
         const explosion = App.activeWeapon.explosion;
         const center = this.getLatLng();
-        const signature = [this.map.activeMap.name, center.lat, center.lng, JSON.stringify(explosion)].join("|");
+        // With the volume layer the cover is its objects, and the round lands at the height of the target
+        const impactHeight = this.map.volume.ready ? this.getTargetHeight() ?? this.map.heightmap.getHeight(center) : null;
+        const signature = [this.map.activeMap.name, center.lat, center.lng, JSON.stringify(explosion), impactHeight === null ? "heightmap" : `volume:${impactHeight}`].join("|");
         this.coverHidden = false;
         if (this.coverOverlay && signature === this.coverSignature) {
             this.coverOverlay.setOpacity(1);
@@ -670,6 +676,26 @@ export const squadTargetMarker = squadMarker.extend({
         }
 
         this.coverPending = signature;
+        if (impactHeight === null) {
+            this.queueCoverZone(signature, center, explosion, cell);
+            return;
+        }
+        this.map.volume.coverZone(explosion, cell, center, impactHeight).then((field) => {
+            if (this.coverPending !== signature) return;
+            if (field) this.finishCoverZone({ signature, center, cell, field });
+            else this.queueCoverZone(signature, center, explosion, cell);
+        });
+    },
+
+
+    /**
+     * Queue the damage zone computed from the heightmap on the page (processCoverQueue)
+     * @param {string} signature - see updateCoverZone
+     * @param {LatLng} center
+     * @param {object} explosion
+     * @param {number} cell - grid step, meters
+     */
+    queueCoverZone: function(signature, center, explosion, cell) {
         coverQueue.push({ target: this, signature, center, explosion, cell, heightAt: this.heightAround(center), field: null });
         scheduleCoverQueue();
     },
@@ -1098,6 +1124,7 @@ export const squadTargetMarker = squadMarker.extend({
         const heightRow = document.getElementById("targetHeightRow");
         const select = document.getElementById("targetHeightSelect");
         heightRow.hidden = true;
+        this.showPositionHeatOption();
 
         const nearby = findNearbyStructure(this.map, this.getLatLng());
         const line = nearby && describeStructure(nearby.icon, App.activeWeapon, nearby.distance);
@@ -1123,9 +1150,35 @@ export const squadTargetMarker = squadMarker.extend({
             this.heightChoice = options[select.selectedIndex].choice;
             this.updateCalc();
             this.drawSimulations();
+            this.map.positionHeatmap?.update();
         };
         heightRow.hidden = false;
     },
+
+    /**
+     * The button of the information dialog that shows, or hides, the heatmap of the positions from where the active
+     * weapon has a clear line of fire to this target (squadPositionHeatmap.js). Offered for direct-fire weapons while
+     * the volume layer can answer; the heatmap module is loaded when the button is first pressed.
+     */
+    showPositionHeatOption: function() {
+        const row = document.getElementById("positionHeatRow");
+        const button = document.getElementById("positionHeatButton");
+        row.hidden = !(App.activeWeapon.type === "directFire" && this.map.volume.ready);
+        const label = () => {
+            button.textContent = i18next.t(this.map.positionHeatmap?.isShownFor(this) ? "common:heatHide" : "common:heatShow");
+        };
+        label();
+        button.onclick = async () => {
+            if (!this.map.positionHeatmap) {
+                const { default: SquadPositionHeatmap } = await import("./squadPositionHeatmap.js");
+                this.map.positionHeatmap ??= new SquadPositionHeatmap(this.map);
+            }
+            const shown = this.map.positionHeatmap.toggle(this);
+            label();
+            if (shown) document.getElementById("calcInformation").close();
+        };
+    },
+
 
     // Keep the marker on map & update calc while dragging
     _handleDrag: function (event) {
@@ -1164,8 +1217,9 @@ export const squadTargetMarker = squadMarker.extend({
     
     _handleDragStart: function () {
         this.isDragging = true;
-        // The heights offered belong to the point where the target was
+        // The heights offered belong to the point where the target was, and so does the heatmap of its firing positions
         this.heightChoice = null;
+        if (this.map.positionHeatmap?.isShownFor(this)) this.map.positionHeatmap.hide();
         this.map.mouseLocationPopup.close();
         this.map.off("pointermove", this.map._handleMouseMove);
 

@@ -248,8 +248,155 @@ The page's heights count from the heightmap's lowest level (`meta.json` `z_min_m
   data. The chosen height is the target's height in `SquadFiringSolution`, and its line of fire is checked up to the target
   point (0.1 m above a floor or roof, below a ceiling) instead of stopping 3 m short.
 
+* Damage zone cover (`SquadVolume.coverZone`, worker message `cover`): `squadDamage.damageField` runs in the worker with the
+  landscape (`terrain.bin`) as the heightmap and the voxels as `objects`: a soldier is covered when the landscape hides him (the
+  horizon sweep, as before) or when `voxelFirstBlock` finds a voxel between the explosion and him, on the stretch of the line the
+  heightmap trace uses (from 1 m off the explosion to 0.5 m short of his body centre, 0.9 m above the landscape). A wall covers a
+  soldier, an open doorway or window does not, no penetration is computed. The round lands at the height of the target (the
+  floor, window or roof chosen for it, else the heightmap's height at the target) and the soldiers stand on the landscape, so
+  one on an upper floor is not drawn. The rounds-to-kill line of the popup (`hitProbability`) still reads the heightmap. A
+  zone computed without the layer, or when the worker cannot answer, is the heightmap's as before. Tests: `tests/squadDamage.test.mjs`
+  (`objects` with a callback) and `tests/volumeLayer.test.mjs` (the `cover` message through the real engine: a soldier behind
+  the wall is covered, one in line with the doorway is not); in a browser `tools/browser_check/heatmap_check.mjs`.
+
 No penetration is computed (owner decision 2026-11-04). Tests: `tests/volumeLayer.test.mjs`; in a browser
 `tools/browser_check/volume_check.mjs` (deployment repository) on the Jensen and Kokan parity segments.
+
+### Position heatmap (reverse positions)
+
+`src/js/positionHeatmap.js` answers the question the fire coverage asks the other way round: for a chosen target (at the
+height chosen for it) which ground positions around it, up to the weapon's range, have a clear line of fire to it, and
+how good a position each is. Direct-fire weapons only (those with a sight and a MOA, `type: "directFire"`). The page
+side is `src/js/squadPositionHeatmap.js` (a button in the target dialog, loaded on demand, drawn as a canvas image over
+the map like the coverage), the computation runs in the volume worker (`heatInit`, `heatRays`, `heatFinish` messages of
+`volumeWorker.js`, `SquadVolume.positionHeatmap`) with the engine.
+
+* **Positions** lie on rays from the target (at least 360, at most 1440, neighbours about two cells apart at the edge),
+  every `cell = max(2 m, range / 160)` metres; the range is the weapon's, at most 2000 m (the ballistic ranges of the
+  weapons reach tens of kilometres). The landscape profile of a ray (TER1 heights, sampled every 1 to 3 m) is read once for
+  all its positions.
+* **The shot** is the weapon's low trajectory from the muzzle of a shooter standing at the position (shouldered, 1.5 m,
+  unless the weapon has a muzzle model or a height offset), solved exactly like `SquadFiringSolution` and the fire
+  coverage (`squadBallistics.solveElevation`/`trajectory`: gravity scale, rocket boost, elevation limits, projectile
+  lifespan). A position where the weapon cannot be laid or the projectile expires is out (value 0).
+* **Line of fire**: the landscape along the ray (the first and last 3 m skipped, as everywhere), then the objects: the
+  trajectory as a polyline with pieces of at most 25 m (the sagitta of the slowest direct-fire shell stays under 7 cm),
+  each piece tested with `voxelFirstBlock`, or with `precisionFirstBlock` where the target has a precision region. A
+  target that is not on the ground (a floor, a window, a roof) is traced up to 0.5 m short of it and the last piece ends at
+  the point itself. A position where the shooter's body (a 0.3 m vertical segment under the muzzle) is inside a voxel
+  is out. Open windows and doorways are holes, closed windows and walls are solid, no penetration is computed (owner
+  decisions of 2026-11-04).
+* **Score** of a clear position, 0 to 1: `proximity * clearance`, `proximity = 1 - 0.6 * distance / range` (a close
+  position is better, the farthest keeps 0.4: a long shot stays viable) and `clearance = 0.5 + 0.5 * k / 4`, where `k`
+  of the four lines of fire displaced up, down and to either side by the margin are clear too. The margin is the weapon's
+  spread radius at the target (`distance * tan(MOA / 2)`), at least 0.5 m and at most 2 m, and grows linearly from the
+  muzzle. Byte per position: 0 out, 1 blocked, 2 to 255 the score.
+* **Precision regions**: `meta.json` `volume.regions` lists the `RTRI1` files published for a map
+  (`tools/volumetric/py/publish_regions.py`, `{file, bytes, sha256, centre, radius, margin}`). The page uses the region
+  whose square holds the target farthest from its edge, at least 50 m (so the exact triangles reach at least 50 m around
+  the target), fetches it as `<file>?v=<generated>`, checks its sha256 and loads it in the worker, which builds the
+  hierarchy of its triangles (`Engine.loadRegion`); the legend says `Exact triangles within N m of the target, voxels
+  beyond`, or `Voxels only` when there is none or it failed to load. Region files exist only for targets someone
+  validated: Jensen, `regions/region_221_-229.rtri` (1.93 MB, 300 m x 300 m centred at (221, -229)).
+
+Tests: `tests/positionHeatmap.test.mjs` (score, classification, callbacks, image, region choice),
+`tests/volumeLayer.test.mjs` (the worker through the real engine on a wall with a doorway), in a browser
+`tools/browser_check/heatmap_check.mjs` (deployment repository).
+
+#### Against the exact triangles
+
+`engine/tools/js/heatmap_validate.mjs` runs the same classifier three times on one target and weapon: with the volume worker
+(voxel walk only), with the worker and the target's region, and in Node with every line of fire traced against the BVH of
+the exact collision triangles of the window (`tools/make_voxel_segments.py` output, 3 594 819 triangles; the BVH against the
+python reference tracer is the check of `tests/parity.rs`). The landscape is the same file in all three, so the positions
+differ only by what the objects do. Jensen, a target in a window of a building at (127, -205) (1.57 m and 4.45 m over the
+landscape; the region `region_221_-229.rtri` holds it 56 m from its edge), DF_M2A1_50 (3 MOA, a numeric trajectory), range 200 m,
+cell 2 m, 360 rays, 31 560 positions inside the 1 km window (the triangles exist there only). *False clear*: the run says
+clear, the exact tracer blocked; *false blocked*: the other way.
+
+```sh
+node --import ./engine/tools/js/hooks.mjs engine/tools/js/heatmap_validate.mjs --served <heightmaps/jensen> \
+  --region region_221_-229.rtri --tris jensen.tris.bin --window=-404,-1104,1000 --target=127,-205 \
+  --weapon DF_M2A1_50 --height window:1,window:0 --range 200 --out <dir>
+```
+
+| 31 560 positions | window +1.57 m: voxel | + region | window +4.45 m: voxel | + region |
+|---|---|---|---|---|
+| exact tracer: clear / blocked | 1 081 / 30 306 | 1 081 / 30 306 | 3 033 / 28 354 | 3 033 / 28 354 |
+| false CLEAR | 1 | **0** | 1 | **0** |
+| false BLOCKED | 275 | **0** | 1 337 | **0** |
+| shooter inside an object (out) differs from exact | 2 696 (315 of them clear by exact) | 607 (0 clear) | 2 696 (283 clear) | 607 (0) |
+
+Other runs of the same tool: the target (131, -195) of a three-storey building (floor +3.30, roof +6.05, floor +0.30, the
+landscape), same region: 0 false clear and 0 false blocked with the region at all four heights; without it false blocked 0 (floor +3.30),
+126 (floor +0.30), 0 (roof) and 604 (landscape) and no false clear. The target (-93, -213) (floor +0.30), region `region_-29_-229.rtri` (5.04 MB, 2.78 M
+triangles): 0 / 0 with the region, 0 false clear and 130 false blocked without it. The logs are in the issue.
+
+How to read it:
+
+* **The voxel walk blocks what grazes**: its false blocked are lines that pass within a voxel diagonal of a corner or a frame
+  (mostly in the first 50 m for a window, where the frames are); the precision region removes them all inside its square.
+  The few false clear are triangles that clip a voxel corner the builder lost.
+* **"Out" positions**: the shooter's body probe asks the same question as a line of fire. A voxel is marked when a
+  triangle meets it, so a position beside a wall or under a tree can read as inside it while the exact triangles do not
+  contain it; 315 and 283 positions that are clear by the exact tracer are lost that way without the region, none with it
+  inside its square. The 607 that remain are beyond 56 m, outside the region.
+* **Beams through a window are narrow**: a window 1 m wide seen from 100 m is 0.6 degrees wide, the rays are about
+  1 degree apart, so a beam is drawn as a few thin spokes (a position between two rays takes the nearest). More rays would
+  cost time linearly; the heatmap is a map of where to look, not a firing table.
+* **Ground shooters only**: the shooter stands at the landscape's height (a shooter on a roof or an upper floor is not
+  asked), at the weapon's muzzle height.
+
+#### Time
+
+Measured in headless Chromium (153, the real WebAssembly engine in the volume worker, `tools/browser_check/heatmap_timing.mjs` of the
+deployment repository) on tk104 (8 logical CPUs, Intel i5-9300HF) **while the host was loaded: the load average was 22**, from the
+map builds that run there, so read the numbers as an order of magnitude, not as a benchmark. Per map: a target inside a building
+nearest the centre of the map (a floor, a window or a doorway found by the vertical ray), DF_M2A1_50, the voxel walk alone, at the
+ranges 600 m and 2000 m (80 480 positions each, cell 3.7 m and 12.5 m). *trace* is the worker's own time for all the rays,
+*wall* the time from the request to the values in the page (it adds the messages between the batches); a position outside the
+map or the landscape counts as out, so the big maps' 2000 m rows have fewer traced positions.
+
+| map (side, volume file) | range | positions | trace, ms | per position, us | wall, ms | clear / blocked / out |
+|---|---|---|---|---|---|---|
+| Jensen (4.0 km, 0.1 MB) | 600 m | 80480 | 12827 | 159.4 | 13152 | 0 / 78065 / 2415 |
+|  | 2000 m | 80480 | 10881 | 135.2 | 10987 | 0 / 79051 / 1429 |
+| Kokan (2.5 km, 0.8 MB) | 600 m | 80480 | 1745 | 21.7 | 1830 | 770 / 78669 / 1041 |
+|  | 2000 m | 80480 | 13720 | 170.5 | 14113 | 486 / 53627 / 26367 |
+| Logar (1.8 km, 1.4 MB) | 600 m | 80480 | 13090 | 162.6 | 13258 | 371 / 76940 / 3169 |
+|  | 2000 m | 80480 | 6413 | 79.7 | 6591 | 10 / 38534 / 41936 |
+| Sumari (1.3 km, 1.0 MB) | 600 m | 80480 | 11719 | 145.6 | 11866 | 422 / 73659 / 6399 |
+|  | 2000 m | 80480 | 2521 | 31.3 | 2646 | 39 / 24821 / 55620 |
+| Kohat (4.6 km, 2.3 MB) | 600 m | 80480 | 5834 | 72.5 | 5913 | 1087 / 77912 / 1481 |
+|  | 2000 m | 80480 | 26312 | 326.9 | 26406 | 188 / 79361 / 931 |
+| Pacific (4.0 km, 2.9 MB) | 600 m | 80480 | 5157 | 64.1 | 5407 | 83 / 77450 / 2947 |
+|  | 2000 m | 80480 | 11941 | 148.4 | 12163 | 15 / 78753 / 1712 |
+| FoolsRoad (1.8 km, 6.1 MB) | 600 m | 80480 | 7108 | 88.3 | 7310 | 1263 / 77986 / 1231 |
+|  | 2000 m | 80480 | 7028 | 87.3 | 7174 | 466 / 38787 / 41227 |
+| Mestia (2.4 km, 7.4 MB) | 600 m | 80480 | 10239 | 127.2 | 10461 | 4693 / 72010 / 3777 |
+|  | 2000 m | 80480 | 20032 | 248.9 | 20149 | 2639 / 45071 / 32770 |
+| Fallujah (3.0 km, 5.1 MB) | 600 m | 80480 | 3878 | 48.2 | 3999 | 254 / 73052 / 7174 |
+|  | 2000 m | 80480 | 20805 | 258.5 | 20903 | 8 / 64653 / 15819 |
+| Kamdesh (4.0 km, 14.3 MB) | 600 m | 80480 | 5891 | 73.2 | 6085 | 3564 / 75165 / 1751 |
+|  | 2000 m | 80480 | 5781 | 71.8 | 5853 | 1033 / 77907 / 1540 |
+| GooseBay (4.0 km, 15.4 MB) | 600 m | 80480 | 2371 | 29.5 | 2446 | 0 / 78552 / 1928 |
+|  | 2000 m | 80480 | 9722 | 120.8 | 9812 | 0 / 78100 / 2380 |
+
+* **Typically 5 to 20 s for 80 000 positions on this loaded host (2 to 26 s over all rows; about 20 to 330 us per position, median about 105)**; the
+  differences between rows are mostly the load of the moment and how many positions are traced (out and blocked-at-once positions
+  are cheap), not the size of the map or of its voxel file: the voxel walk costs the cells it crosses, so a position whose line
+  of fire meets a wall at once is cheap and one that runs 600 m through foliage is not. The page stays responsive (the worker
+  does the work in batches of 8 rays and the status shows the share done); other questions to the volume worker (a line of
+  fire) wait for the batch they come between.
+* **With a precision region** the same Jensen target (the validation's, 36 000 positions at 200 m) took in Node's wasm, at a
+  quieter moment, 1.0 to 1.5 s with the voxel walk and 1.9 to 2.2 s with the region, plus the region load, 7.1 to 7.7 s (1.93 MB;
+  at the loaded moments 4 to 11 s, 6 to 13 s and 23 to 47 s; the 5.04 MB region with 2.78 M triangles: 31 s); in Chromium (`heatmap_check.mjs`, 80 480 positions at 589 m) 8.4 to 12.4 s voxel only,
+  10.5 to 15.9 s with the region and 7.7 to 9.8 s to load it. The load is the build of the hierarchy of the region's triangles
+  in wasm, ten times its native time (0.38 s + 3.3 s for the 2.78 M region); it is paid once per target.
+* **GPU: not measured.** tk104 has no GPU (no `/dev/dri`, no `nvidia-smi`; Chromium's only WebGL/Vulkan device is SwiftShader, a
+  CPU rasteriser). The WGSL kernel of the voxel walk (`engine/wgsl/voxel.wgsl`) was measured on SwiftShader only (about 19 000
+  segments/s, `wgsl/test/last-run-voxel.txt`), which says nothing about a GPU; the heatmap uses the wasm walk. Raw output:
+  deadline-squad/deadline-squadcalc#22.
 
 ### Voxel DDA against the python model and the exact triangles
 

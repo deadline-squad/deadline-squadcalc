@@ -1,3 +1,14 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.26.0** *(2026-11-04)*
+
+</br><img src="https://img.shields.io/badge/-new%20features-green">  
+- Firing positions (needs *Object volumes in the line of fire*, off by default; direct-fire weapons only): the target dialog has a *Firing positions* button that draws, from the volume layer's worker, the ground positions up to the weapon's range (at most 2000 m) from where the weapon has a clear line of fire to the target at the height chosen for it. Green is a close position with room around the line of fire, amber a far one or one where the line passes close to an obstacle, faint red a blocked one; the score counts distance (a far position stays viable) and the clearance around obstacles, as wide as the weapon's spread. Open windows and doorways let the line through, closed ones and walls stop it, no penetration is computed. The module is loaded only when the button is pressed. Where the target lies 50 m or more inside the square of a precision region (the exact collision triangles of 150 m around a target; one is published, on Jensen) the lines that pass close to geometry there are decided by the exact triangles and the legend says how far they reach; otherwise it says *Voxels only*. Against the exact triangle tracer on a Jensen building: no false clear and no false blocked position with the region, 1 and 275 (1 and 1 337 at a second height) of 31 560 without it. Times per map: `engine/README.md`.
+- The damage zone around a target (kill, wound, covered) uses the voxels as cover when the volume layer is on: a soldier behind a wall is covered, one in line with an open doorway or window is not, and the round lands at the height chosen for the target (a floor, a window, a roof). The heightmap is used as before otherwise.
+
+</br><img src="https://img.shields.io/badge/-%20dev%20-lightgrey">  
+- `src/js/positionHeatmap.js` (the pure classifier: score, rays, polylines, image, choice of the precision region), `src/js/squadPositionHeatmap.js` (the layer, a chunk loaded on demand), the `heatInit`/`heatRays`/`heatFinish` and `cover` messages of `volumeWorker.js`, `squadDamage.damageField(..., objects)`; `meta.json` `volume.regions` lists the precision regions of a map (`tools/volumetric/py/publish_regions.py` of the deployment repository). `tests/positionHeatmap.test.mjs` and the new cases of `tests/volumeLayer.test.mjs` and `tests/squadDamage.test.mjs`; `engine/tools/js/heatmap_validate.mjs` compares the heatmap with the exact triangles of a window; the browser checks are `heatmap_check.mjs` and `heatmap_timing.mjs` of the deployment repository.
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.25.0** *(2026-11-04)*
 
 </br><img src="https://img.shields.io/badge/-fixes-orange">  
