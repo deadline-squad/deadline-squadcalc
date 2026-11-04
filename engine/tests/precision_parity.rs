@@ -17,6 +17,11 @@
 //! `ENGINE_PRECISION_MARGINS=0,0.3,0.6,1.0` the test also builds one region that covers the whole window from
 //! `<name>.tris.bin` for each margin: the pass with the exact triangles available everywhere, which measures the
 //! margin itself. Writes `<name>.precision.txt`.
+//!
+//! With `ENGINE_PRECISION_ONE_REGION_AT_A_TIME=1` a region is loaded only while its own segments are answered, for
+//! maps whose 16 regions do not fit memory together (Fallujah: 35 M triangles). Each segment is still answered by
+//! the same region and the time per segment counts the queries only, not the loading, but the segments are
+//! answered region by region instead of in file order.
 
 use squad_engine::bvh::{triangles_from_reader, Triangle};
 use squad_engine::precision::{PrecisionRegion, RegionFile};
@@ -86,13 +91,38 @@ impl Errors {
 }
 
 struct Targeted {
+    files: Vec<PathBuf>,
+    /// Empty when the regions are loaded one at a time.
     regions: Vec<PrecisionRegion>,
     centres: Vec<[f64; 2]>,
     file_bytes: Vec<usize>,
     triangles: Vec<usize>,
 }
 
-fn load_regions(dir: &Path, columns: &VoxelColumns) -> Targeted {
+fn load_region(file: &Path, columns: &VoxelColumns) -> (PrecisionRegion, [f64; 2], usize) {
+    let bytes = std::fs::read(file).unwrap();
+    let started = Instant::now();
+    let parsed = RegionFile::from_bytes(&bytes).unwrap();
+    let decoded = started.elapsed().as_secs_f64();
+    let b = parsed.bounds;
+    let started = Instant::now();
+    let region = PrecisionRegion::from_file(columns, parsed).unwrap();
+    println!(
+        "  {}: {} bytes, {} triangles, decoded in {:.3} s, hierarchy and grown voxels in {:.3} s",
+        file.file_name().unwrap().to_string_lossy(),
+        bytes.len(),
+        region.triangle_count(),
+        decoded,
+        started.elapsed().as_secs_f64()
+    );
+    (
+        region,
+        [(b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0],
+        bytes.len(),
+    )
+}
+
+fn load_regions(dir: &Path, columns: &VoxelColumns, one_at_a_time: bool) -> Targeted {
     let mut files: Vec<_> = std::fs::read_dir(dir)
         .unwrap_or_else(|e| panic!("{}: {e}", dir.display()))
         .map(|e| e.unwrap().path())
@@ -100,36 +130,23 @@ fn load_regions(dir: &Path, columns: &VoxelColumns) -> Targeted {
         .collect();
     files.sort();
     let mut loaded = Targeted {
+        files: files.clone(),
         regions: Vec::new(),
         centres: Vec::new(),
         file_bytes: Vec::new(),
         triangles: Vec::new(),
     };
-    for file in files {
-        let bytes = std::fs::read(&file).unwrap();
-        let started = Instant::now();
-        let parsed = RegionFile::from_bytes(&bytes).unwrap();
-        let decoded = started.elapsed().as_secs_f64();
-        let b = parsed.bounds;
-        let started = Instant::now();
-        let region = PrecisionRegion::from_file(columns, parsed).unwrap();
-        println!(
-            "  {}: {} bytes, {} triangles, decoded in {:.3} s, hierarchy and grown voxels in {:.3} s",
-            file.file_name().unwrap().to_string_lossy(),
-            bytes.len(),
-            region.triangle_count(),
-            decoded,
-            started.elapsed().as_secs_f64()
-        );
-        loaded
-            .centres
-            .push([(b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0]);
-        loaded.file_bytes.push(bytes.len());
+    for file in &files {
+        let (region, centre, bytes) = load_region(file, columns);
+        loaded.centres.push(centre);
+        loaded.file_bytes.push(bytes);
         loaded.triangles.push(region.triangle_count());
-        loaded.regions.push(region);
+        if !one_at_a_time {
+            loaded.regions.push(region);
+        }
     }
     assert!(
-        !loaded.regions.is_empty(),
+        !loaded.files.is_empty(),
         "no .rtri files in {}",
         dir.display()
     );
@@ -162,27 +179,46 @@ struct Run {
     micros_per_segment: f64,
 }
 
-/// One thread, in order, so that the time is the cost of one query.
+/// One thread, in order, so that the time is the cost of one query. With `one_at_a_time` the segments of a region
+/// are answered together while it is loaded, and the loading is not timed.
 fn run_targeted(
     targeted: &Targeted,
     columns: &VoxelColumns,
     segments: &[Segment],
     assignment: &[usize],
     at_start: bool,
+    one_at_a_time: bool,
 ) -> Run {
-    let started = Instant::now();
-    let mut blocked = Vec::with_capacity(segments.len());
+    let mut blocked = vec![false; segments.len()];
     let mut rechecked = 0;
-    for (i, (p0, p1)) in segments.iter().enumerate() {
+    let mut spent = std::time::Duration::ZERO;
+    let mut answer = |region: &PrecisionRegion, i: usize| {
+        let (p0, p1) = &segments[i];
         let (from, to) = if at_start { (p1, p0) } else { (p0, p1) };
-        let answer = targeted.regions[assignment[i]].query(columns, *from, *to);
-        blocked.push(answer.hit.is_some());
-        rechecked += usize::from(answer.rechecked);
+        let answered = region.query(columns, *from, *to);
+        blocked[i] = answered.hit.is_some();
+        rechecked += usize::from(answered.rechecked);
+    };
+    if one_at_a_time {
+        for (index, file) in targeted.files.iter().enumerate() {
+            let (region, _, _) = load_region(file, columns);
+            let started = Instant::now();
+            for i in (0..segments.len()).filter(|&i| assignment[i] == index) {
+                answer(&region, i);
+            }
+            spent += started.elapsed();
+        }
+    } else {
+        let started = Instant::now();
+        for (i, &index) in assignment.iter().enumerate() {
+            answer(&targeted.regions[index], i);
+        }
+        spent = started.elapsed();
     }
     Run {
         blocked,
         rechecked,
-        micros_per_segment: started.elapsed().as_secs_f64() * 1e6 / segments.len() as f64,
+        micros_per_segment: spent.as_secs_f64() * 1e6 / segments.len() as f64,
     }
 }
 
@@ -219,7 +255,9 @@ fn check_map(dir: &Path, regions_dir: &Path, name: &str) {
     report += &format!("  {voxel_micros:.2} us per segment (one thread)\n");
 
     println!("{name}: regions");
-    let targeted = load_regions(regions_dir, &columns);
+    let one_at_a_time =
+        std::env::var("ENGINE_PRECISION_ONE_REGION_AT_A_TIME").is_ok_and(|v| v == "1");
+    let targeted = load_regions(regions_dir, &columns, one_at_a_time);
     let total: usize = targeted.file_bytes.iter().sum();
     let mut sizes = targeted.file_bytes.clone();
     sizes.sort_unstable();
@@ -235,7 +273,14 @@ fn check_map(dir: &Path, regions_dir: &Path, name: &str) {
     );
     for at_start in [false, true] {
         let assignment = assign(&targeted, &segments, at_start);
-        let run = run_targeted(&targeted, &columns, &segments, &assignment, at_start);
+        let run = run_targeted(
+            &targeted,
+            &columns,
+            &segments,
+            &assignment,
+            at_start,
+            one_at_a_time,
+        );
         let errors = Errors::count(&run.blocked, &exact, &grazing);
         let label = if at_start {
             "precision pass, target at the segment start"

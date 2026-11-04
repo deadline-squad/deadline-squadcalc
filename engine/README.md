@@ -500,7 +500,7 @@ Unit tests: `src/precision.rs` (every case of the pass on hand-made scenes, the 
 `src/voxel.rs` (dilation), `src/io.rs` (JSON), `tests/precision.rs` (a file from `build_region.py`, the CLI),
 `js/test/` (wasm), `tools/volumetric/tests/test_region.py` (builder).
 
-### Measured on Jensen and Kokan
+### Measured on Jensen, Kokan and Fallujah
 
 The same 100 000 segments, voxel files and exact answers (BVH on the window's triangles) as in the table above, one
 run of `tests/precision_parity.rs`. Targets: a 4 x 4 grid of regions of 150 m radius over the 1 km window (250 m
@@ -508,30 +508,52 @@ apart); each segment is answered with the region nearest to its **end** (the tar
 a second run uses the **start** as the target. Segments are 3-500 m long, so a long one has most of its length
 outside the square, where only the voxels decide.
 
+**Fallujah** (statics + foliage: `fallujah.vcol` holds the voxels of both layers, so the exact answer uses both,
+72.1 M + 30.7 M triangles from `world_tris.py` shards of 5 M; the check inside `make_voxel_segments.py` finds 0 voxels
+of the file missing from the rebuild and 0 rebuilt voxels above the landscape missing from the file; densest window
+(-415, -845), 45.3 M triangles, 20.8 M voxels in the file) was run under a 3 GB cap per process, which changed three
+things and nothing in the protocol itself:
+
+* the exact tracer holds the window's triangles in slices of 5 M (`ENGINE_EXACT_SLICE_TRIANGLES`, tests/voxel_parity.rs):
+  one hierarchy per slice in turn, the first hit is the nearest over the slices. On Jensen the sliced run gives
+  byte-identical `exact.f64`, `grazing.u8` and `rust.f64` to the single-hierarchy run;
+* the 16 regions hold 64.4 M triangles together, so `ENGINE_PRECISION_ONE_REGION_AT_A_TIME=1` loads one region while its
+  segments are answered (the same region answers every segment; the time counts the queries only). Error counts are equal
+  in both modes on Jensen;
+* `build_region.py` encodes in chunks with int32 corners: the two densest regions (210, -220: 7.5 M triangles; 460,
+  -220: 6.5 M) were killed at 3 GB by the earlier encoder. The bytes before gzip are the same as before (checked on random
+  soups with repeated and degenerate triangles and on re-encoded regions of Jensen and Fallujah).
+
+The margin sweep with a region of the whole window was not run on Fallujah: 45.3 M triangles do not fit 3 GB.
+
 ```sh
 python3 build_region.py <map>.vcol regions/<map> $(cat regions/<map>.centres) <tris.npz>...   # in the python image, 3 GB
 ENGINE_VOXEL_DIR=out ENGINE_REGION_DIR=regions ENGINE_VOXEL_MAPS=jensen,kokan ENGINE_PRECISION_MARGINS=0,0.25,0.3,0.5,0.6,1.0 \
   cargo test --release --features threads --test precision_parity -- --ignored --nocapture
 ```
 
-| 100 000 segments | Jensen voxel walk | Jensen precision pass | Kokan voxel walk | Kokan precision pass |
-|---|---|---|---|---|
-| false CLEAR (of them grazing) | 129 (14) | 8 (1) | 83 (9) | 4 (1) |
-| false BLOCKED (of them grazing) | 3 948 (2 637) | 279 (185) | 8 331 (3 840) | 858 (391) |
-| **wrong, all segments** | 4.08 % | **0.29 %** | 8.41 % | **0.86 %** |
-| **wrong without grazing** | 1.43 % | **0.10 %** | 4.57 % | **0.47 %** |
-| sent to the exact pass | - | 42.0 % | - | 37.0 % |
-| time per segment, one thread | 7.7 us | 8.9 us | 12.1 us | 14.4 us |
-| with the start as the target: wrong / without grazing | | 0.00 % / 0.00 % (0 + 3) | | 0.10 % / 0.05 % (0 + 103) |
+| 100 000 segments | Jensen voxel walk | Jensen precision pass | Kokan voxel walk | Kokan precision pass | Fallujah voxel walk | Fallujah precision pass |
+|---|---|---|---|---|---|---|
+| false CLEAR (of them grazing) | 129 (14) | 8 (1) | 83 (9) | 4 (1) | 494 (67) | 35 (2) |
+| false BLOCKED (of them grazing) | 3 948 (2 637) | 279 (185) | 8 331 (3 840) | 858 (391) | 5 609 (3 437) | 409 (268) |
+| **wrong, all segments** | 4.08 % | **0.29 %** | 8.41 % | **0.86 %** | 6.10 % | **0.44 %** |
+| **wrong without grazing** | 1.43 % | **0.10 %** | 4.57 % | **0.47 %** | 2.60 % | **0.17 %** |
+| sent to the exact pass | - | 42.0 % | - | 37.0 % | - | 60.1 % |
+| time per segment, one thread | 7.7 us | 8.9 us | 12.1 us | 14.4 us | 69.8 us * | 50.0 us * |
+| with the start as the target: wrong / without grazing | | 0.00 % / 0.00 % (0 + 3) | | 0.10 % / 0.05 % (0 + 103) | | 0.04 % / 0.02 % (7 + 37) |
+
+\* Fallujah was timed at a load average of about 20 on 8 cores, region by region (the voxel walk in file order); the same
+load gave 11.3 / 17.9 us on Jensen and 27.9 / 29.2 us on Kokan (voxel walk / precision pass in file order). Compare the
+Fallujah times with those, not with the first four columns.
 
 Region files (16 regions of 300 m x 300 m per map, margin 0.6 m, gzip):
 
-| | Jensen (statics) | Kokan (statics + foliage) |
-|---|---|---|
-| smallest / median / largest file | 57 B (no triangles) / 100 KB / 5.0 MB | 1.04 MB / 2.48 MB / 3.52 MB |
-| total of the 16 | 8.6 MB | 38.0 MB |
-| triangles per region | 0 - 2 778 978 | 315 706 - 1 097 166 |
-| load (decode + hierarchy + grown voxels), native | 0.001 - 3.7 s (the 2.78 M region 0.38 + 3.3 s) | 0.4 - 1.4 s |
+| | Jensen (statics) | Kokan (statics + foliage) | Fallujah (statics + foliage) |
+|---|---|---|---|
+| smallest / median / largest file | 57 B (no triangles) / 100 KB / 5.0 MB | 1.04 MB / 2.48 MB / 3.52 MB | 6.48 MB / 15.9 MB / 26.0 MB |
+| total of the 16 | 8.6 MB | 38.0 MB | 239.2 MB |
+| triangles per region | 0 - 2 778 978 | 315 706 - 1 097 166 | 1 809 268 - 7 258 717 |
+| load (decode + hierarchy + grown voxels), native | 0.001 - 3.7 s (the 2.78 M region 0.38 + 3.3 s) | 0.4 - 1.4 s | 2.7 - 11.4 s (the 7.26 M region 1.1 + 10.4 s) |
 
 The margin, measured with the exact triangles of the **whole window** available (one region, so the only errors left
 are the ones the margin allows):
@@ -556,10 +578,14 @@ How to read it:
   marked voxel is within reach.
 * **What is left with a 150 m region** is geometry outside the square: the part of a segment beyond 150 m from its
   target is answered by the voxels alone (the target at the start reverses which end is precise: 0 + 3 and 0 + 103
-  wrong). A bigger radius costs file size, a smaller one precision.
-* **The cost**: 1.1-1.7 times the voxel walk per segment on one thread (shared machine, so read it as an order of
-  magnitude), plus the file: 0.1 - 5 MB gzip on Jensen, 1 - 3.5 MB on Kokan, and one hierarchy build per loaded
-  region (seconds for the densest regions, more in wasm). The voxel file stays the only whole-map download.
+  wrong). A bigger radius costs file size, a smaller one precision. On Fallujah, where the 150 m regions hold
+  1.8 - 7.3 M triangles, the wrong share after the pass is 0.44 % (0.17 % without grazing) and the start-as-target run
+  leaves 44 wrong segments.
+* **The cost**: 1.1-1.7 times the voxel walk per segment on one thread on Jensen and Kokan (shared machine, so read it
+  as an order of magnitude), plus the file: 0.1 - 5 MB gzip on Jensen, 1 - 3.5 MB on Kokan, 6.5 - 26 MB on Fallujah
+  (median 15.9 MB; a dense city is far from the other two maps), and one hierarchy build per loaded region (seconds for
+  the densest regions, up to 11 s on Fallujah, more in wasm). The share sent to the exact pass is 60 % on Fallujah. The
+  voxel file stays the only whole-map download.
 
 Full output: [`tests/last-run-precision.txt`](tests/last-run-precision.txt).
 

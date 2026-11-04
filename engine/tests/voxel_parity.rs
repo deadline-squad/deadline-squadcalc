@@ -8,6 +8,11 @@
 //!   cargo test --release --features threads --test voxel_parity -- --ignored --nocapture
 //! ```
 //!
+//! `ENGINE_EXACT_SLICE_TRIANGLES` (default: one hierarchy, 2^24 triangles) caps how many of the window's triangles are
+//! held at once. A window with more (Fallujah: 37.9 M) is cut into slices of that many triangles in file order, each
+//! slice gets its own hierarchy in turn, and the first hit of a segment is the nearest over the slices, which is
+//! the answer of one hierarchy over all of them.
+//!
 //! For every map `<name>` the directory holds `<name>.vcol`, `<name>.segments.f64`, `<name>.python.f64`,
 //! `<name>.ground.f32` and `<name>.tris.bin`. The test prints the table of the README and writes the results
 //! the WGSL test (`engine/wgsl/test/run_voxel.mjs`) compares with: `<name>.rust.f64` (4 numbers per segment:
@@ -16,10 +21,10 @@
 //! 0.25 m).
 
 use squad_engine::bvh::{triangles_from_reader, BuildOptions, BvhSet, Triangle, MAX_TRIANGLES};
-use squad_engine::trace::{first_hits, Scene};
+use squad_engine::trace::{first_hits, Hit, Scene};
 use squad_engine::voxel::{VoxelColumns, VoxelHit};
 use std::fs::File;
-use std::io::BufReader;
+use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
@@ -195,6 +200,89 @@ fn voxel_holds_geometry(soup: &[Triangle], columns: &VoxelColumns, hit: VoxelHit
     })
 }
 
+/// The window's triangles (`<name>.tris.bin`, nine `f32` each) read in slices, one hierarchy alive at a time.
+struct Slices {
+    path: PathBuf,
+    triangles: usize,
+    slice_triangles: usize,
+}
+
+impl Slices {
+    fn new(path: PathBuf, slice_triangles: usize) -> Slices {
+        let triangles = std::fs::metadata(&path).unwrap().len() as usize / 36;
+        Slices {
+            path,
+            triangles,
+            slice_triangles,
+        }
+    }
+
+    /// Calls `visit` with the triangles and the hierarchy of every slice in file order.
+    fn for_each(&self, mut visit: impl FnMut(&[Triangle], &BvhSet)) {
+        let mut file = BufReader::new(File::open(&self.path).unwrap());
+        let mut left = self.triangles;
+        while left > 0 {
+            let count = left.min(self.slice_triangles);
+            let soup = triangles_from_reader((&mut file).take(count as u64 * 36)).unwrap();
+            assert_eq!(soup.len(), count);
+            let set = BvhSet::build(soup.clone(), MAX_TRIANGLES, BuildOptions::default()).unwrap();
+            visit(&soup, &set);
+            left -= count;
+        }
+    }
+
+    /// The nearest hit of every segment over all slices.
+    fn first_hits(&self, segments: &[Segment]) -> Vec<Option<Hit>> {
+        let mut nearest: Vec<Option<Hit>> = vec![None; segments.len()];
+        self.for_each(|_, set| {
+            for (best, hit) in nearest.iter_mut().zip(first_hits(set, segments)) {
+                if hit.is_some_and(|h| best.is_none_or(|b| h.t < b.t)) {
+                    *best = hit;
+                }
+            }
+        });
+        nearest
+    }
+}
+
+/// Sets `found[i]` for every `(i, voxel)` of `voxels` whose voxel holds a triangle of the soup. Voxels already found
+/// are skipped; the rest are checked on up to four threads, because a soup of tens of millions of triangles is
+/// scanned once per voxel.
+fn mark_voxels_with_geometry(
+    soup: &[Triangle],
+    columns: &VoxelColumns,
+    voxels: &[(usize, VoxelHit)],
+    found: &mut [bool],
+) {
+    let pending: Vec<(usize, VoxelHit)> =
+        voxels.iter().copied().filter(|&(i, _)| !found[i]).collect();
+    if pending.is_empty() {
+        return;
+    }
+    let threads = std::thread::available_parallelism().map_or(1, |n| n.get().min(4));
+    let chunk = pending.len().div_ceil(threads);
+    let holding: Vec<usize> = std::thread::scope(|scope| {
+        let workers: Vec<_> = pending
+            .chunks(chunk)
+            .map(|part| {
+                scope.spawn(move || {
+                    part.iter()
+                        .filter(|&&(_, hit)| voxel_holds_geometry(soup, columns, hit))
+                        .map(|&(i, _)| i)
+                        .collect::<Vec<usize>>()
+                })
+            })
+            .collect();
+        workers
+            .into_iter()
+            .flat_map(|worker| worker.join().unwrap())
+            .collect()
+    });
+    for i in holding {
+        found[i] = true;
+    }
+}
+
 fn percent(part: usize, whole: usize) -> f64 {
     100.0 * part as f64 / whole.max(1) as f64
 }
@@ -212,21 +300,16 @@ fn check_map(dir: &Path, name: &str) {
     assert_eq!(segments.len(), ground.len());
     let step = columns.cell().min(columns.dz()) / 3.0;
 
-    let started = Instant::now();
-    let soup = triangles_from_reader(BufReader::new(File::open(at("tris.bin")).unwrap())).unwrap();
-    let triangles = soup.len();
-    let set = BvhSet::build(soup.clone(), MAX_TRIANGLES, BuildOptions::default()).unwrap();
-    println!(
-        "{name}: {triangles} triangles, {} nodes, built in {:.1} s",
-        set.node_count(),
-        started.elapsed().as_secs_f64()
-    );
+    let slice_triangles = std::env::var("ENGINE_EXACT_SLICE_TRIANGLES")
+        .map_or(MAX_TRIANGLES, |value| value.parse().unwrap());
+    let slices = Slices::new(at("tris.bin"), slice_triangles);
+    let triangles = slices.triangles;
 
     let started = Instant::now();
     let dda = columns.first_blocks(&segments);
     let dda_seconds = started.elapsed().as_secs_f64();
     let started = Instant::now();
-    let exact = first_hits(&set, &segments);
+    let exact = slices.first_hits(&segments);
     let exact_seconds = started.elapsed().as_secs_f64();
 
     // DDA against the sampled python model
@@ -268,6 +351,26 @@ fn check_map(dir: &Path, name: &str) {
         "the sampled model blocked where the DDA saw nothing"
     );
 
+    // The segments the DDA and the exact triangles disagree on: whether a move of GRAZE_M changes the exact answer
+    // (any slice hit by the moved segment) and whether a slice has a triangle in the voxel the DDA reports
+    let disputed: Vec<usize> = (0..segments.len())
+        .filter(|&i| dda[i].is_some() != exact[i].is_some())
+        .collect();
+    let mut moved_hit = vec![[false; 4]; segments.len()];
+    let mut voxel_has_triangle = vec![false; segments.len()];
+    let reported_voxels: Vec<(usize, VoxelHit)> = disputed
+        .iter()
+        .filter_map(|&i| dda[i].map(|hit| (i, hit)))
+        .collect();
+    slices.for_each(|soup, set| {
+        for &i in &disputed {
+            for (k, (p0, p1)) in shifted(&segments[i], GRAZE_M).iter().enumerate() {
+                moved_hit[i][k] |= Scene::first_hit(set, *p0, *p1).is_some();
+            }
+        }
+        mark_voxels_with_geometry(soup, &columns, &reported_voxels, &mut voxel_has_triangle);
+    });
+
     // DDA against the exact triangles; a disagreement is grazing when the exact answer flips for a move of 0.25 m
     let (mut true_clear, mut true_blocked) = (0, 0);
     let (mut false_clear, mut false_clear_grazing, mut false_clear_ground) = (0, 0, 0);
@@ -281,16 +384,12 @@ fn check_map(dir: &Path, name: &str) {
             (false, false) => true_clear += 1,
             (true, true) => true_blocked += 1,
             (got, _) => {
-                let flips = shifted(segment, GRAZE_M)
-                    .iter()
-                    .any(|(p0, p1)| Scene::first_hit(&set, *p0, *p1).is_some() != truth);
+                let flips = moved_hit[i].iter().any(|&hit| hit != truth);
                 grazing[i] = u8::from(flips);
                 if !flips {
                     match dda[i] {
                         // A voxel is marked when a triangle meets it: conservative quantisation, not a lost hit
-                        Some(hit) if !voxel_holds_geometry(&soup, &columns, hit) => {
-                            unexplained.push(i)
-                        }
+                        Some(_) if !voxel_has_triangle[i] => unexplained.push(i),
                         Some(_) => {}
                         // The surface the segment meets lies in a voxel that the file leaves empty
                         None => {
@@ -350,7 +449,7 @@ fn check_map(dir: &Path, name: &str) {
     let wrong_free = wrong - false_clear_grazing - false_blocked_grazing;
     let table = format!(
         "{name}: {n} segments, {} voxels in {} columns, {triangles} triangles\n\
-         DDA {dda_seconds:.2} s ({:.0} segments/s), BVH {exact_seconds:.2} s ({:.0} segments/s)\n\
+         DDA {dda_seconds:.2} s ({:.0} segments/s), BVH with its build {exact_seconds:.2} s ({:.0} segments/s)\n\
          DDA vs python voxel model (sampled every {step:.4} m):\n\
          \x20 both clear {both_clear}, both blocked {both_blocked} (first sample within {worst_entry:.4} m of the entry for all but {skipped_first})\n\
          \x20 DDA blocked / model clear {dda_only} (all with a chord in the voxel under one step), DDA clear / model blocked {python_only}\n\
