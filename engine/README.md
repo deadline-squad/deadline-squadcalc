@@ -111,7 +111,7 @@ Response:
   `-lat`). Between samples each quad is two triangles split along the diagonal from `(row, col)` to
   `(row + 1, col + 1)`, as in `src/js/squadHeightmaps.js`; a point more than half a sample outside the grid has height 0.
   Raw `.g16`: `u32` width, `u32` height, then `u16` samples, little endian, row 0 first.
-* `elevation_mrad` is the elevation of the sight in milliradians (the weapon's angle offset taken off the barrel's).
+* `elevation_mrad` is the elevation of the sight in milliradians.
   `null` fields and `occlusion_status: "no_solution"` mean the target cannot be reached.
 * `occlusion_status`: `clear`, `occluded` (the path meets a BVH triangle or the terrain before the target; the terrain
   is checked every heightmap sample, leaving out 3 m at both ends like SquadCalc), `unchecked` (no heightmap, no

@@ -111,7 +111,7 @@ while i != 0xFFFFFFFF:
   SquadCalc). Каждый квадрат делится на два треугольника по диагонали `(row, col)` - `(row + 1, col + 1)`, как в
   `src/js/squadHeightmaps.js`; точка дальше чем на полотсчёта за сеткой имеет высоту 0. Сырой `.g16`: `u32` ширина,
   `u32` высота, затем `u16` отсчёты little endian, строка 0 первой.
-* `elevation_mrad` - угол прицела в миллирадианах. `null` и `occlusion_status: "no_solution"` - цель недостижима.
+* `elevation_mrad` - возвышение прицела в миллирадианах (как `elevation_rad` решателя, умноженное на 1000). `null` и `occlusion_status: "no_solution"` - цель недостижима.
 * `occlusion_status`: `clear`, `occluded` (путь встречает треугольник BVH или рельеф до цели; рельеф проверяется
   с шагом карты, по 3 м у обоих концов не учитываются, как в SquadCalc), `unchecked` (нет ни карты, ни BVH),
   `no_solution`.
