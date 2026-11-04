@@ -18,7 +18,7 @@
 //! boost, speed cap, muzzle offsets and elevation limits; its `velocity` is replaced by `v0`) and a top-level
 //! `options` object ([`Options`]). World frame and the meaning of the refs: see `README.md`.
 
-use crate::bvh::BvhSet;
+use crate::bvh::{Bvh, BvhSet};
 use crate::flight::Flight;
 use crate::heightmap::Heightmap;
 use crate::materials;
@@ -58,6 +58,9 @@ pub struct Environment {
     /// Name of a heightmap in [`Resources`] (a file path for the CLI); none: flat ground at Z = 0.
     #[serde(default)]
     pub heightmap_ref: Option<String>,
+    /// Metres between two heightmap samples when the CLI loads `heightmap_ref` (default 1).
+    #[serde(default)]
+    pub heightmap_resolution_m: Option<f64>,
     /// Name of a BVH in [`Resources`] (a `bvh.bin` path for the CLI); none: the line of fire is not checked.
     #[serde(default)]
     pub bvh_buffer_ref: Option<String>,
@@ -210,6 +213,48 @@ impl Resources {
     /// Registers a BVH under `reference`.
     pub fn add_bvh(&mut self, reference: &str, bvh: BvhSet) {
         self.bvhs.insert(reference.to_string(), bvh);
+    }
+
+    /// Loads the files a request names: `heightmap_ref` is a `.png` (16-bit grayscale) or a raw `.g16` path,
+    /// `bvh_buffer_ref` a `bvh.bin` path or a directory whose `*.bin` files are the parts of a [`BvhSet`].
+    /// Refs already registered are kept.
+    ///
+    /// # Errors
+    /// [`EngineError::Invalid`] naming the file that cannot be read or parsed.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn load_files(&mut self, request: &Request) -> Result<(), EngineError> {
+        let environment = &request.environment;
+        let fail = |what: &str, path: &str, e: &dyn fmt::Display| EngineError::Invalid(format!("{what} {path}: {e}"));
+        if let Some(path) = environment.heightmap_ref.as_deref().filter(|p| !self.has_heightmap(p)) {
+            let bytes = std::fs::read(path).map_err(|e| fail("heightmap", path, &e))?;
+            let resolution = environment.heightmap_resolution_m.unwrap_or(1.0);
+            let map = if path.ends_with(".png") {
+                Heightmap::from_png(&bytes, environment.z_scale, resolution)
+            } else {
+                Heightmap::from_g16(&bytes, environment.z_scale, resolution)
+            };
+            self.add_heightmap(path, map.map_err(|e| fail("heightmap", path, &e))?);
+        }
+        if let Some(path) = environment.bvh_buffer_ref.as_deref().filter(|p| !self.has_bvh(p)) {
+            let mut files = if std::path::Path::new(path).is_dir() {
+                let mut found: Vec<_> = std::fs::read_dir(path)
+                    .map_err(|e| fail("bvh", path, &e))?
+                    .filter_map(|entry| entry.ok().map(|e| e.path()))
+                    .filter(|p| p.extension().is_some_and(|x| x == "bin"))
+                    .collect();
+                found.sort();
+                found
+            } else {
+                vec![std::path::PathBuf::from(path)]
+            };
+            let mut parts = Vec::new();
+            for file in files.drain(..) {
+                let bytes = std::fs::read(&file).map_err(|e| fail("bvh", path, &e))?;
+                parts.push(Bvh::from_bytes(&bytes).map_err(|e| fail("bvh", path, &e))?);
+            }
+            self.add_bvh(path, BvhSet { parts });
+        }
+        Ok(())
     }
 
     /// Whether a heightmap is registered under `reference`.
