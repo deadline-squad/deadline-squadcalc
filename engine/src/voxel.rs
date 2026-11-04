@@ -424,6 +424,85 @@ impl VoxelColumns {
         self.first_block(p0, p1).is_some()
     }
 
+    /// The occupied voxels grown by `margin` metres: every voxel within `ceil(margin / cell)` columns and rows and
+    /// `ceil(margin / dz)` heights (a box, so rounded up to whole voxels) of an occupied one. Only voxels of the
+    /// columns that the horizontal window `[min_x, min_y, max_x, max_y]` reaches, widened by that many columns,
+    /// are grown; the result is clipped to the grid and has the grid of `self`.
+    ///
+    /// A segment meets the result exactly when it passes within the grown margin of a voxel of the window, which
+    /// [`crate::precision`] uses to find the segments that must be re-checked. Cost and size are proportional to
+    /// the voxels of the window times the box, merged where runs touch.
+    pub fn dilated(&self, window: [f64; 4], margin: f64) -> VoxelColumns {
+        let radius = |size: f64| (margin / size - 1e-9).ceil().max(0.0);
+        let (radius_xy, radius_z) = (radius(self.cell) as i64, radius(self.dz) as u32);
+        let first_column = |x: f64, origin: f64| ((x - origin) / self.cell).floor() as i64;
+        let columns = (
+            first_column(window[0], self.min_x) - radius_xy,
+            first_column(window[2], self.min_x) + radius_xy,
+        );
+        let rows = (
+            first_column(window[1], self.min_y) - radius_xy,
+            first_column(window[3], self.min_y) + radius_xy,
+        );
+        let width = i64::from(self.width);
+        let mut entries: Vec<(u32, u32, u32)> = Vec::new();
+        for (index, id) in self.ids.iter().enumerate() {
+            let (column, row) = (i64::from(*id) % width, i64::from(*id) / width);
+            if column < columns.0 || column > columns.1 || row < rows.0 || row > rows.1 {
+                continue;
+            }
+            let runs =
+                &self.runs[2 * self.first[index] as usize..2 * self.first[index + 1] as usize];
+            for run in runs.chunks_exact(2) {
+                entries.push((
+                    *id,
+                    run[0].saturating_sub(radius_z),
+                    (run[1] + radius_z).min(Z_COUNT),
+                ));
+            }
+        }
+        let entries = merge_runs(entries);
+        let spread = |entries: Vec<(u32, u32, u32)>,
+                      step: i64,
+                      limit: i64,
+                      coordinate: &dyn Fn(i64) -> i64| {
+            let mut out = Vec::with_capacity(entries.len() * (2 * radius_xy as usize + 1));
+            for (id, start, end) in entries {
+                let at = coordinate(i64::from(id));
+                for offset in -radius_xy..=radius_xy {
+                    if (0..limit).contains(&(at + offset)) {
+                        out.push(((i64::from(id) + offset * step) as u32, start, end));
+                    }
+                }
+            }
+            merge_runs(out)
+        };
+        let entries = spread(entries, 1, width, &|id| id % width);
+        let entries = spread(entries, width, i64::from(self.height), &|id| id / width);
+
+        let mut grown = VoxelColumns {
+            ids: Vec::new(),
+            first: Vec::new(),
+            runs: Vec::with_capacity(entries.len() * 2),
+            min_x: self.min_x,
+            min_y: self.min_y,
+            cell: self.cell,
+            dz: self.dz,
+            z_min: self.z_min,
+            width: self.width,
+            height: self.height,
+        };
+        for (id, start, end) in entries {
+            if grown.ids.last() != Some(&id) {
+                grown.ids.push(id);
+                grown.first.push((grown.runs.len() / 2) as u32);
+            }
+            grown.runs.extend([start, end]);
+        }
+        grown.first.push((grown.runs.len() / 2) as u32);
+        grown
+    }
+
     /// Line-of-fire query: the first voxel the trajectory (its segments, in flight order) enters, or `None`.
     pub fn first_block_along(&self, segments: &[Segment]) -> Option<VoxelPathHit> {
         segments.iter().enumerate().find_map(|(index, segment)| {
@@ -441,6 +520,19 @@ impl VoxelColumns {
             })
         })
     }
+}
+
+/// Sorts `(column id, start, end)` runs and merges those of one column that overlap or touch.
+fn merge_runs(mut runs: Vec<(u32, u32, u32)>) -> Vec<(u32, u32, u32)> {
+    runs.sort_unstable();
+    let mut merged: Vec<(u32, u32, u32)> = Vec::with_capacity(runs.len());
+    for (id, start, end) in runs {
+        match merged.last_mut() {
+            Some(last) if last.0 == id && start <= last.2 => last.2 = last.2.max(end),
+            _ => merged.push((id, start, end)),
+        }
+    }
+    merged
 }
 
 /// The first voxel of a column's `runs` that the part `t_in..t_out` of a segment enters, with its entry `t`.
@@ -664,6 +756,38 @@ mod tests {
             t_out = t_out.min(a.max(b));
         }
         (t_in <= t_out).then_some(t_in)
+    }
+
+    #[test]
+    fn dilation_grows_a_voxel_by_whole_voxels_and_clips_to_the_window() {
+        // cell 0.5, dz 0.25: a margin of 0.6 m is 2 columns and 3 heights
+        let map = world(&[(10, 10, 10), (30, 30, 10)]);
+        let grown = map.dilated([100.0 + 4.0, -50.0 + 4.0, 100.0 + 7.0, -50.0 + 7.0], 0.6);
+        assert_eq!(grown.voxel_count(), 5 * 5 * 7);
+        assert!(grown.is_occupied(8, 12, 13) && grown.is_occupied(12, 8, 7));
+        assert!(!grown.is_occupied(7, 10, 10) && !grown.is_occupied(10, 10, 14));
+        // The second voxel is outside the window plus its margin
+        assert!(!grown.is_occupied(30, 30, 10));
+    }
+
+    #[test]
+    fn a_segment_meets_the_dilated_columns_when_it_passes_within_the_margin() {
+        let map = world(&[(10, 5, 8)]);
+        let grown = map.dilated([100.0, -50.0, 120.0, -30.0], 0.6);
+        // 0.75 m beside the voxel's face: clear of the voxel, inside the grown margin
+        let beside = |row: f64| (at(2.0, row, 8.5), at(30.0, row, 8.5));
+        assert!(map.first_block(beside(7.0).0, beside(7.0).1).is_none());
+        assert!(grown.first_block(beside(7.0).0, beside(7.0).1).is_some());
+        // 1.5 m away is outside
+        assert!(grown.first_block(beside(9.0).0, beside(9.0).1).is_none());
+    }
+
+    #[test]
+    fn dilating_by_nothing_keeps_the_voxels() {
+        let map = world(&[(10, 5, 8), (10, 5, 9), (11, 5, 8)]);
+        let same = map.dilated([100.0, -50.0, 120.0, -30.0], 0.0);
+        assert_eq!(same.voxel_count(), 3);
+        assert!(same.is_occupied(11, 5, 8) && !same.is_occupied(11, 5, 9));
     }
 
     #[test]

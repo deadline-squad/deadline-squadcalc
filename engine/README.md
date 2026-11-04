@@ -12,6 +12,9 @@ Rust core of the Squad ballistics engine for SquadCalc. Russian version: [README
 * **Heightmap** (`heightmap`): 16-bit G16 sampler with the game's triangle-diagonal rule.
 * **Voxel columns** (`voxel`): decoder of the `VCOL1` file (`tools/volumetric/py/codec.py`) and the segment query by
   voxel-column DDA (first occupied voxel or clear), see [Voxel columns](#voxel-columns-vcol1).
+* **Precision pass** (`precision`): around one target the voxel walk decides what stays far from geometry and the exact
+  triangles of a 150 m region (`RTRI1`) decide what comes within a margin of it, see
+  [Precision pass](#precision-pass-rtri1).
 * **JSON interface** (`io`), a CLI (`squad-cli`) and wasm exports (`wasm`, feature `wasm`) with an ES-module wrapper
   in `js/`.
 
@@ -112,6 +115,9 @@ Response:
 * `environment.vcol_ref` names voxel columns (a `.vcol` path for the CLI, gzip or already decompressed). The path is
   traced through them like through a BVH; the nearer of voxel, triangle and terrain is the impact. **Positions are then
   in the frame of the file** (Unreal: Y south), see [Voxel columns](#voxel-columns-vcol1).
+* `environment.region_ref` names a precision region (an `.rtri` path for the CLI) and needs `vcol_ref`: inside the
+  region's square a path that comes within the margin of a voxel is tested against the region's triangles instead of
+  being blocked by the voxel, see [Precision pass](#precision-pass-rtri1).
 * Heightmap grid: row 0 is the northern edge, `X = col * resolution`, `Y = -row * resolution` (SquadCalc's `lng`,
   `-lat`). Between samples each quad is two triangles split along the diagonal from `(row, col)` to
   `(row + 1, col + 1)`, as in `src/js/squadHeightmaps.js`; a point more than half a sample outside the grid has height 0.
@@ -280,6 +286,105 @@ How to read it:
   (a CPU; no GPU was measured).
 
 Full output: [`wgsl/test/last-run-voxel.txt`](wgsl/test/last-run-voxel.txt).
+
+## Precision pass (`RTRI1`)
+
+The voxel walk is wrong in two ways that a bigger file does not fix: it blocks a segment that enters a marked voxel
+but passes up to a voxel diagonal from the surface (false blocked, most of its errors), and it misses a triangle in a
+voxel the builder's sampling lost (false clear). Around one chosen target the engine can therefore re-check with the
+real triangles. `precision::PrecisionRegion` is built from the voxel columns of the map and a **region file**:
+
+* The region is the square `centre +- 150 m` (X/Y, the frame of the voxel file) with the Visibility-blocking triangles
+  of that square, built offline from the same `world_tris.py` shards as the voxels by
+  `tools/volumetric/py/build_region.py`. Only triangles that a re-checked segment can hit are stored: a triangle is
+  dropped when no occupied voxel lies within the margin of its box (buried under the landscape, or far from every
+  voxel), repeated triangles are stored once, degenerate ones not at all.
+* A segment is cut at the square. The parts **outside** are answered by the voxel walk. The part **inside** is clear
+  when it stays farther than `margin` (default 0.6 m) from every occupied voxel, and is tested against the exact
+  triangles when it comes closer (it meets the voxels grown by the margin, `VoxelColumns::dilated`; the margin is
+  rounded up to whole voxels, so 0.6 m is 2 columns and 3 heights on a 0.5 m x 0.25 m grid). The first thing met wins.
+  No penetration is modelled.
+* `PrecisionRegion::query` returns the first obstacle (a voxel outside the square or a triangle of the region) and
+  whether the exact pass ran; `first_block_along` does a whole trajectory. JSON: `environment.region_ref` next to
+  `vcol_ref` (CLI: path of the `.rtri`; the region is built against the `vcol_ref` columns of the same request). WASM:
+  `Engine.loadRegion(ref, vcolRef, bytes)`, `Engine.precisionFirstBlock(ref, vcolRef, segment)`.
+
+```sh
+# one file per target; the shards are the world_tris.py output (see tools/volumetric/README.md), the margin is stored in the file
+python3 build_region.py map.vcol out/ --centre X Y --centre X Y --radius 150 --margin 0.6 statics.npz foliage.0.npz ...
+```
+
+File (`RegionFile`, gzip): the square, the margin, a quantisation origin, shared vertices (0.1 mm steps, zigzag-varint
+deltas, numbered by first use) and triangle corner indices (zigzag-varint deltas). The layout is in
+`precision::RegionFile`; `tests/precision.rs` checks that the Rust writer reproduces the Python builder's bytes before gzip.
+A loaded region builds its triangle hierarchy (and the grown voxels of its square) once, at load.
+
+Unit tests: `src/precision.rs` (every case of the pass on hand-made scenes, the file codec and damaged files),
+`src/voxel.rs` (dilation), `src/io.rs` (JSON), `tests/precision.rs` (a file from `build_region.py`, the CLI),
+`js/test/` (wasm), `tools/volumetric/tests/test_region.py` (builder).
+
+### Measured on Jensen and Kokan
+
+The same 100 000 segments, voxel files and exact answers (BVH on the window's triangles) as in the table above, one
+run of `tests/precision_parity.rs`. Targets: a 4 x 4 grid of regions of 150 m radius over the 1 km window (250 m
+apart); each segment is answered with the region nearest to its **end** (the target is where the line of fire ends);
+a second run uses the **start** as the target. Segments are 3-500 m long, so a long one has most of its length
+outside the square, where only the voxels decide.
+
+```sh
+python3 build_region.py <map>.vcol regions/<map> $(cat regions/<map>.centres) <tris.npz>...   # in the python image, 3 GB
+ENGINE_VOXEL_DIR=out ENGINE_REGION_DIR=regions ENGINE_VOXEL_MAPS=jensen,kokan ENGINE_PRECISION_MARGINS=0,0.25,0.3,0.5,0.6,1.0 \
+  cargo test --release --features threads --test precision_parity -- --ignored --nocapture
+```
+
+| 100 000 segments | Jensen voxel walk | Jensen precision pass | Kokan voxel walk | Kokan precision pass |
+|---|---|---|---|---|
+| false CLEAR (of them grazing) | 129 (14) | 8 (1) | 83 (9) | 4 (1) |
+| false BLOCKED (of them grazing) | 3 948 (2 637) | 279 (185) | 8 331 (3 840) | 858 (391) |
+| **wrong, all segments** | 4.08 % | **0.29 %** | 8.41 % | **0.86 %** |
+| **wrong without grazing** | 1.43 % | **0.10 %** | 4.57 % | **0.47 %** |
+| sent to the exact pass | - | 42.0 % | - | 37.0 % |
+| time per segment, one thread | 7.7 us | 8.9 us | 12.1 us | 14.4 us |
+| with the start as the target: wrong / without grazing | | 0.00 % / 0.00 % (0 + 3) | | 0.10 % / 0.05 % (0 + 103) |
+
+Region files (16 regions of 300 m x 300 m per map, margin 0.6 m, gzip):
+
+| | Jensen (statics) | Kokan (statics + foliage) |
+|---|---|---|
+| smallest / median / largest file | 57 B (no triangles) / 100 KB / 5.0 MB | 1.04 MB / 2.48 MB / 3.52 MB |
+| total of the 16 | 8.6 MB | 38.0 MB |
+| triangles per region | 0 - 2 778 978 | 315 706 - 1 097 166 |
+| load (decode + hierarchy + grown voxels), native | 0.001 - 3.7 s (the 2.78 M region 0.38 + 3.3 s) | 0.4 - 1.4 s |
+
+The margin, measured with the exact triangles of the **whole window** available (one region, so the only errors left
+are the ones the margin allows):
+
+| margin (grid steps) | Jensen false clear / false blocked, sent to exact | Kokan false clear / false blocked, sent to exact |
+|---|---|---|
+| 0 m (0 columns, 0 heights) | 129 / 0, 33.6 % | 83 / 0, 21.0 % |
+| 0.25 m (1, 1) | 0 / 0, 39.1 % | 5 / 0, 30.7 % |
+| 0.3 m and 0.5 m (1, 2) | 0 / 0, 40.8 % | 1 / 0, 33.0 % |
+| **0.6 m (2, 3)** | **0 / 0, 45.0 %** | **0 / 0, 40.7 %** |
+| 1.0 m (2, 4) | 0 / 0, 46.4 % | 0 / 0, 42.8 % |
+
+How to read it:
+
+* **The margin 0.6 m is kept**: it is the smallest of the tested values with no wrong answer on both maps (0.3 m
+  leaves one false clear on Kokan). The price is the share sent to the exact pass, 41-45 % here. These segments are
+  not typical: 70 % of them start within 3 m of an occupied voxel, so a share this high says little about a real
+  heatmap.
+* **With the triangles available everywhere the pass is exact** on these segments (0 wrong at 0.6 m), including the
+  grazing ones; with margin 0 only the false blocked disappear (the segment must enter a voxel to be re-checked) and
+  the 129 / 83 false clear stay: they are hits in voxels the builder lost, and a lost voxel is found only when a
+  marked voxel is within reach.
+* **What is left with a 150 m region** is geometry outside the square: the part of a segment beyond 150 m from its
+  target is answered by the voxels alone (the target at the start reverses which end is precise: 0 + 3 and 0 + 103
+  wrong). A bigger radius costs file size, a smaller one precision.
+* **The cost**: 1.1-1.7 times the voxel walk per segment on one thread (shared machine, so read it as an order of
+  magnitude), plus the file: 0.1 - 5 MB gzip on Jensen, 1 - 3.5 MB on Kokan, and one hierarchy build per loaded
+  region (seconds for the densest regions, more in wasm). The voxel file stays the only whole-map download.
+
+Full output: [`tests/last-run-precision.txt`](tests/last-run-precision.txt).
 
 ## WebAssembly
 

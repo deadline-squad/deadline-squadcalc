@@ -11,6 +11,7 @@ pub mod heightmap;
 pub mod io;
 pub mod materials;
 pub mod path;
+pub mod precision;
 pub mod trace;
 pub mod voxel;
 #[cfg(all(feature = "wasm", target_arch = "wasm32"))]
