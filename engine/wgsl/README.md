@@ -80,7 +80,7 @@ test server). Window 100 x 100 m of Fallujah, 1 574 368 triangles, 1 048 575 BVH
 ## Tests
 
 ```
-python3 -I engine/wgsl/test/make_fixture.py <fallujah_tris.npz> ~/agl/tools/volumetric/py <dataDir>20000 100 1   # numpy needed
+python3 -I engine/wgsl/test/make_fixture.py <fallujah_tris.npz> ~/agl/tools/volumetric/py <dataDir> 20000 100 1   # numpy needed
 node engine/wgsl/test/run.mjs <dataDir>
 ```
 

@@ -80,7 +80,7 @@ WebGPU-устройстве.
 ## Тесты
 
 ```
-python3 -I engine/wgsl/test/make_fixture.py <fallujah_tris.npz> ~/agl/tools/volumetric/py <dataDir>20000 100 1   # нужен numpy
+python3 -I engine/wgsl/test/make_fixture.py <fallujah_tris.npz> ~/agl/tools/volumetric/py <dataDir> 20000 100 1   # нужен numpy
 node engine/wgsl/test/run.mjs <dataDir>
 ```
 
