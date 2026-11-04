@@ -158,7 +158,35 @@ ENGINE_FALLUJAH_DIR=~/work/engine-data cargo test --release --features threads -
 cargo run --release --features threads --example bench -- ~/work/engine-data/fallujah_proj.bin ~/work/engine-data/fallujah.segments.f64
 ```
 
-RESULTS_PLACEHOLDER
+### Results (Fallujah, 72 098 154 collision triangles, 100 000 segments, 29 947 hits)
+
+```
+loaded 72098154 triangles in 4.0 s
+built 8 hierarchies, 69699116 nodes, 72098154 triangles in 67.2 s
+100000 segments traced in 0.04 s (2343517 segments/s)
+hit/no-hit disagreements: 0; segments both hit: 29947; worst hit point difference: 3.9e-13 m
+test bvh_agrees_with_the_reference_tracer_on_fallujah ... ok
+```
+
+Benchmark (`examples/bench.rs`, 8 hierarchies = 2230 MB of nodes + 3461 MB of triangles; the machine was shared and
+loaded, so read the throughput as a lower bound):
+
+| | time | segments/s |
+|---|---|---|
+| BVH build (binned SAH, all threads) | 66.3 s | |
+| `f64` first hit, all threads | 0.046 s | 2 163 790 |
+| `f64` first hit, 1 thread | 0.186 s | 536 697 |
+| `f32` first hit, 1 thread (GPU arithmetic) | 0.157 s | 638 749 |
+
+**About the reference.** The stock `TriangleIndex.tiles_on` of `reference.py` samples a segment every 2 m over 8 m
+tiles and misses tiles that the segment only clips at a corner. With the stock sampler 21 of the 100 000 segments
+disagreed with the BVH: 6 where the reference reported no hit, 15 where it reported a later hit. For each of the 21
+the first hit was recomputed with the reference's own Moller-Trumbore formulas against *every* triangle whose box
+meets the segment's box (`tools/recheck_expected.py`, plain numpy); all 21 equal the BVH result to the last digit
+(`t` differences below 1e-15). `tools/make_segments.py` now uses all tiles of the segment's bounding box, so a new
+generation has no such misses; the shipped data set was repaired with the recheck tool (the repaired entries are the
+only difference from a regeneration). The BVH never disagreed with the exact answer.
+
 
 ## WebAssembly
 
