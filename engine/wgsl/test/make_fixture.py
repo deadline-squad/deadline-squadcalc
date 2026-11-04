@@ -44,7 +44,7 @@ aim = rng.random(n_seg) < 0.5
 other = t[rng.integers(0, len(t), n_seg)].mean(axis=1).astype(np.float64)
 rand_dir = rng.normal(size=(n_seg, 3))
 rand_dir /= np.linalg.norm(rand_dir, axis=1)[:, None]
-length = rng.uniform(5, 200, n_seg)
+length = rng.uniform(5, window * 0.6, n_seg)
 p1 = np.where(aim[:, None], other, p0 + rand_dir * length[:, None])
 p0 = p0.astype(np.float32).astype(np.float64)
 p1 = p1.astype(np.float32).astype(np.float64)
@@ -55,6 +55,8 @@ index = TriangleIndex(t, np.ones(len(t), np.uint8), lo[0], lo[1], hi[0] - lo[0],
 ref_t = np.full(n_seg, np.nan)
 ref_tri = np.full(n_seg, -1, np.int32)
 for i in range(n_seg):
+    if i % 2000 == 0:
+        print("ref", i, flush=True)
     tt, tid, _ = index.hits(p0[i], p1[i], 1)
     if len(tt):
         ref_t[i], ref_tri[i] = tt[0], tid[0]
