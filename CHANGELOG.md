@@ -1,3 +1,15 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.21.0** *(2026-11-04)*
+
+</br><img src="https://img.shields.io/badge/-%20improv%20-orange">  
+- The hit probability of a direct-fire weapon launched from a muzzle above the ground (the vehicle MK19 and AGS-17 mounts, 2 to 3 m up) takes its spread from the shell's own trajectory instead of the closed-form parabola from the pivot: the shell comes down at a grazing angle, and the closed form overstated the range spread (78 m along the line of fire for the PARS III at 300 m). PARS III MK19 at 300 m: kill chance 0.090 to 0.117 (a simulation of the game's cone gives 0.112), wound 0.347 to 0.415 (0.419), rounds for 90 % 25/6 to 19/5. Weapons without a muzzle offset are unchanged
+- Accessibility: map buttons, dialog close buttons and header selects have localised names (six locales), toggles report `aria-pressed`, the select widgets take the name of their select, weapon and target markers take focus and open their dialog with Enter or Space, and the layer menu opens on keyboard focus
+- Locales: 15 unused keys removed, and the live "Air Assault" unit type added to the English file (checked against all 93 API layers of the 25 maps)
+
+</br><img src="https://img.shields.io/badge/-%20dev%20-lightgrey">  
+- `npm test` runs a `node --test` suite over the pure modules (firing solution, damage, heightmap triangle rule, weapons data, Leaflet 2 event names) with no new dependency, and a GitHub workflow runs it on pushes to dev and on pull requests
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.20.0** *(2026-10-31)*
 
 </br><img src="https://img.shields.io/badge/-%20improv%20-orange">  
