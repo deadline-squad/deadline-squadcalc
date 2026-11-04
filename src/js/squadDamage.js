@@ -14,6 +14,12 @@
  * the top of the buildings. The heightmap has one height per meter: a soldier under a roof stands on
  * the roof for it, and walls closer than EXPLOSION_CLEARANCE to the impact are not seen.
  *
+ * With the volume layer (squadVolume.js, deadline-squad/deadline-squadcalc#22 C6) `damageField` takes `objects`: the
+ * heightmap is then the landscape alone and the buildings, walls and trees are voxels, so a soldier is covered
+ * also when the line from the explosion to him meets a voxel (`objects.blocked`, an exact voxel-column walk of the
+ * engine), the landscape being tested as before. A wall stops it, an open doorway or window does not; no
+ * penetration is computed (owner decision of 2026-11-04).
+ *
  * Pure functions (no map, no DOM): `heightAt(east, north)` gives the height in meters at an offset in
  * meters from the point the function is centred on.
  */
@@ -135,6 +141,25 @@ function sweepHorizon(heightAt, explosionZ, radius, rays) {
 
 
 /**
+ * Whether an object of the volume layer is between the explosion (the origin) and a soldier's body centre, on the
+ * same stretch of the line as the heightmap trace (`isCovered`): from EXPLOSION_CLEARANCE to SOLDIER_CLEARANCE
+ * short of him
+ * @param {{blocked: function(number, number, number, number, number, number): boolean}} objects - see damageField
+ * @param {number} explosionZ - height of the explosion
+ * @param {{east: number, north: number, z: number}} to - the soldier's body centre
+ * @param {number} length - horizontal distance to him, meters
+ * @returns {boolean}
+ */
+function objectsBlock(objects, explosionZ, to, length) {
+    const from = EXPLOSION_CLEARANCE / length;
+    const until = (length - SOLDIER_CLEARANCE) / length;
+    if (until <= from) return false;
+    const along = (t) => [to.east * t, to.north * t, explosionZ + (to.z - explosionZ) * t];
+    return objects.blocked(...along(from), ...along(until));
+}
+
+
+/**
  * Damage around an impact on a square grid centred on it. Cover is read from a horizon sweep of the
  * impact (sweepHorizon) in the direction nearest to each soldier, at most half a trace step to the side of
  * his own line; the heightmap's resolution is one meter. A caller that must not block the page computes
@@ -146,17 +171,22 @@ function sweepHorizon(heightAt, explosionZ, radius, rays) {
  * @param {object} [progress] - the result of the previous call, to continue it
  * @param {number} [progress.firstRow=0] - first row to compute
  * @param {number} [progress.deadline] - `performance.now()` after which no new row is started
+ * @param {{impactZ: number, blocked: function(number, number, number, number, number, number): boolean}} [objects] -
+ *   the objects of the volume layer on top of `heightAt` (the landscape): `impactZ` is the height the round lands
+ *   at, in the heights of `heightAt` (the landscape, a roof or the floor the target is on), and
+ *   `blocked(east0, north0, z0, east1, north1, z1)` whether the segment meets an object; it is asked, between the
+ *   same clearances as the heightmap trace, for the soldiers the landscape does not cover
  * @returns {{damage: Float32Array, exposed: Float32Array, size: number, cell: number, nextRow: number, sweep: object}} -
  *   damage with and without cover, row-major, row 0 is the northernmost; the impact is in the middle cell;
  *   nextRow is the first row not computed yet, `size` when the field is complete
  */
-export function damageField(heightAt, explosion, cell, progress = {}) {
+export function damageField(heightAt, explosion, cell, progress = {}, objects = null) {
     const radius = Math.ceil(explosion.outer / cell);
     const size = 2 * radius + 1;
     const damage = progress.damage ?? new Float32Array(size * size);
     const exposed = progress.exposed ?? new Float32Array(size * size);
     const deadline = progress.deadline ?? Infinity;
-    const explosionZ = heightAt(0, 0) + explosion.distanceFromImpact;
+    const explosionZ = (objects?.impactZ ?? heightAt(0, 0)) + explosion.distanceFromImpact;
 
     // Directions a trace step apart at the outer radius
     const rays = Math.max(8, Math.ceil((2 * Math.PI * explosion.outer) / TRACE_STEP));
@@ -183,6 +213,7 @@ export function damageField(heightAt, explosion, cell, progress = {}) {
                 if (heading < 0) heading += 2 * Math.PI;
                 const ray = Math.round((heading / (2 * Math.PI)) * rays) % rays;
                 covered = sweep.horizon[ray * sweep.samples + Math.min(lastSample, sweep.samples - 1)] > (feet + BODY_CENTER - explosionZ) / length;
+                if (!covered && objects) covered = objectsBlock(objects, explosionZ, { east, north, z: feet + BODY_CENTER }, length);
             }
             damage[row * size + col] = covered ? 0 : value;
         }

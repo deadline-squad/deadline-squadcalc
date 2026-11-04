@@ -1,12 +1,16 @@
 import { App } from "../app.js";
 import pkg from "../../package.json";
 import { classifyColumn } from "./targetHeights.js";
+import { pickRegion } from "./positionHeatmap.js";
 
 // Entries the line-of-fire answers are remembered for: more than a session needs, far below any memory concern
 const MAX_CACHED_ANSWERS = 2000;
 
 // Rays the page sends to the worker in one message: the worker answers a firing solution between two batches
 const RAYS_PER_BATCH = 16;
+
+// Rays of a position heatmap per message: each ray has up to 160 positions with five lines of fire traced
+const HEAT_RAYS_PER_BATCH = 8;
 
 /**
  * Volume layer of a squadMinimap: the objects on the landscape (buildings, walls, bridges, trees) as voxel
@@ -38,6 +42,10 @@ export default class SquadVolume {
         this.refreshQueued = false;
         this.coverageJob = null;
         this.coverageJobs = 0;
+        this.heatJob = null;
+        this.heatJobs = 0;
+        // Precision regions of the active map (meta.json `volume.regions`)
+        this.regions = [];
         $(document).on("heightmapPNG:loaded", () => this.load());
     }
 
@@ -93,6 +101,7 @@ export default class SquadVolume {
             }
             this.bounds = meta.bounds_m;
             this.zMin = meta.z_min_m;
+            this.regions = meta.volume.regions ?? [];
             await this.start(base, meta);
             if (this.heightmap !== heightmap || this.state !== "loading") return;
             this.state = "ready";
@@ -152,6 +161,8 @@ export default class SquadVolume {
         this.requests.clear();
         this.coverageJob?.resolve(null);
         this.coverageJob = null;
+        this.heatJob?.resolve(null);
+        this.heatJob = null;
         this.state = "unavailable";
         this.worker?.terminate();
         this.worker = null;
@@ -169,6 +180,15 @@ export default class SquadVolume {
         } else if (data.columned !== undefined) {
             this.requests.get(data.columned)?.(data);
             this.requests.delete(data.columned);
+        } else if (data.covered !== undefined) {
+            this.requests.get(data.covered)?.(data);
+            this.requests.delete(data.covered);
+        } else if (data.heatReady !== undefined) {
+            if (this.heatJob?.id === data.heatReady) this.heatJob.ready(data);
+        } else if (data.heatBatch !== undefined) {
+            if (this.heatJob?.id === data.heatBatch) this.heatJob.next();
+        } else if (data.heatValues !== undefined) {
+            if (this.heatJob?.id === data.heatValues) this.heatJob.resolve({ ...this.heatJob.stats, values: data.values, computeMs: data.computeMs });
         } else if (data.coverageBatch !== undefined) {
             if (this.coverageJob?.id === data.coverageBatch) this.coverageJob.next();
         } else if (data.coverageValues !== undefined) {
@@ -186,6 +206,9 @@ export default class SquadVolume {
         this.requests.clear();
         this.coverageJob?.resolve(null);
         this.coverageJob = null;
+        this.heatJob?.resolve(null);
+        this.heatJob = null;
+        this.regions = [];
         if (this.worker) this.worker.terminate();
         this.worker = null;
         this.answers.clear();
@@ -254,6 +277,41 @@ export default class SquadVolume {
 
 
     /**
+     * The damage zone of an explosion with the objects as cover (squadDamage.damageField with `objects`, run by the
+     * worker): a soldier behind a wall is covered, one at an open doorway or window is not
+     * @param {object} explosion - see squadDamage.impactDamage
+     * @param {number} cell - grid step, meters
+     * @param {{lat: number, lng: number}} center - where the round lands
+     * @param {number} impactHeight - the height it lands at, in the page's heights (the ground, a roof, the floor the
+     *   target is on)
+     * @returns {Promise<{damage: Float32Array, exposed: Float32Array, size: number}|null>} - the field as damageField
+     *   returns it; null when the layer cannot answer or the impact is off the landscape
+     */
+    async coverZone(explosion, cell, center, impactHeight) {
+        if (!this.ready || !this.worker) return null;
+        const start = this.toWorld(center);
+        const east = this.toWorld(this.map.fromMeters(center, 1, 0));
+        const north = this.toWorld(this.map.fromMeters(center, 0, 1));
+        const id = ++this.requestId;
+        const answer = await new Promise((resolve) => {
+            this.requests.set(id, resolve);
+            this.worker.postMessage({
+                cover: {
+                    id,
+                    explosion,
+                    cell,
+                    impact: [start.x, start.y],
+                    east: [east.x - start.x, east.y - start.y],
+                    north: [north.x - start.x, north.y - start.y],
+                    impactZ: impactHeight + this.zMin,
+                },
+            });
+        });
+        return answer?.size ? answer : null;
+    }
+
+
+    /**
      * The answer of a line-of-fire question, or undefined while it is being asked. The first call starts the
      * worker's trace; when it is back the targets are drawn again and the call returns the answer.
      * @param {string} key - everything that determines the path
@@ -286,6 +344,73 @@ export default class SquadVolume {
             this.map.updateTargets();
         });
     }
+
+    /**
+     * Reverse-position heatmap of a target (positionHeatmap.js): the worker traces the lines of fire from the ground
+     * positions around it with the voxel walk and, where the target has a precision region (meta.json
+     * `volume.regions`), the exact triangles around it
+     * @param {object} params - the classifier's parameters (positionHeatmap.createPositionClassifier) without
+     *   `heightAt` and `pathBlocked`; `targetZ` in the page's heights
+     * @param {{lat: number, lng: number}} target - the target
+     * @param {function(number, number): {lat: number, lng: number}} fromMeters - LatLng at (east, north) meters from `target`
+     * @param {function(): boolean} isCurrent - false once a newer computation replaced this one
+     * @param {function(number): void} [onProgress] - receives the share of the rays dealt, 0 to 1
+     * @returns {Promise<{values: Uint8Array, exact: boolean, margin: number, loadMs: number, computeMs: number}|null>} -
+     *   the HEAT value of every position of every ray, whether the exact triangles were used and how far from the
+     *   target they reach (`margin`, metres; 0 without), the milliseconds the worker spent loading the region and
+     *   tracing; null when the job was replaced or the worker failed
+     */
+    positionHeatmap(params, target, fromMeters, isCurrent, onProgress) {
+        this.heatJob?.resolve(null);
+        const start = this.toWorld(target);
+        const east = this.toWorld(fromMeters(target, 1, 0));
+        const north = this.toWorld(fromMeters(target, 0, 1));
+        const region = pickRegion(this.regions, start.x, start.y);
+        const id = ++this.heatJobs;
+        const worker = this.worker;
+
+        return new Promise((resolve) => {
+            let nextRay = 0;
+            const job = {
+                id,
+                stats: null,
+                resolve: (result) => {
+                    if (this.heatJob === job) this.heatJob = null;
+                    resolve(result);
+                },
+                ready: ({ exact, loadMs }) => {
+                    job.stats = { exact, margin: exact ? region.margin : 0, loadMs };
+                    job.next();
+                },
+                next: () => {
+                    if (!isCurrent()) {
+                        job.resolve(null);
+                        return;
+                    }
+                    if (nextRay >= params.rays) {
+                        worker.postMessage({ heatFinish: id });
+                        return;
+                    }
+                    const size = Math.min(HEAT_RAYS_PER_BATCH, params.rays - nextRay);
+                    worker.postMessage({ heatRays: { job: id, first: nextRay, size } });
+                    nextRay += size;
+                    onProgress?.(nextRay / params.rays);
+                },
+            };
+            this.heatJob = job;
+            worker.postMessage({
+                heatInit: {
+                    job: id,
+                    params: { ...params, targetZ: params.targetZ + this.zMin },
+                    target: [start.x, start.y],
+                    east: [east.x - start.x, east.y - start.y],
+                    north: [north.x - start.x, north.y - start.y],
+                    region: region?.entry ?? null,
+                },
+            });
+        });
+    }
+
 
     /**
      * Fire coverage of a weapon with the layer: the worker samples the landscape and the objects along the rays
