@@ -215,6 +215,28 @@ do not block. `first_blocks` does many segments (rayon with `threads`), `first_b
 Unit tests: `src/voxel.rs` (hand-made scenes; 5 000 random segments against a slab test of every voxel),
 `tests/voxel.rs` (a file written by `codec.py`, damaged files, the CLI), `src/io.rs` (JSON requests), `js/test/`.
 
+### In the page (volume layer)
+
+`src/js/volumeWorker.js` loads `public/engine/` (`npm run build:engine` builds the module and copies `index.mjs`,
+`pkg/squad_engine.js` and `pkg/squad_engine_bg.wasm` there; the page builds and runs without it) and, for the active map, the
+two files that `tools/volumetric/py/publish_volume.py` put next to the 1 m heightmap: `volume.vcol` (this section's
+`VCOL1`) and `terrain.bin` (`TER1`, landscape-only heights with the landscape holes, `src/js/volumeTerrain.js`). It starts
+only when the user turned the *Object volumes in the line of fire* setting on and `meta.json` has a `volume` entry
+(file names, sizes, sha256, grid); a map without the entry, a missing engine or a failed download keeps the heightmap.
+The page's heights count from the heightmap's lowest level (`meta.json` `z_min_m`), the files hold the game's Z.
+
+* Line of fire (`SquadFiringSolution.getObstacle`): the trajectory is sampled every metre like the heightmap check
+  (3 m at both ends skipped), each segment is tested with `voxelFirstBlock`, each point against the landscape. A hole
+  of a building passes, a closed window or door is solid. Until the worker answers the heightmap's result stands.
+* Fire coverage (`SquadCoverage` through `SquadVolume.coverage`): per ray the worker samples the landscape and the top of
+  the voxels under every sample (a vertical `voxelFirstBlock`), classifies with the landscape as the profile, and tests a
+  trajectory that is under a structure's top segment by segment (`squadCoverageRays.clearsStructures`). Targets in a
+  landscape hole or outside the landscape are out. A wall thinner than the sample step (1 to 3 m) that falls between two
+  samples of a ray is not seen, as with the heightmap.
+
+No penetration is computed (owner decision 2026-11-04). Tests: `tests/volumeLayer.test.mjs`; in a browser
+`tools/browser_check/volume_check.mjs` (deployment repository) on the Jensen and Kokan parity segments.
+
 ### Voxel DDA against the python model and the exact triangles
 
 100 000 random segments per map (`tools/make_voxel_segments.py`: 70 % start within 3 m of an occupied voxel, lengths

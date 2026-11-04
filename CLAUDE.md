@@ -5,6 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 - `npm start` — webpack dev server (localhost:3000)
 - `npm run build` — production build to `/dist/`
+- `npm run build:engine` — builds the WebAssembly engine (`engine/`, needs the pinned Rust toolchain and `wasm-bindgen-cli`) and copies it to `public/engine/` (gitignored); the volume layer loads it at run time, without it the site works and the layer stays unavailable
 - `npm run lint` — stylelint + htmlhint + eslint (run once after a batch of changes, not after every edit)
 
 ## Setup
@@ -38,6 +39,7 @@ App.sanitize(str); // HTML escape utility (static method)
 |---|---|---|
 | `SquadCalc` | `squadCalc.js` | Main app — weapon selector, UI wiring, URL state, toast/shortcuts |
 | `squadMinimap` | `squadMinimap.js` | Leaflet `Map` **extension** (not a regular class) — basemap, markers, heatmap, context menu |
+| `SquadVolume` | `squadVolume.js` | Volume layer (voxel columns of buildings, walls, bridges, trees): lazy `volumeWorker.js` with the WASM engine; used by `SquadFiringSolution.getObstacle` and `SquadCoverage` when the `volumeLayer` setting is on and the map's `meta.json` has a `volume` entry |
 | `SquadLayer` | `squadLayer.js` | Renders one game layer: objectives, capture zones, spawn groups, faction assets |
 | `SquadFiringSolution` | `squadFiringSolution.js` | Ballistics engine — computes bearing, elevation (low/high), spread, time of flight from two LatLngs |
 | `SquadFactions` | `squadFactions.js` | Faction/unit picker dialogs and background images |

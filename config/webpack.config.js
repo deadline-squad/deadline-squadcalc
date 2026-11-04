@@ -97,6 +97,8 @@ export default async (env) => {
                     /manifest\.json$/,
                     /\.map$/,
                     /\/favicons\//,
+                    // The WebAssembly engine of the volume layer: loaded by its worker when the layer is turned on
+                    /\/engine\//,
                     /robots\.txt/,
                     // Fonts: the licence texts and the latin-ext and cyrillic subsets (about 270 kB) are not
                     // precached, sw.js caches each on first use; the three latin files stay precached

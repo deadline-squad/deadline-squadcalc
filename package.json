@@ -1,6 +1,6 @@
 {
   "name": "squadcalc",
-  "version": "45.22.0",
+  "version": "45.23.0",
   "description": "The Ultimate In-Game Companion for Squad!",
   "author": "Maxime 'sharkman' Boussard",
   "license": "MIT",
@@ -25,6 +25,7 @@
   "scripts": {
     "start": "webpack serve -c ./config/webpack.config.js",
     "build": "webpack -c ./config/webpack.config.js",
+    "build:engine": "sh scripts/build-engine.sh",
     "lint": "stylelint -c ./config/.stylelintrc.json ./src/**/*.scss && htmlhint --config ./config/.htmlhintrc.json --nocolor ./src/ && eslint --fix -c ./config/eslint.config.js ./src/",
     "test": "node --import ./tests/register.mjs --test tests/",
     "locales": "node scripts/check-locales.mjs",

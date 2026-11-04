@@ -1,3 +1,13 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.23.0** *(2026-11-04)*
+
+</br><img src="https://img.shields.io/badge/-new%20feature-green">  
+- Object volumes in the line of fire (settings, off by default): the obstacle check of a shot to a target and the fire coverage test the shell against the voxel columns of the game's buildings, walls, bridges and trees (about 0.5 m wide, 0.25 m high) instead of the heightmap, which has one height per cell and so shows an open doorway or window as solid wall and has no trees. A shot passes through an open window or doorway and is stopped by a closed window, a wall or a tree; no penetration is computed. The landscape comes from its own file (the heights without the buildings, landscape holes such as rivers do not stop a shot). Voxel columns exist for Fallujah, Fool's Road, Goose Bay, Jensen, Kamdesh, Kohat, Kokan, Logar, Mestia, Pacific and Sumari; the other maps keep the heightmap. Nothing is downloaded until the setting is on and the map has them (0.1 to 15 MB of voxels, 0.4 to 6.5 MB of landscape heights, and the 0.4 MB WebAssembly engine, all in a background worker); when anything fails to load the heightmap answers as before. Against the exact triangle tracer on 100 000 random segments the voxel walk is wrong for 4.1 % (Jensen) and 8.4 % (Kokan) of them, almost all of it blocked-instead-of-clear within a voxel of the geometry (engine/README.md). The fire coverage with the layer takes 2 to 3 times longer than with the heightmap (about 5 s on a dense map)
+
+</br><img src="https://img.shields.io/badge/-%20dev%20-lightgrey">  
+- `npm run build:engine` builds the WebAssembly engine (`engine/`) into `public/engine/` (not committed); the site builds and runs without it. `tests/volumeLayer.test.mjs` runs the volume worker through the real engine on a wall with a doorway (skipped without the engine), `tests/volumeTerrain.test.mjs` the landscape file
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.22.0** *(2026-11-04)*
 
 </br><img src="https://img.shields.io/badge/-new%20feature-green">  

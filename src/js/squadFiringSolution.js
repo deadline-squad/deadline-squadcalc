@@ -107,6 +107,12 @@ export default class SquadFiringSolution {
 
         const path = trajectory(shot, angle);
 
+        // With the volume layer the objects are voxels the shell can pass through the holes of; the heightmap answers
+        // until the layer has (it answers from the cache of squadVolume.js, or asks its worker and the targets are
+        // drawn again)
+        const volumeObstacle = this.getVolumeObstacle(path, angle, latStep, lngStep);
+        if (volumeObstacle !== undefined) return volumeObstacle;
+
         const obstacleStep = Math.min(OBSTACLE_STEP, this.map.heightmap.resolution || OBSTACLE_STEP);
         for (let x = MUZZLE_CLEARANCE; x <= this.distance - TARGET_CLEARANCE; x += obstacleStep) {
             const ground = this.map.heightmap.getHeight({
@@ -118,6 +124,52 @@ export default class SquadFiringSolution {
             }
         }
         return null;
+    }
+
+
+    /**
+     * The first point where the trajectory meets the landscape or an object of the volume layer (squadVolume.js),
+     * sampled like the heightmap check (every OBSTACLE_STEP meters, the clearances skipped) but tested segment by
+     * segment against the voxels, so that the holes of a building let it through
+     * @param {{height: function(number): number}} path - the trajectory (squadBallistics.trajectory)
+     * @param {number} angle - barrel elevation, radians
+     * @param {number} latStep - latitude per meter towards the target
+     * @param {number} lngStep - longitude per meter towards the target
+     * @returns {{distance: number, height: number}|null|undefined} - as getObstacle; undefined when the layer is off
+     *   or has not answered yet
+     */
+    getVolumeObstacle(path, angle, latStep, lngStep) {
+        const volume = this.map.volume;
+        if (!volume?.ready) return undefined;
+
+        const weapon = App.activeWeapon;
+        const key = [
+            this.map.activeMap.name, weapon.name, weapon.velocity, angle, this.weaponHeight,
+            this.weaponLatLng.lat, this.weaponLatLng.lng, this.targetLatLng.lat, this.targetLatLng.lng,
+        ].join("|");
+
+        return volume.lookup(key, () => {
+            const distances = [];
+            for (let x = MUZZLE_CLEARANCE; x <= this.distance - TARGET_CLEARANCE; x += OBSTACLE_STEP) distances.push(x);
+            const points = new Float64Array(distances.length * 3);
+            distances.forEach((x, i) => {
+                const { x: worldX, y: worldY } = volume.toWorld({
+                    lat: this.weaponLatLng.lat + latStep * x,
+                    lng: this.weaponLatLng.lng + lngStep * x,
+                });
+                points.set([worldX, worldY, this.weaponHeight + path.height(x) + volume.zMin], i * 3);
+            });
+            const weaponHeight = this.weaponHeight;
+            return {
+                path: points,
+                toObstacle: (hit) => {
+                    if (!hit) return null;
+                    const before = distances[Math.max(hit.index - 1, 0)];
+                    const distance = hit.index === 0 ? before : before + hit.t * (distances[hit.index] - before);
+                    return { distance, height: hit.z - volume.zMin - weaponHeight };
+                },
+            };
+        });
     }
 
 

@@ -2,6 +2,7 @@ import {Icon, ImageOverlay, TileLayer, Map, CRS, SVG, Util, LayerGroup, Popup, L
 import squadGrid from "./squadGrid.js";
 import squadHeightmap from "./squadHeightmaps.js";
 import SquadCoverage from "./squadCoverage.js";
+import SquadVolume from "./squadVolume.js";
 import { App } from "../app.js";
 import { squadWeaponMarker } from "./squadMarker.js";
 import { squadTargetMarker } from "./squadTargetMarker.js";
@@ -89,6 +90,7 @@ export const squadMinimap = Map.extend({
         this.spinOptions = {color: "white", scale: 1.5, width: 5, shadow: "5px 5px 5px transparent"};
         this.activeTargetsMarkers = new LayerGroup().addTo(this);
         this.activeWeaponsMarkers = new LayerGroup().addTo(this);
+        this.volume = new SquadVolume(this);
         this.coverage = new SquadCoverage(this);
         $(document).on("heightmap:loaded", () => this._handleHeightmapLoaded());
         this.targetGrids = new LayerGroup().addTo(this);

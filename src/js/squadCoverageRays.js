@@ -44,6 +44,42 @@ function isNumeric(shot) {
 
 
 /**
+ * Whether a trajectory passes the structures of a ray: the voxel geometry that stands on the landscape profile
+ * (volumeWorker.js). Only the samples where a structure was found are looked at; the trajectory is tested
+ * against the voxels between the sample before and the sample (exact segment test), and only where it is under
+ * the structure's top: a trajectory through an open window or doorway passes.
+ * @param {{top: Float64Array, indices: Int32Array, blocked: function(number, number, number): boolean}} structures -
+ *   `top[i]`: height of the highest structure at sample i (the landscape where there is none); `indices`:
+ *   ascending samples with a structure (and the one after it); `blocked(i, z0, z1)`: whether the segment from
+ *   sample i - 1 at height z0 to sample i at height z1 meets a voxel
+ * @param {{height: function(number): number}} path - the trajectory (squadBallistics.trajectory)
+ * @param {number} first - first sample to check
+ * @param {number} last - last sample to check
+ * @param {number} step - meters between two samples
+ * @param {number} ground - the weapon's ground, same reference as the heights of the structures
+ * @returns {boolean}
+ */
+export function clearsStructures(structures, path, first, last, step, ground) {
+    const { top, indices, blocked } = structures;
+    let low = 0;
+    let high = indices.length;
+    while (low < high) {
+        const middle = (low + high) >> 1;
+        if (indices[middle] < first) low = middle + 1;
+        else high = middle;
+    }
+    for (let k = low; k < indices.length && indices[k] <= last; k++) {
+        const i = indices[k];
+        const before = ground + path.height((i - 1) * step);
+        const at = ground + path.height(i * step);
+        if (Math.min(before, at) >= Math.max(top[i - 1], top[i])) continue;
+        if (blocked(i, before, at)) return false;
+    }
+    return true;
+}
+
+
+/**
  * The highest trajectory at each target distance of a ray (squadBallistics.peakAngle). It depends on the
  * distance only, not on the ray or the terrain: one search per distance for all the rays. Zero for the
  * shots without a numeric search (a plain parabola).
@@ -103,9 +139,10 @@ export function createRaySampler(params) {
  * Classifier of the rays of a coverage: needs the sampled terrain only, so it runs in a worker.
  * @param {object} params - those of computeCoverageRays except `heightAt`, `inside` and the ray range
  *   (`peaks` from computeCoveragePeaks is required)
- * @returns {{samples: number, stride: number, classify: function(number, Float64Array, Float64Array, Uint8Array): void}} -
- *   `classify(ray, profile, targetHeights, values)` writes the COVERAGE value of each target of the ray to
- *   values[ray * stride + j]; the arrays are those `createRaySampler().sample` filled
+ * @returns {{samples: number, stride: number, classify: function(number, Float64Array, Float64Array, Uint8Array, object=): void}} -
+ *   `classify(ray, profile, targetHeights, values, structures)` writes the COVERAGE value of each target of the
+ *   ray to values[ray * stride + j]; the arrays are those `createRaySampler().sample` filled; `structures`
+ *   (see clearsStructures), when given, are the voxel geometry on top of `profile`, which is then the landscape
  */
 export function createRayClassifier(params) {
     const {
@@ -122,6 +159,7 @@ export function createRayClassifier(params) {
     const numeric = isNumeric(shot);
     const rangeMax = new RangeMax(samples);
     let profile = null;
+    let structures = null;
 
     /**
      * Whether the arc on the `side` of the peak (-1 low, +1 high) lands at an elevation the weapon can
@@ -140,7 +178,8 @@ export function createRayClassifier(params) {
     const clears = (path, distance) => {
         const end = Math.floor((distance - Math.max(cell, TARGET_CLEARANCE)) / step);
         const first = Math.ceil(MUZZLE_CLEARANCE / step);
-        return path.above(profile, first, end, step, ground, rangeMax);
+        if (!path.above(profile, first, end, step, ground, rangeMax)) return false;
+        return !structures || clearsStructures(structures, path, first, end, step, ground);
     };
 
     /**
@@ -159,8 +198,9 @@ export function createRayClassifier(params) {
     return {
         samples,
         stride,
-        classify(ray, rayProfile, targetHeights, values) {
+        classify(ray, rayProfile, targetHeights, values, rayStructures = null) {
             profile = rayProfile;
+            structures = rayStructures;
             rangeMax.build(profile);
 
             const base = ray * stride;
