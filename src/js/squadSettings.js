@@ -132,6 +132,12 @@ export default class SquadSettings {
                 selector: "#realMaxRangeSettings",
                 onChange: () => this.app.minimap.updateWeapons()
             },
+            volumeLayer: {
+                key: "settings-volume-layer",
+                default: false,
+                selector: "#volumeLayerSettings",
+                onChange: () => this.app.minimap.volume.applySetting()
+            },
             experimentalWeapons: {
                 key: "settings-experimental-weapons",
                 default: false,

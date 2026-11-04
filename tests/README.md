@@ -12,8 +12,10 @@ classes. `leaflet.test.mjs` imports the real Leaflet 2 package.
 - `structureDamage.test.mjs`: damage of shells to player-built structures (arithmetic on a made-up wall, and the game data for the mortar round and HEAT against the FOB radio and a HAB).
 - `weapons.test.mjs`: invariants of the `weapons.js` data.
 - `hitProbability.test.mjs`: the hit probability of direct-fire weapons from a muzzle above the ground against a simulation of the game's cone (#19).
+- `volumeTerrain.test.mjs`: the `TER1` landscape file of the volume layer (decoding, the game's triangle rule, holes).
+- `volumeLayer.test.mjs`: the volume worker end to end on a synthetic wall with a doorway through the real WebAssembly engine (skipped unless `npm run build:engine` was run), and the structures of the fire-coverage classifier.
 - `leaflet.test.mjs`: Leaflet 2 event names (pointer, not mouse; `bubblingPointerEvents`).
 
 What needs a browser (hover, drag, clean console on a served build) is covered by
-`tools/browser_check/browser_check.mjs` in the deployment repository (Playwright and Chromium).
+`tools/browser_check/browser_check.mjs` and `volume_check.mjs` (the volume layer) in the deployment repository (Playwright and Chromium).
 CI: `.github/workflows/test.yml`.

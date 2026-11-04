@@ -19,6 +19,7 @@
     "weaponOptions": "Опции оружия",
     "weaponDrag": "Номер сетки",
     "realMaxRange": "Использовать реальную максимальную дальность",
+    "volumeLayer": "Объёмы объектов на линии огня (загружает данные карты)",
     "moddedWeapons": "Включить модовое оружие",
     "SuperMod": "SuperMod",
     "InfiniteWarefare": "Infinite Warefare",

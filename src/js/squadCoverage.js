@@ -74,7 +74,7 @@ export default class SquadCoverage {
 
         const latlng = weaponMarker.getLatLng();
         const signature = [
-            this.map.activeMap.name, weapon.name, weapon.velocity, latlng.lat, latlng.lng, weaponMarker.heightPadding,
+            this.map.activeMap.name, weapon.name, weapon.velocity, latlng.lat, latlng.lng, weaponMarker.heightPadding, this.map.volume.ready,
         ].join("|");
         if (!force && signature === this.signature) return;
         this.signature = signature;
@@ -138,7 +138,32 @@ export default class SquadCoverage {
         };
 
         const done = (pixels, size) => this.draw(origin, pixels, size, cell, generation);
+        if (this.map.volume.ready) {
+            this.computeWithVolume(params, origin, generation, done);
+            return;
+        }
         if (!this.computeInWorker(params, generation, done)) this.computeInPage(params, generation, done);
+    }
+
+    /**
+     * Compute the coverage with the volume layer (squadVolume.js): its worker samples the landscape and the
+     * objects on it (a doorway or an open window lets a shot through, a tree stops it) instead of the
+     * heightmap that fuses the buildings with the ground. When the layer fails meanwhile, the heightmap computes it.
+     * @param {object} params - see computeCoverageRays
+     * @param {LatLng} origin - the weapon
+     * @param {number} generation - the computation, see `generation`
+     * @param {function(Uint8ClampedArray, number): void} done - receives the image
+     */
+    computeWithVolume(params, origin, generation, done) {
+        const map = this.map;
+        map.volume.coverage(params, origin, (from, east, north) => map.fromMeters(from, east, north), () => generation === this.generation).then((values) => {
+            if (generation !== this.generation) return;
+            if (values) {
+                this.rasterizeInChunks(values, params, generation, done);
+            } else if (!this.computeInWorker(params, generation, done)) {
+                this.computeInPage(params, generation, done);
+            }
+        });
     }
 
     /**
