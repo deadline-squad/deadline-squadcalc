@@ -37,7 +37,11 @@ const COLOUR_MAPS = ["albasrah", "fallujah", "gorodok"];
 // Layer value of the shaded relief (tools/maptiles/py/relief.py), one PMTiles archive per map in /maptiles/relief/
 const RELIEF_LAYER = "relief";
 // Maps that have an archive (a map without one is not asked for a file that does not exist)
-const RELIEF_MAPS = ["fallujah", "chora"];
+const RELIEF_MAPS = [
+    "albasrah", "anvil", "blackcoast", "chora", "fallujah", "foolsroad", "goosebay", "gorodok", "harju", "jensen",
+    "kamdesh", "kohat", "kokan", "lashkar", "logar", "manicouagan", "mestia", "mutaha", "narva", "pacific",
+    "sanxian", "skorpo", "sumari", "tallil", "yehorivka",
+];
 
 /**
  * Squad Minimap
