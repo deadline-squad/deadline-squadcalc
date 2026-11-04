@@ -135,7 +135,7 @@ export function cpuTrace(bvh, o, d, tMin, tMax) {
         for (let k = 0; k < (leaf & 255); k++) {
             const t = first + k;
             const hit = moller(triangles, 12 * t, o, d);
-            if (hit && hit.t >= tMin && hit.t <= bestT) { bestT = hit.t; bestTri = t; }
+            if (hit && hit.ok && hit.t >= tMin && hit.t <= bestT) { bestT = hit.t; bestTri = t; }
         }
         i = u[b + 3];
     }

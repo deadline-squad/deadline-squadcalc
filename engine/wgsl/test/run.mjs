@@ -158,7 +158,7 @@ for (const d of gpuCmp.disagreements) {
     const id = d.refHit ? refTri[i] : triOrig(gpuRun.tri[i]);
     const hit = moller(triangles.subarray(9 * id, 9 * id + 9), 0, o, dir, 3);
     d.detail = { segment: i, direction: d.refHit ? 'reference hits, GPU misses' : 'GPU hits, reference misses', tri: id,
-        baryMargin: hit.margin, tMarginM: Math.min(hit.t, 1 - hit.t) * len };
+        baryMargin: hit.margin, inside: hit.ok, tMarginM: Math.min(hit.t, 1 - hit.t) * len };
 }
 gpuCmp.disagreements.forEach((d) => console.log('  disagreement', JSON.stringify(d.detail)));
 const worst = gpuCmp.disagreements.reduce((m, d) => Math.max(m, Math.abs(d.detail.baryMargin)), 0);
