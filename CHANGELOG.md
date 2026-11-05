@@ -1,3 +1,13 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.33.0** *(2026-11-05)*
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- **A target's calculation popup is no longer closed by a target that is gone.** Hovering a target for half a second fades the other targets and closes their popups; the timer of a target that had been removed in the meantime (the map was cleared, for example by a map change or a session) still ran and closed the popup of the new target, so the line of the chosen height (`⌖ Floor +3.3 m`) and the rest of the popup disappeared after the next pointer move over the old spot. The timer now does nothing for a target that is no longer on the map (deadline-squad/deadline-squadcalc#28). The choice of a height, the ammunition, the weapon, a drag and the settings all re-render the popup through the same path; each was checked in a browser against a freshly computed content and none left a field stale.
+
+</br><img src="https://img.shields.io/badge/-%20dev%20-lightgrey">  
+- The content of the calculation popup moved from `squadTargetMarker.js` to the pure `targetPopup.js` (`popupContent`, `formatHeightChoice`) and has unit tests (`tests/targetPopup.test.mjs`: the chosen height's line, the elevation following the height, ammunition and weapon, the order of the lines).
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.32.0** *(2026-11-05)*
 
 </br><img src="https://img.shields.io/badge/-new%20features-green">  
