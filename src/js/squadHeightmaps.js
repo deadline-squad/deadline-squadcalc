@@ -14,6 +14,8 @@ import { App } from "../app.js";
  * solutions say they have no height data (SquadFiringSolution.hasHeightData).
  * When the network kept dropping the precise heightmap (the worker tries each request again first),
  * the 8-bit one is used and a warning toast says the heights are coarse.
+ * A map flagged `communityTerrain` (src/data/maps.js: Belaya Pass, whose level is not in the server package)
+ * shows a warning toast on load that its heights are community data, not checked against the game server.
  * @class squadHeightmap
  */
 export default class SquadHeightmap {
@@ -98,6 +100,8 @@ export default class SquadHeightmap {
             if (data.preciseLost) {
                 console.warn("[HEIGHTMAP] The precise heightmap could not be downloaded, using the 8-bit one:", data.url);
                 App.openToast("warning", "heightmapCoarse", "heightmapCoarseDesc");
+            } else if (this.map.activeMap.communityTerrain) {
+                App.openToast("warning", "communityTerrain", "communityTerrainDesc");
             }
             $(document).trigger("heightmapPNG:loaded");
         }

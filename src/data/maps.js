@@ -44,23 +44,27 @@ export const MAPS = [
             }
         }
     },
-    // { 
-    //     name: "Belaya", 
-    //     mapURL: "/img/maps/belaya/",
-    //     radiusExclusion: FOBEXCLUSIONS.medium,
-    //     SDK_data: {
-    //         minimap: {
-    //             corner0: [-1954, -2080],
-    //             corner1: [1950, 1825],
-    //         },
-    //         heightmap: {
-    //             origin: [-2016, -2142],
-    //             size: [4033, 4033],
-    //             scale: [1, 1, 1],
-    //             BWlevels: [0, 2360]
-    //         }
-    //     }
-    // },
+    {   // Terrain only, from the community SquadHeight export: the level is not in the dedicated server package,
+        // so there is no precise heightmap fused with the game files, no volume layer and no object heights
+        name: "Belaya",
+        mapURL: "/img/maps/belaya/",
+        communityTerrain: true,
+        radiusExclusion: FOBEXCLUSIONS.medium,
+        SDK_data: {
+            minimap: {
+                corner0: [-1954, -2080],
+                corner1: [1950, 1825],
+            },
+            heightmap: {
+                origin: [-1954, -2080],
+                size: [3905, 3906],
+                scale: [1, 1, 1],
+            },
+            heightmapPNG: {
+                scale: [1, 1, 0.307176],
+            }
+        }
+    },
     { 
         name: "BlackCoast", 
         mapURL: "/img/maps/blackcoast/",

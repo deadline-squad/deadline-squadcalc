@@ -61,3 +61,23 @@ test("the height path runs from the weapon to the target, with the margins aroun
     assert.equal(path[0], 2);
     for (let i = 1; i < path.length; i++) assert.ok(path[i] > path[i - 1]);
 });
+
+test("a community-terrain map (Belaya) shows its notice when the heights load, an ordinary map does not", async () => {
+    const { App } = await import("./stubs/app.mjs");
+    const toasts = [];
+    App.openToast = (type, title) => toasts.push([type, title]);
+    globalThis.$ = () => ({ trigger: () => {} });
+    globalThis.document = {};
+    const loaded = (communityTerrain, preciseLost = false) => {
+        const heightmap = heightmapOf([[0]]);
+        heightmap.map = { heightmap, pixelSize: 256, activeMap: { communityTerrain } };
+        heightmap.dispose = () => {};
+        heightmap.receive({ levels: new Uint16Array(4), width: 2, height: 2, step: 1, resolution: 1, precise: true, preciseLost, url: "u" });
+    };
+
+    loaded(true);
+    loaded(false);
+    loaded(true, true);
+
+    assert.deepEqual(toasts, [["warning", "communityTerrain"], ["warning", "heightmapCoarse"]]);
+});

@@ -1,3 +1,14 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.28.0** *(2026-11-05)*
+
+</br><img src="https://img.shields.io/badge/-new%20features-green">  
+- Belaya Pass is back in the map list (26 maps), **terrain only, from community data**: its level is not in the Squad dedicated server package, so nothing of it is derived from the game files. Its heightmap is SquadHeight 1.3.0's (a Squad Mod SDK export, June 2026, 1 m grid, x -1954..1950, y -2080..1825), its relief archive and topographic metrics are computed from it, and its map images are the upstream ones. `meta.json` carries `"provenance": "SquadHeight 1.3.0 (Mod SDK export), terrain only, not validated against server data"`. Choosing the map shows a warning that its terrain is community data, unverified, and its entry in the selector has the same note as a tooltip (six languages). The API has no game layers for it, so the layer selector stays empty without asking (no error toast), and it has no Detailed tiles, so that layer shows the upstream topographic map without a request or a warning; the Relief layer is offered. There are no building or object heights and no volume layer for it: with *Object volumes in the line of fire* on, the map falls back to the heightmap, as every map without a `volume` entry does. The accuracy figures of the other 25 maps (server-derived) do not apply to it.
+
+</br><img src="https://img.shields.io/badge/-%20dev%20-lightgrey">  
+- `tools/heightmaps`: `heightmaps.sh belaya` / `py/build_squadheight_only.py` build a heightmap from SquadHeight alone (tests: `py/test_build_squadheight_only.py`); `SquadExtract texture` writes the top mip of a Texture2D (the server package keeps no pixels of the Belaya minimap).
+- Tests: `tests/maps.test.mjs` (26 maps, Belaya's size and flag, locale names and notices in six languages), a map without a `volume` entry starts no worker (`tests/squadVolume.test.mjs`), the notice on load (`tests/squadHeightmaps.test.mjs`).
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.27.0** *(2026-11-05)*
 
 </br><img src="https://img.shields.io/badge/-fixes-orange">  

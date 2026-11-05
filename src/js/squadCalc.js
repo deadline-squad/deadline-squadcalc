@@ -301,7 +301,8 @@ export default class SquadCalc {
         
         // Load maps 
         MAPS.forEach((map, i) => {
-            this.MAP_SELECTOR.append(`<option data-i18n="maps:${map.name}" value="${i}"></option>`);
+            const note = map.communityTerrain ? " data-i18n-title=\"tooltips:communityTerrainShort\"" : "";
+            this.MAP_SELECTOR.append(`<option data-i18n="maps:${map.name}"${note} value="${i}"></option>`);
         });        
 
         // Add event listener
@@ -423,12 +424,17 @@ export default class SquadCalc {
     }
 
     /**
-     * Retrieve list of available layers name from squadcalc api
+     * Retrieve list of available layers name from squadcalc api.
+     * A map flagged `communityTerrain` (Belaya Pass) has no game layers in the API (it answers 404), so none are asked for.
      */
     loadLayers() {
-        this.minimap.spin(true, this.minimap.spinOptions);
-        $("#layerSelector").hide();
         this.LAYER_SELECTOR.empty();
+        $("#layerSelector").hide();
+        if (this.minimap.activeMap.communityTerrain) {
+            this.updateUrlParams({ layer: null, team1: null, team1unit: null, team2: null, team2unit: null });
+            return;
+        }
+        this.minimap.spin(true, this.minimap.spinOptions);
 
         fetchLayersByMap(this.minimap.activeMap.name).then(layers => {
 
