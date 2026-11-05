@@ -1,3 +1,15 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.31.0** *(2026-11-05)*
+
+</br><img src="https://img.shields.io/badge/-fixes-orange">  
+- **Direct-fire weapons use the lifespan of their projectile.** The game destroys a projectile `InitialLifeSpan` seconds after it is fired (RPG-7, M3 MAAWS, Carl Gustav and SMAW 4 s; RPG-29 and RPG-28 5 s; autocannons 5 s; SPG-9, Grom, tank AP and machine guns 8 s; NLAW 12 s; 40 mm grenades and tank HEAT/HE 20 s), but the 108 generated direct-fire weapons carried the default 100 s, so the firing solution offered an elevation for targets no round reaches: an RPG-7 at 1500 m is in the air 6.6 s and its rocket is gone after 4 s, about 900 m. Such a target now has no solution, like the UB-32's 20 s and the AGS-17's 40 s did already. The values come from Squad Ballistics' `weapons.json` (`lifespan`, read from the game by `tools/game_weapons.py`) through `gen_squadcalc_weapons.py` and, for the autocannons and machine guns only SquadCalc has, from the Blueprints of `tools/game_ballistics` (`provenance.py` compares every weapon of this file with the game). The maximum range circle is still the geometric range of the flight and ignores the lifespan.
+- Squad Ballistics 1.6.1 has the same `lifespan` and the two apps still give the same solutions (`tools/direct_fire/compare.py`: 104 weapons, 20 178 cases, 0 mismatches).
+
+</br><img src="https://img.shields.io/badge/-%20dev%20-lightgrey">  
+- Tests: `tests/weapons.test.mjs` (every direct-fire weapon states a lifespan of the game, spot values), `tests/squadBallistics.test.mjs` (an RPG-7 target beyond 4 s has no elevation).
+- Documentation: `tools/volumetric/docs/data-provenance.md` (deployment repository) lists every input of the firing solution per weapon with its source and label.
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.30.0** *(2026-11-05)*
 
 </br><img src="https://img.shields.io/badge/-fixes-orange">  

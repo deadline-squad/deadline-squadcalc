@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { heightAt, solveElevation, maxRange, isParabola } from "../src/js/squadBallistics.js";
-import { loadWeapon } from "./helpers.mjs";
+import { loadWeapon, solve } from "./helpers.mjs";
 
 const GRAVITY = 9.8;
 const parabola = { velocity: 100, gravity: GRAVITY, acceleration: 0, boostTime: 0, maxSpeed: 0, rotationFollowsVelocity: true, pivotHeight: 0, muzzleForward: 0, muzzleUp: 0 };
@@ -49,3 +49,12 @@ for (const [label, name, shellIndex] of SHOTS) {
         }
     });
 }
+
+// The game destroys a projectile InitialLifeSpan seconds after launch: a shot that takes longer has no solution
+test("a target the projectile cannot reach before its lifespan ends has no elevation (RPG-7, 4 s)", () => {
+    const near = solve("DF_RPG_7_PG_7V_HEAT_OG_7V", 500).solution;
+    const far = solve("DF_RPG_7_PG_7V_HEAT_OG_7V", 1500).solution;
+    assert.ok(near.timeOfFlight.low < 4 && !Number.isNaN(near.elevation.low.deg), "500 m is reached within 4 s");
+    assert.ok(far.timeOfFlight.low > 4, `1500 m takes ${far.timeOfFlight.low} s`);
+    assert.ok(Number.isNaN(far.elevation.low.deg), "1500 m is past the lifespan");
+});
