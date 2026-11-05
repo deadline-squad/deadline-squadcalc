@@ -12,6 +12,8 @@ export const MAPS = [
             minimap: {
                 corner0: [-2000, -2000],
                 corner1: [2000, 2000],
+                // The game's own corners (MapTextureCorner0/1 of the layers' SQWorldSettings, build 26005357), in metres
+                game: { min: [-2000.0, -2000.0], max: [2000.0, 2000.0] },
             },
             heightmap: {
                 origin: [-2040, -2040],
@@ -32,6 +34,8 @@ export const MAPS = [
             minimap: {
                 corner0: [-2040, -2040],
                 corner1: [1020, 1020],
+                // The game's own corners (MapTextureCorner0/1 of the layers' SQWorldSettings, build 26005357), in metres
+                game: { min: [-2040.0, -2040.0], max: [1020.0, 1020.0] },
             },
             heightmap: {
                 origin: [-2040, -2040],
@@ -52,6 +56,8 @@ export const MAPS = [
             minimap: {
                 corner0: [-2299, -2127],
                 corner1: [2299, 2472],
+                // The game's own corners (MapTextureCorner0/1 of the layers' SQWorldSettings, build 26005357), in metres
+                game: { min: [-2300.0, -2127.47], max: [2299.98, 2472.51] },
             },
             heightmap: {
                 origin: [-2040, -2142],
@@ -72,6 +78,8 @@ export const MAPS = [
             minimap: {
                 corner0: [-2464, -2664],
                 corner1: [1600, 1400],
+                // The game's own corners (MapTextureCorner0/1 of the layers' SQWorldSettings, build 26005357), in metres
+                game: { min: [-2464.0, -2664.0], max: [1599.9, 1400.0] },
             },
             heightmap: {
                 origin: [-2464, -2664],
@@ -92,6 +100,8 @@ export const MAPS = [
             minimap: {
                 corner0: [-1315, -1545],
                 corner1: [1690, 1460],
+                // The game's own corners (MapTextureCorner0/1 of the layers' SQWorldSettings, build 26005357), in metres
+                game: { min: [-1315.0, -1545.0], max: [1690.0, 1460.0] },
             },
             heightmap: {
                 origin: [-2040, -2040],
@@ -112,6 +122,8 @@ export const MAPS = [
             minimap: {
                 corner0: [-1326, -1326],
                 corner1: [448, 448],
+                // The game's own corners (MapTextureCorner0/1 of the layers' SQWorldSettings, build 26005357), in metres
+                game: { min: [-1325.77, -1325.77], max: [448.05, 448.05] },
             },
             heightmap: {
                 origin: [-1598, -1866],
@@ -132,6 +144,8 @@ export const MAPS = [
             minimap: {
                 corner0: [-2016, -2016],
                 corner1: [2015, 2015],
+                // The game's own corners (MapTextureCorner0/1 of the layers' SQWorldSettings, build 26005357), in metres
+                game: { min: [-2016.58, -2016.75], max: [2015.23, 2015.03] },
             },
             heightmap: {
                 origin: [-2032, -2032],
@@ -152,6 +166,8 @@ export const MAPS = [
             minimap: {
                 corner0: [-2032, -2032],
                 corner1: [2032, 2032],
+                // The game's own corners (MapTextureCorner0/1 of the layers' SQWorldSettings, build 26005357), in metres
+                game: { min: [-2031.99, -2032.0], max: [2032.01, 2032.0] },
             },
             heightmap: {
                 origin: [-2032, -2032],
@@ -172,6 +188,8 @@ export const MAPS = [
             minimap: {
                 corner0: [-2016, -2016],
                 corner1: [2016, 2016],
+                // The game's own corners (MapTextureCorner0/1 of the layers' SQWorldSettings, build 26005357), in metres
+                game: { min: [-2016.0, -2016.0], max: [2016.0, 2016.0] },
             },
             heightmap: {
                 origin: [-2016, -2016],
@@ -193,6 +211,8 @@ export const MAPS = [
             minimap: {
                 corner0: [-2004, -2004],
                 corner1: [2004, 2004],
+                // The game's own corners (MapTextureCorner0/1 of the layers' SQWorldSettings, build 26005357), in metres
+                game: { min: [-2004.0, -2004.0], max: [2004.0, 2004.0] },
             },
             heightmap: {
                 origin: [-2040, -2040],
@@ -213,6 +233,8 @@ export const MAPS = [
             minimap: {
                 corner0: [-2016, -2016],
                 corner1: [2016, 2016],
+                // The game's own corners (MapTextureCorner0/1 of the layers' SQWorldSettings, build 26005357), in metres
+                game: { min: [-2016.0, -2016.0], max: [2016.0, 2016.0] },
             },
             heightmap: {
                 origin: [-2016, -2016],
@@ -233,6 +255,8 @@ export const MAPS = [
             minimap: {
                 corner0: [-2300, -2300],
                 corner1: [2317, 2317],
+                // The game's own corners (MapTextureCorner0/1 of the layers' SQWorldSettings, build 26005357), in metres
+                game: { min: [-2300.0, -2300.0], max: [2317.0, 2317.0] },
             },
             heightmap: {
                 origin: [-2016, -2016],
@@ -253,6 +277,8 @@ export const MAPS = [
             minimap: {
                 corner0: [-1076, -1076],
                 corner1: [1420, 1420],
+                // The game's own corners (MapTextureCorner0/1 of the layers' SQWorldSettings, build 26005357), in metres
+                game: { min: [-1076.35, -1075.67], max: [1420.14, 1420.14] },
             },
             heightmap: {
                 origin: [-1334, -1715],
@@ -273,6 +299,8 @@ export const MAPS = [
             minimap: {
                 corner0: [-2167, -2167],
                 corner1: [2167, 2167],
+                // The game's own corners (MapTextureCorner0/1 of the layers' SQWorldSettings, build 26005357), in metres
+                game: { min: [-2167.0, -2167.0], max: [2167.0, 2167.0] },
             },
             heightmap: {
                 origin: [-2167, -2167],
@@ -293,6 +321,8 @@ export const MAPS = [
             minimap: {
                 corner0: [-881, -1132],
                 corner1: [880, 629],
+                // The game's own corners (MapTextureCorner0/1 of the layers' SQWorldSettings, build 26005357), in metres
+                game: { min: [-881.45, -1132.39], max: [879.78, 629.22] },
             },
             heightmap: {
                 origin: [-1386, -1260],
@@ -313,6 +343,8 @@ export const MAPS = [
             minimap: {
                 corner0: [-2016, -2016],
                 corner1: [2015, 2015],
+                // The game's own corners (MapTextureCorner0/1 of the layers' SQWorldSettings, build 26005357), in metres
+                game: { min: [-2016.58, -2016.75], max: [2015.23, 2015.03] },
             },
             heightmap: {
                 origin: [-2032, -2032],
@@ -333,6 +365,8 @@ export const MAPS = [
             minimap: {
                 corner0: [-1200, -1100],
                 corner1: [1200, 1300],
+                // The game's own corners (MapTextureCorner0/1 of the layers' SQWorldSettings, build 26005357), in metres
+                game: { min: [-1200.0, -1100.0], max: [1200.0, 1300.0] },
             },
             heightmap: {
                 origin: [-1545, -1260],
@@ -353,6 +387,8 @@ export const MAPS = [
             minimap: {
                 corner0: [-935, -1140],
                 corner1: [1820, 1615],
+                // The game's own corners (MapTextureCorner0/1 of the layers' SQWorldSettings, build 26005357), in metres
+                game: { min: [-935.0, -1140.0], max: [1820.0, 1615.0] },
             },
             heightmap: {
                 origin: [-1785, -1785],
@@ -373,6 +409,8 @@ export const MAPS = [
             minimap: {
                 corner0: [-1390, -1402],
                 corner1: [1410, 1398],
+                // The game's own corners (MapTextureCorner0/1 of the layers' SQWorldSettings, build 26005357), in metres
+                game: { min: [-1389.71, -1402.07], max: [1410.29, 1397.93] },
             },
             heightmap: {
                 origin: [-2016, -2016],
@@ -413,6 +451,8 @@ export const MAPS = [
             minimap: {
                 corner0: [-2016, -2016],
                 corner1: [2016, 2016],
+                // The game's own corners (MapTextureCorner0/1 of the layers' SQWorldSettings, build 26005357), in metres
+                game: { min: [-2016.0, -2016.0], max: [2016.0, 2016.0] },
             },
             heightmap: {
                 origin: [-2016, -2016],
@@ -433,6 +473,8 @@ export const MAPS = [
             minimap: {
                 corner0: [-2300, -2050],
                 corner1: [2300, 2550],
+                // The game's own corners (MapTextureCorner0/1 of the layers' SQWorldSettings, build 26005357), in metres
+                game: { min: [-2300.0, -2050.0], max: [2300.0, 2550.0] },
             },
             heightmap: {
                 origin: [-2040, -2040],
@@ -458,6 +500,8 @@ export const MAPS = [
                 // This corners are perfect for settings map assets, but the ingame grid is more 6900*6900
                 corner0: [-3611, -3293],
                 corner1: [3238, 3576],
+                // The game's own corners (MapTextureCorner0/1 of the layers' SQWorldSettings, build 26005357), in metres
+                game: { min: [-3601.5, -3293.0], max: [3248.5, 3576.08] },
             },
             heightmap: {
                 origin: [-4811, -3947],
@@ -478,6 +522,8 @@ export const MAPS = [
             minimap: {
                 corner0: [-640, -447],
                 corner1: [660, 853],
+                // The game's own corners (MapTextureCorner0/1 of the layers' SQWorldSettings, build 26005357), in metres
+                game: { min: [-639.74, -447.28], max: [660.34, 852.97] },
             },
             heightmap: {
                 origin: [-683, -373],
@@ -498,6 +544,8 @@ export const MAPS = [
             minimap: {
                 corner0: [-2340, -2340],
                 corner1: [2340, 2340],
+                // The game's own corners (MapTextureCorner0/1 of the layers' SQWorldSettings, build 26005357), in metres
+                game: { min: [-2340.0, -2340.0], max: [2340.0, 2340.0] },
             },
             heightmap: {
                 origin: [-2287, -2287], // SDK is wrong, this is deduced instead
@@ -518,6 +566,8 @@ export const MAPS = [
             minimap: {
                 corner0: [-3302, -3302], 
                 corner1: [3048, 3048],
+                // The game's own corners (MapTextureCorner0/1 of the layers' SQWorldSettings, build 26005357), in metres
+                game: { min: [-3301.97, -3301.99], max: [3048.03, 3048.0] },
             },
             heightmap: {
                 origin: [-3302, -3302], // SDK is wrong, this is deduced instead
@@ -627,11 +677,42 @@ if (typeof process !== "undefined" && process.argv?.[2] === "mapinfo") {
     extraInfo();
 }
 
+/**
+ * Where the game's grid starts relative to the map image: the game anchors its A1 corner at the north-west
+ * corner of the minimap (MapTextureCorner0/1), which the image extent (`corner0`/`corner1`) can differ from by
+ * rounding (under 1 m) or, on Skorpo, by a fitted image (10 m).
+ * @param {{corner0: Number[], corner1: Number[], game?: {min: Number[], max: Number[]}}} minimap - SDK_data.minimap
+ * @returns {Number[]} - [east, south] distance in metres from the image's north-west corner to the game's
+ */
+export function gridOffset(minimap) {
+    if (!minimap.game) return [0, 0];
+    const imageMin = [Math.min(minimap.corner0[0], minimap.corner1[0]), Math.min(minimap.corner0[1], minimap.corner1[1])];
+    return [minimap.game.min[0] - imageMin[0], minimap.game.min[1] - imageMin[1]];
+}
+
+
+/**
+ * Same as gridOffset for one gameplay layer: a layer can ship its own, smaller minimap (Skirmish, Seed) or corners a
+ * metre off the map's, and the game starts that layer's grid at its own corner.
+ * @param {{corner0: Number[], corner1: Number[]}} minimap - SDK_data.minimap, for the image extent
+ * @param {Array<{location_x: number, location_y: number}>} mapTextureCorners - the layer's two corners, in cm
+ * @returns {Number[]} - [east, south] distance in metres from the image's north-west corner to the layer's
+ */
+export function layerGridOffset(minimap, mapTextureCorners) {
+    const imageMin = [Math.min(minimap.corner0[0], minimap.corner1[0]), Math.min(minimap.corner0[1], minimap.corner1[1])];
+    const [first, second] = mapTextureCorners;
+    return [
+        Math.min(first.location_x, second.location_x) / 100 - imageMin[0],
+        Math.min(first.location_y, second.location_y) / 100 - imageMin[1],
+    ];
+}
+
 // Compute size in meters and z-scaling from SDK data for each map
 export function initMapsProperties() {
     MAPS.forEach((map) => {
         map.size = bounds(map.SDK_data.minimap.corner0, map.SDK_data.minimap.corner1)[0];
         map.sizeY = bounds(map.SDK_data.minimap.corner0, map.SDK_data.minimap.corner1)[1];
+        map.gridOffset = gridOffset(map.SDK_data.minimap);
         map.scaling = scale(
             map.SDK_data?.heightmap?.BWlevels?.[0] ?? 0,
             map.SDK_data?.heightmap?.BWlevels?.[1] ?? 0,

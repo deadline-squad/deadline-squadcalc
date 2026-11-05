@@ -79,6 +79,21 @@ export default LayerGroup.extend({
         }
     },
 
+    /**
+     * Start the grid where the game starts it: its A1 corner is the north-west corner of the game's minimap,
+     * which is not always the corner of the map image (a layer with a smaller minimap such as a Skirmish, a
+     * fitted image such as Skorpo's, or just a metre of rounding). Lines and letters begin there; nothing is
+     * drawn to the north or west of it.
+     * @param {number[]} [offset] - [east, south] metres from the image's north-west corner to the game's corner
+     */
+    setOrigin(offset = [0, 0]) {
+        this.originOffset = offset;
+        if (this.map && this.bounds) {
+            this.redraw();
+            this.updateLineOpacity();
+        }
+    },
+
     onAdd(map) {
         this.map = map;
         map.on("zoomend", this.updateLineOpacity, this);
@@ -172,11 +187,9 @@ export default LayerGroup.extend({
         // Define and scale line's intervals
         // This handle rectangle map stretched into a rectangle
         const kpX = (300 / 3 ** 0) * this.map.gameToMapScale;
-        const s1X = (300 / 3 ** 1) * this.map.gameToMapScale;
         const s2X = (300 / 3 ** 2) * this.map.gameToMapScale;
 
         const kpY = (300 / 3 ** 0) * this.map.gameToMapScaleY;
-        const s1Y = (300 / 3 ** 1) * this.map.gameToMapScaleY;
         const s2Y = (300 / 3 ** 2) * this.map.gameToMapScaleY;
 
         // for complete grid drawing we take lowest interval, as we want to draw all lines
@@ -191,82 +204,66 @@ export default LayerGroup.extend({
         this.s2Lines = [];
         this.labels = [];
         
-        // vertical keypad lines
-        // Going east +1 to make it through floating point imprecision
-        const startX = this.bounds.getWest();
+        // The game's grid starts at its own corner (setOrigin); every 9th sub2 line is a keypad line and every
+        // 3rd a sub1 line. Counting lines instead of testing multiples keeps float error from drifting.
+        const [originEast, originSouth] = this.originOffset ?? [0, 0];
+        const startX = this.bounds.getWest() + originEast * this.map.gameToMapScale;
         const endX = this.bounds.getEast();
+        const startY = this.bounds.getNorth() - originSouth * this.map.gameToMapScaleY;
+        const endY = this.bounds.getSouth();
+        const EPSILON = 1e-6;
 
-        for (let x = startX, z = 0; x <= endX; x += intervalX) {
+        // vertical lines: letters A, B, ... label the columns between two keypad lines
+        for (let n = 0; startX + n * intervalX <= endX + EPSILON; n++) {
+            const x = startX + n * intervalX;
             const bot = {lat: this.bounds.getSouth(), lng: x};
             const top = {lat: this.bounds.getNorth(), lng: x};
 
-            // checking which style to use for the current line
-            // style is decided by whether or not current line is multiple of which (sub-) keypad interval
-            // basically, main style if multiple of 300, sub1 style if multiple of 100,
-            // sub2 if multiple of 33
-            // we use if-else so that we don't draw lines over each other
-            if (this.isMultiple(kpX, x)) {
+            if (n % 9 === 0) {
                 this.kpLines.push(new Polyline([bot, top], this.lineStyleKP));
 
-                // Create
-                let top2 = {lat: this.bounds.getNorth(), lng: x-(kpX/2)};
-
-                if (x != 0) {
-                    this.labels.push(new Marker(top2, {
+                if (n > 0) {
+                    this.labels.push(new Marker({lat: this.bounds.getNorth(), lng: x - (kpX / 2)}, {
                         interactive: false,
                         icon: new DivIcon({
                             className: "gridText",
-                            html: (z + 9).toString(36).toUpperCase(),
+                            html: (n / 9 + 9).toString(36).toUpperCase(),
                             iconSize: [20, 20],
                             iconAnchor: [10, 20]
                         })
                     }));
                 }
-
-                z += 1;
-
-            } else if (this.isMultiple(s1X, x)) {
+            } else if (n % 3 === 0) {
                 this.s1Lines.push(new Polyline([bot, top], this.lineStyleSUB1));
-            } else if (this.isMultiple(s2X, x)) {
-                this.s2Lines.push(new Polyline([bot, top], this.lineStyleSUB2));
             } else {
-                console.warn(`no match! x = ${x}; x%:`, [x % kpX, x % s1X, x % s2X]); // this should never happen
+                this.s2Lines.push(new Polyline([bot, top], this.lineStyleSUB2));
             }
         }
 
-        // horizontal keypad lines, almost the same as for vertical lines
-        // Going South +1 to make it through floating point imprecision
-        const startY = this.bounds.getNorth();
-        const endY = this.bounds.getSouth();
-
-        for (let y = startY, z = 0; y >= endY; y -= intervalY) {
+        // horizontal lines: numbers 1, 2, ... label the rows between two keypad lines
+        for (let n = 0; startY - n * intervalY >= endY - EPSILON; n++) {
+            const y = startY - n * intervalY;
             const left = {lat: y, lng: this.bounds.getWest()};
             const right = {lat: y, lng: this.bounds.getEast()};
 
-
-            if (this.isMultiple(kpY, y)) {
-                let textPos = {lat: y+(kpY/2), lng: this.bounds.getWest()};
+            if (n % 9 === 0) {
                 this.kpLines.push(new Polyline([left, right], this.lineStyleKP));
 
-                if (y!=0){ // skip first label
-                    this.labels.push(new Marker(textPos, {
+                if (n > 0) {
+                    this.labels.push(new Marker({lat: y + (kpY / 2), lng: this.bounds.getWest()}, {
                         interactive: false,
                         icon: new DivIcon({
                             className: "gridText",
-                            html: z,
+                            html: n / 9,
                             iconSize: [20, 20],
                             iconAnchor: [20, 10]
                         })
                     }));
                 }
-                z+=1;
-
-            } else if (this.isMultiple(s1Y, y)) {
+            } else if (n % 3 === 0) {
                 this.s1Lines.push(new Polyline([left, right], this.lineStyleSUB1));
-            } else if (this.isMultiple(s2Y, y)) {
-                this.s2Lines.push(new Polyline([left, right], this.lineStyleSUB2));
             } else {
-                console.warn(`no match! y = ${y}; y%:`, [y % kpX, y % s1X, y % s2X]);
+                this.s2Lines.push(new Polyline([left, right], this.lineStyleSUB2));
             }
         }
 
@@ -280,17 +277,4 @@ export default LayerGroup.extend({
         // Make label unfocusable with tab to avoid users panning the map while alt-tabbing
         for (const element of document.querySelectorAll(".gridText")) element.setAttribute("tabindex", "-1");
     },
-    
-    /**
-     * Returns true if 'a' is a multiple of 'b' with a precision up to 4 decimals
-     * @param a
-     * @param b
-     * @returns {boolean} true if 'a' is a multiple of 'b', false otherwise              
-     */
-    isMultiple(a, b) {
-        const t = b / a;
-        const r = Math.round(t);
-        const d = t >= r ? t - r : r - t;
-        return d < 0.0001;
-    }
 });

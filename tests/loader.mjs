@@ -9,7 +9,8 @@ export async function resolve(specifier, context, nextResolve) {
     if (fromSource && specifier === "../app.js") {
         return { url: new URL("./stubs/app.mjs", import.meta.url).href, shortCircuit: true };
     }
-    if (fromSource && specifier === "leaflet") {
+    // squadGrid.test.mjs draws the grid with the real Leaflet
+    if (fromSource && specifier === "leaflet" && !context.parentURL.endsWith("/src/js/squadGrid.js")) {
         return { url: new URL("./stubs/leaflet.mjs", import.meta.url).href, shortCircuit: true };
     }
     return nextResolve(specifier, context);

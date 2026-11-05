@@ -8,6 +8,7 @@ import { Hexagon } from "./libs/leaflet-hexagon.js";
 import { squadSpawnGroup } from "./squadSpawnGroup.js";
 import { squadCameraActor } from "./squadCameraActor.js";
 import { SquadVehicleSpawner } from "./squadVehicleSpawner.js";
+import { layerGridOffset } from "../data/maps.js";
 
 export default class SquadLayer {
 
@@ -23,6 +24,9 @@ export default class SquadLayer {
         this.isRandomized = this.isRandomized(); 
         
         [this.offset_x, this.offset_y] = this.getLayerOffsets(this.layerData.mapTextureCorners);
+        if (this.layerData.mapTextureCorners) {
+            this.map.grid?.setOrigin(layerGridOffset(this.map.activeMap.SDK_data.minimap, this.layerData.mapTextureCorners));
+        }
         this.isVisible = true;
         this.currentPosition = 0;
 
@@ -1356,6 +1360,7 @@ export default class SquadLayer {
         this.spawnGroups = [];
         this.vehicleSpawners = [];
         this.hexs = [];
+        this.map.grid?.setOrigin(this.map.activeMap.gridOffset);
     }
 
 }
