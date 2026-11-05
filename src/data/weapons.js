@@ -641,6 +641,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -665,6 +666,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -689,6 +691,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -723,6 +726,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -748,6 +752,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -773,6 +778,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -797,6 +803,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -821,6 +828,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -848,6 +856,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 4,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -884,6 +893,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 10,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -911,6 +921,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -938,6 +949,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 5,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -965,6 +977,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 4,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -1001,6 +1014,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 4,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -1028,6 +1042,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 4,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -1065,6 +1080,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 4,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -1093,6 +1109,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 4,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -1120,6 +1137,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 12,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -1147,6 +1165,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 8,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -1174,6 +1193,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 8,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -1201,6 +1221,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 8,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -1228,6 +1249,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 8,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -1253,6 +1275,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -1279,6 +1302,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -1314,6 +1338,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 8,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -1336,6 +1361,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 8,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -1359,6 +1385,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 8,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -1381,6 +1408,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -1415,6 +1443,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -1440,6 +1469,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 5,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -1462,6 +1492,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 5,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -1487,6 +1518,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 5,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -1509,6 +1541,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 5,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -1534,6 +1567,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 5,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -1556,6 +1590,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 5,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -1581,6 +1616,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 5,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -1603,6 +1639,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 5,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -1628,6 +1665,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 5,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -1650,6 +1688,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 5,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -1681,6 +1720,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 5,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -1703,6 +1743,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 8,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -1725,6 +1766,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 8,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -1747,6 +1789,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 8,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -1768,6 +1811,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -1792,6 +1836,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -1816,6 +1861,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -1843,6 +1889,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 4,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -1870,6 +1917,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 4,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -1894,6 +1942,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 4,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -1921,6 +1970,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 4,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -1946,6 +1996,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 8,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -1968,6 +2019,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -2002,6 +2054,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 5,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -2027,6 +2080,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 5,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -2058,6 +2112,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 5,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -2080,6 +2135,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 8,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -2102,6 +2158,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 8,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -2147,6 +2204,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -2171,6 +2229,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -2198,6 +2257,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 8,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -2225,6 +2285,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 8,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -2250,6 +2311,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -2283,6 +2345,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         heightOffset: 2.6617,
         muzzle: { pivotHeight: 2.6617, forward: 0.4161, up: 0.0257 },
         image: "DirectFire",
@@ -2309,6 +2372,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         heightOffset: 3.093,
         muzzle: { pivotHeight: 3.093, forward: 0.6256, up: -0.0155 },
         image: "DirectFire",
@@ -2335,6 +2399,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         heightOffset: 2.6316,
         muzzle: { pivotHeight: 2.6316, forward: 0.6951, up: -0.0087 },
         image: "DirectFire",
@@ -2362,6 +2427,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         heightOffset: 2.3056,
         muzzle: { pivotHeight: 2.3056, forward: 0.6951, up: -0.0087 },
         image: "DirectFire",
@@ -2413,6 +2479,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -2437,6 +2504,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -2465,6 +2533,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 8,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -2493,6 +2562,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 8,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -2520,6 +2590,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 8,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -2547,6 +2618,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 8,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -2572,6 +2644,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -2597,6 +2670,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -2622,6 +2696,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 8,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -2644,6 +2719,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 8,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -2666,6 +2742,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 8,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -2688,6 +2765,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 8,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -2710,6 +2788,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 8,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -2732,6 +2811,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 8,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -2754,6 +2834,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -2779,6 +2860,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -2804,6 +2886,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -2829,6 +2912,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -2854,6 +2938,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -2888,6 +2973,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -2922,6 +3008,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -2955,6 +3042,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -2979,6 +3067,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -3003,6 +3092,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         heightOffset: 3.2232,
         muzzle: { pivotHeight: 3.2232, forward: 1.0868, up: 0.0748 },
         image: "DirectFire",
@@ -3029,6 +3119,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         heightOffset: 2.6316,
         muzzle: { pivotHeight: 2.6316, forward: 0.6951, up: -0.0087 },
         image: "DirectFire",
@@ -3055,6 +3146,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         heightOffset: 2.3056,
         muzzle: { pivotHeight: 2.3056, forward: 0.6951, up: -0.0087 },
         image: "DirectFire",
@@ -3081,6 +3173,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         heightOffset: 3.0282,
         muzzle: { pivotHeight: 3.0282, forward: 0.6951, up: -0.0087 },
         image: "DirectFire",
@@ -3107,6 +3200,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         heightOffset: 3.0282,
         muzzle: { pivotHeight: 3.0282, forward: 0.6951, up: -0.0087 },
         image: "DirectFire",
@@ -3133,6 +3227,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -3282,6 +3377,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 20,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -3309,6 +3405,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 15,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -3334,6 +3431,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 5,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -3361,6 +3459,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 4,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -3388,6 +3487,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 4,
         image: "DirectFire",
         heatmap: false,
         shells: [{
@@ -3415,6 +3515,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 8,
         heightOffset: 2.4725,
         muzzle: { pivotHeight: 2.4725, forward: 1.7773, up: 0.0546 },
         image: "DirectFire",
@@ -3444,6 +3545,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 8,
         heightOffset: 2.4725,
         muzzle: { pivotHeight: 2.4725, forward: 1.7773, up: 0.0546 },
         image: "DirectFire",
@@ -3473,6 +3575,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 8,
         heightOffset: 2.4725,
         muzzle: { pivotHeight: 2.4725, forward: 1.7773, up: 0.0546 },
         image: "DirectFire",
@@ -3502,6 +3605,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 8,
         heightOffset: 2.4725,
         muzzle: { pivotHeight: 2.4725, forward: 1.7773, up: 0.0546 },
         image: "DirectFire",
@@ -3531,6 +3635,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 8,
         heightOffset: 2.3252,
         muzzle: { pivotHeight: 2.3252, forward: 1.7773, up: 0.0546 },
         image: "DirectFire",
@@ -3560,6 +3665,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 8,
         heightOffset: 2.3252,
         muzzle: { pivotHeight: 2.3252, forward: 1.7773, up: 0.0546 },
         image: "DirectFire",
@@ -3589,6 +3695,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 8,
         heightOffset: 2.3252,
         muzzle: { pivotHeight: 2.3252, forward: 1.7773, up: 0.0546 },
         image: "DirectFire",
@@ -3618,6 +3725,7 @@ export var WEAPONS = [
         type: "directFire",
         angleType: "low",
         elevationPrecision: 2,
+        projectileLifespan: 8,
         heightOffset: 2.3252,
         muzzle: { pivotHeight: 2.3252, forward: 1.7773, up: 0.0546 },
         image: "DirectFire",
