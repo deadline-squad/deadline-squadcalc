@@ -57,3 +57,25 @@ test("turning the setting off and on while meta.json is being fetched starts one
     assert.equal(workers.length, 1, "and only one was started");
     assert.equal(events.filter((name) => name === "volume:ready").length, 1, "volume:ready once");
 });
+
+test("a map whose meta.json has no volume entry (Belaya Pass, terrain only) starts no worker and keeps the heightmap", async () => {
+    const before = workers.length;
+    const heightmap = { failed: false };
+    const map = { heightmap, activeMap: { mapURL: "/img/maps/belaya/" }, updateTargets: () => {} };
+    const volume = new SquadVolume(map);
+    const requested = [];
+    const terrainOnlyMeta = { map: "Belaya", bounds_m: { min_x: -1954, max_x: 1950, min_y: -2080, max_y: 1825 }, z_min_m: -307.2, generated: "g", provenance: "terrain only" };
+    globalThis.fetch = async (url) => {
+        requested.push(url);
+        return { ok: true, json: async () => terrainOnlyMeta };
+    };
+    App.userSettings = { volumeLayer: true };
+
+    await volume.load();
+
+    assert.equal(volume.state, "unavailable");
+    assert.equal(volume.ready, false);
+    assert.equal(workers.length, before, "no worker started");
+    assert.deepEqual(requested, ["http://localhost/heightmaps/belaya/meta.json"], "only meta.json was fetched");
+    assert.equal(map.heightmap, heightmap, "the heightmap stays");
+});

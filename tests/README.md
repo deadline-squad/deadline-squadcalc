@@ -14,6 +14,7 @@ classes. `leaflet.test.mjs` imports the real Leaflet 2 package.
 - `squadHeightmaps.test.mjs`: height interpolation (the game's triangle rule), edges, height path.
 - `structureDamage.test.mjs`: damage of shells to player-built structures (the native rules of ASQDeployable::TakeDamage on a made-up wall: direct-hit multiplier, no direct-radial multiplier, minimum-damage floor, only-direct near miss, exact damage-type class, burst distance; and the game data for the mortar round and HEAT against the FOB radio and a HAB, `structureOutcome`, and the links of `src/data/structureLinks.js` to the shells of `weapons.js`).
 - `weapons.test.mjs`: invariants of the `weapons.js` data.
+- `maps.test.mjs`: the map list (26 maps, each named in six languages) and Belaya Pass, the terrain-only map: its size from SquadHeight's bounds, the `communityTerrain` flag and its notices in six languages. `squadHeightmaps.test.mjs` also checks that the notice is shown on load, and `squadVolume.test.mjs` that a `meta.json` without a `volume` entry starts no worker and keeps the heightmap.
 - `hitProbability.test.mjs`: the hit probability of direct-fire weapons from a muzzle above the ground against a simulation of the game's cone (#19).
 - `volumeTerrain.test.mjs`: the `TER1` landscape file of the volume layer (decoding, the game's triangle rule, holes).
 - `targetHeights.test.mjs`: the heights a vertical ray offers (floor, ceiling, roof, window, doorway) from the solids it crosses.
