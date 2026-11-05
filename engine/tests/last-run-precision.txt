@@ -1,86 +1,165 @@
+# Run of 2026-11-05 with the exact-voxeliser files (agl e34e481, f116a2b); regions rebuilt from them. Jensen and Kokan: ENGINE_PRECISION_MARGINS=0,0.25,0.3,0.5,0.6,1.0; Fallujah: ENGINE_PRECISION_ONE_REGION_AT_A_TIME=1, no margin sweep (45.3 M triangles of the window do not fit the 5 GB cap).
+
+== jensen
      Running tests/precision_parity.rs (target/release/deps/precision_parity-6c7e2fc834a90c19)
 
 running 1 test
 jensen: regions
-jensen: 100000 segments, 29732 exact blocked
-voxel walk alone                             false clear  129 ( 14 grazing)  false blocked  3948 ( 2637 grazing)  wrong 4.08 %  without grazing 1.43 %
-  7.73 us per segment (one thread)
-  16 regions of 300 m x 300 m: file bytes min 57 median 99533 max 5041780 total 8646198; triangles min 0 max 2778978
-precision pass, target at the segment end    false clear    8 (  1 grazing)  false blocked   279 (  185 grazing)  wrong 0.29 %  without grazing 0.10 %
-  sent to the exact pass 42013 = 42.01 %, 8.85 us per segment (one thread)
-precision pass, target at the segment start  false clear    0 (  0 grazing)  false blocked     3 (    2 grazing)  wrong 0.00 %  without grazing 0.00 %
-  sent to the exact pass 44638 = 44.64 %, 11.96 us per segment (one thread)
+  region_-279_-229.rtri: 167467 bytes, 62355 triangles, decoded in 0.004 s, hierarchy and grown voxels in 0.121 s
+  region_-279_-479.rtri: 57 bytes, 0 triangles, decoded in 0.000 s, hierarchy and grown voxels in 0.000 s
+  region_-279_-729.rtri: 25039 bytes, 4992 triangles, decoded in 0.000 s, hierarchy and grown voxels in 0.010 s
+  region_-279_-979.rtri: 21487 bytes, 3470 triangles, decoded in 0.000 s, hierarchy and grown voxels in 0.008 s
+  region_-29_-229.rtri: 5041780 bytes, 2778978 triangles, decoded in 0.193 s, hierarchy and grown voxels in 2.641 s
+  region_-29_-479.rtri: 481096 bytes, 276211 triangles, decoded in 0.014 s, hierarchy and grown voxels in 0.256 s
+  region_-29_-729.rtri: 99662 bytes, 18688 triangles, decoded in 0.002 s, hierarchy and grown voxels in 0.060 s
+  region_-29_-979.rtri: 292898 bytes, 56568 triangles, decoded in 0.006 s, hierarchy and grown voxels in 0.150 s
+  region_221_-229.rtri: 1931297 bytes, 1023812 triangles, decoded in 0.080 s, hierarchy and grown voxels in 1.065 s
+  region_221_-479.rtri: 215204 bytes, 137273 triangles, decoded in 0.005 s, hierarchy and grown voxels in 0.115 s
+  region_221_-729.rtri: 57 bytes, 0 triangles, decoded in 0.000 s, hierarchy and grown voxels in 0.001 s
+  region_221_-979.rtri: 26807 bytes, 4244 triangles, decoded in 0.001 s, hierarchy and grown voxels in 0.011 s
+  region_471_-229.rtri: 2754 bytes, 1038 triangles, decoded in 0.000 s, hierarchy and grown voxels in 0.003 s
+  region_471_-479.rtri: 58 bytes, 0 triangles, decoded in 0.000 s, hierarchy and grown voxels in 0.001 s
+  region_471_-729.rtri: 58 bytes, 0 triangles, decoded in 0.000 s, hierarchy and grown voxels in 0.001 s
+  region_471_-979.rtri: 341179 bytes, 137144 triangles, decoded in 0.009 s, hierarchy and grown voxels in 0.155 s
+jensen: 100000 segments, 30071 exact blocked
+voxel walk alone                             false clear    0 (  0 grazing)  false blocked  3922 ( 2607 grazing)  wrong 3.92 %  without grazing 1.31 %
+  3.81 us per segment (one thread)
+  16 regions of 300 m x 300 m: file bytes min 57 median 99662 max 5041780 total 8646900; triangles min 0 max 2778978
+precision pass, target at the segment end    false clear    0 (  0 grazing)  false blocked   301 (  195 grazing)  wrong 0.30 %  without grazing 0.11 %
+  sent to the exact pass 42352 = 42.35 %, 6.21 us per segment (one thread)
+precision pass, target at the segment start  false clear    0 (  0 grazing)  false blocked     9 (    6 grazing)  wrong 0.01 %  without grazing 0.00 %
+  sent to the exact pass 44863 = 44.86 %, 6.65 us per segment (one thread)
 exact triangles of the whole window (3594819 triangles) in every segment's reach:
-margin 0 m, region = window                  false clear  129 ( 14 grazing)  false blocked     0 (    0 grazing)  wrong 0.13 %  without grazing 0.12 %
-  sent to the exact pass 33551 = 33.55 %, 10.42 us per segment (one thread)
+margin 0 m, region = window                  false clear    0 (  0 grazing)  false blocked     0 (    0 grazing)  wrong 0.00 %  without grazing 0.00 %
+  sent to the exact pass 33993 = 33.99 %, 6.23 us per segment (one thread)
 margin 0.25 m, region = window               false clear    0 (  0 grazing)  false blocked     0 (    0 grazing)  wrong 0.00 %  without grazing 0.00 %
-  sent to the exact pass 39060 = 39.06 %, 9.72 us per segment (one thread)
+  sent to the exact pass 39370 = 39.37 %, 7.27 us per segment (one thread)
 margin 0.3 m, region = window                false clear    0 (  0 grazing)  false blocked     0 (    0 grazing)  wrong 0.00 %  without grazing 0.00 %
-  sent to the exact pass 40822 = 40.82 %, 8.22 us per segment (one thread)
+  sent to the exact pass 40993 = 40.99 %, 6.44 us per segment (one thread)
 margin 0.5 m, region = window                false clear    0 (  0 grazing)  false blocked     0 (    0 grazing)  wrong 0.00 %  without grazing 0.00 %
-  sent to the exact pass 40822 = 40.82 %, 8.41 us per segment (one thread)
+  sent to the exact pass 40993 = 40.99 %, 6.78 us per segment (one thread)
 margin 0.6 m, region = window                false clear    0 (  0 grazing)  false blocked     0 (    0 grazing)  wrong 0.00 %  without grazing 0.00 %
-  sent to the exact pass 44981 = 44.98 %, 8.57 us per segment (one thread)
+  sent to the exact pass 45219 = 45.22 %, 5.48 us per segment (one thread)
 margin 1 m, region = window                  false clear    0 (  0 grazing)  false blocked     0 (    0 grazing)  wrong 0.00 %  without grazing 0.00 %
-  sent to the exact pass 46388 = 46.39 %, 10.38 us per segment (one thread)
+  sent to the exact pass 46644 = 46.64 %, 5.06 us per segment (one thread)
 
+test the_precision_pass_agrees_with_the_exact_tracer_better_than_the_voxel_walk ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 46.52s
+
+
+== kokan
+     Running tests/precision_parity.rs (target/release/deps/precision_parity-6c7e2fc834a90c19)
+
+running 1 test
 kokan: regions
-kokan: 100000 segments, 12709 exact blocked
-voxel walk alone                             false clear   83 (  9 grazing)  false blocked  8331 ( 3840 grazing)  wrong 8.41 %  without grazing 4.57 %
-  12.12 us per segment (one thread)
-  16 regions of 300 m x 300 m: file bytes min 1035970 median 2475953 max 3523304 total 38040251; triangles min 315706 max 1097166
-precision pass, target at the segment end    false clear    4 (  1 grazing)  false blocked   858 (  391 grazing)  wrong 0.86 %  without grazing 0.47 %
-  sent to the exact pass 36977 = 36.98 %, 14.40 us per segment (one thread)
-precision pass, target at the segment start  false clear    0 (  0 grazing)  false blocked   103 (   54 grazing)  wrong 0.10 %  without grazing 0.05 %
-  sent to the exact pass 40361 = 40.36 %, 20.59 us per segment (one thread)
+  region_-101_-301.rtri: 2705570 bytes, 824250 triangles, decoded in 0.058 s, hierarchy and grown voxels in 0.682 s
+  region_-101_-51.rtri: 1592079 bytes, 489023 triangles, decoded in 0.032 s, hierarchy and grown voxels in 0.391 s
+  region_-101_-551.rtri: 2431851 bytes, 729876 triangles, decoded in 0.046 s, hierarchy and grown voxels in 0.618 s
+  region_-101_199.rtri: 1661317 bytes, 512847 triangles, decoded in 0.030 s, hierarchy and grown voxels in 0.443 s
+  region_-351_-301.rtri: 2406624 bytes, 726125 triangles, decoded in 0.040 s, hierarchy and grown voxels in 0.573 s
+  region_-351_-51.rtri: 2973876 bytes, 912483 triangles, decoded in 0.045 s, hierarchy and grown voxels in 0.694 s
+  region_-351_-551.rtri: 2476405 bytes, 754796 triangles, decoded in 0.036 s, hierarchy and grown voxels in 0.643 s
+  region_-351_199.rtri: 1979527 bytes, 604758 triangles, decoded in 0.030 s, hierarchy and grown voxels in 0.499 s
+  region_149_-301.rtri: 2925814 bytes, 881869 triangles, decoded in 0.055 s, hierarchy and grown voxels in 0.746 s
+  region_149_-51.rtri: 2005669 bytes, 581441 triangles, decoded in 0.029 s, hierarchy and grown voxels in 0.456 s
+  region_149_-551.rtri: 3523610 bytes, 1097271 triangles, decoded in 0.064 s, hierarchy and grown voxels in 0.864 s
+  region_149_199.rtri: 2488938 bytes, 751270 triangles, decoded in 0.045 s, hierarchy and grown voxels in 0.630 s
+  region_399_-301.rtri: 2211101 bytes, 687974 triangles, decoded in 0.049 s, hierarchy and grown voxels in 0.550 s
+  region_399_-51.rtri: 2614346 bytes, 795831 triangles, decoded in 0.047 s, hierarchy and grown voxels in 0.541 s
+  region_399_-551.rtri: 1036053 bytes, 315743 triangles, decoded in 0.015 s, hierarchy and grown voxels in 0.227 s
+  region_399_199.rtri: 3012044 bytes, 926902 triangles, decoded in 0.055 s, hierarchy and grown voxels in 0.747 s
+kokan: 100000 segments, 13214 exact blocked
+voxel walk alone                             false clear    0 (  0 grazing)  false blocked  8499 ( 4055 grazing)  wrong 8.50 %  without grazing 4.44 %
+  7.83 us per segment (one thread)
+  16 regions of 300 m x 300 m: file bytes min 1036053 median 2476405 max 3523610 total 38044824; triangles min 315743 max 1097271
+precision pass, target at the segment end    false clear    1 (  0 grazing)  false blocked   866 (  420 grazing)  wrong 0.87 %  without grazing 0.45 %
+  sent to the exact pass 37418 = 37.42 %, 10.62 us per segment (one thread)
+precision pass, target at the segment start  false clear    1 (  0 grazing)  false blocked   106 (   55 grazing)  wrong 0.11 %  without grazing 0.05 %
+  sent to the exact pass 40715 = 40.72 %, 13.71 us per segment (one thread)
 exact triangles of the whole window (8085424 triangles) in every segment's reach:
-margin 0 m, region = window                  false clear   83 (  9 grazing)  false blocked     0 (    0 grazing)  wrong 0.08 %  without grazing 0.07 %
-  sent to the exact pass 20957 = 20.96 %, 10.43 us per segment (one thread)
-margin 0.25 m, region = window               false clear    5 (  0 grazing)  false blocked     0 (    0 grazing)  wrong 0.01 %  without grazing 0.01 %
-  sent to the exact pass 30649 = 30.65 %, 15.00 us per segment (one thread)
-margin 0.3 m, region = window                false clear    1 (  0 grazing)  false blocked     0 (    0 grazing)  wrong 0.00 %  without grazing 0.00 %
-  sent to the exact pass 32989 = 32.99 %, 15.35 us per segment (one thread)
-margin 0.5 m, region = window                false clear    1 (  0 grazing)  false blocked     0 (    0 grazing)  wrong 0.00 %  without grazing 0.00 %
-  sent to the exact pass 32989 = 32.99 %, 16.83 us per segment (one thread)
+margin 0 m, region = window                  false clear    0 (  0 grazing)  false blocked     0 (    0 grazing)  wrong 0.00 %  without grazing 0.00 %
+  sent to the exact pass 21713 = 21.71 %, 7.85 us per segment (one thread)
+margin 0.25 m, region = window               false clear    0 (  0 grazing)  false blocked     0 (    0 grazing)  wrong 0.00 %  without grazing 0.00 %
+  sent to the exact pass 30983 = 30.98 %, 8.17 us per segment (one thread)
+margin 0.3 m, region = window                false clear    0 (  0 grazing)  false blocked     0 (    0 grazing)  wrong 0.00 %  without grazing 0.00 %
+  sent to the exact pass 33370 = 33.37 %, 7.40 us per segment (one thread)
+margin 0.5 m, region = window                false clear    0 (  0 grazing)  false blocked     0 (    0 grazing)  wrong 0.00 %  without grazing 0.00 %
+  sent to the exact pass 33370 = 33.37 %, 6.00 us per segment (one thread)
 margin 0.6 m, region = window                false clear    0 (  0 grazing)  false blocked     0 (    0 grazing)  wrong 0.00 %  without grazing 0.00 %
-  sent to the exact pass 40715 = 40.72 %, 18.47 us per segment (one thread)
+  sent to the exact pass 41094 = 41.09 %, 8.56 us per segment (one thread)
 margin 1 m, region = window                  false clear    0 (  0 grazing)  false blocked     0 (    0 grazing)  wrong 0.00 %  without grazing 0.00 %
-  sent to the exact pass 42824 = 42.82 %, 17.90 us per segment (one thread)
+  sent to the exact pass 43181 = 43.18 %, 9.99 us per segment (one thread)
 
 test the_precision_pass_agrees_with_the_exact_tracer_better_than_the_voxel_walk ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 127.36s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 56.86s
 
 
+== fallujah
+     Running tests/precision_parity.rs (target/release/deps/precision_parity-6c7e2fc834a90c19)
 
-fallujah: ENGINE_PRECISION_ONE_REGION_AT_A_TIME=1 (the 16 regions hold 64.4 M triangles and do not fit 3 GB together), no margin sweep
-(a region of the whole window would hold 45.3 M triangles). Machine load average about 20 on 8 cores: times are not comparable with the runs above.
+running 1 test
 fallujah: regions
-  region_-290_-220.rtri: 18258419 bytes, 4621387 triangles, decoded in 0.660 s, hierarchy and grown voxels in 6.864 s
-  region_-290_-470.rtri: 10954231 bytes, 2972420 triangles, decoded in 0.469 s, hierarchy and grown voxels in 4.241 s
-  region_-290_-720.rtri: 7268555 bytes, 2157193 triangles, decoded in 0.248 s, hierarchy and grown voxels in 3.218 s
-  region_-290_30.rtri: 20264278 bytes, 5245283 triangles, decoded in 0.638 s, hierarchy and grown voxels in 7.194 s
-  region_-40_-220.rtri: 17383660 bytes, 4282060 triangles, decoded in 0.510 s, hierarchy and grown voxels in 6.228 s
-  region_-40_-470.rtri: 9440072 bytes, 2579120 triangles, decoded in 0.266 s, hierarchy and grown voxels in 3.902 s
-  region_-40_-720.rtri: 6481078 bytes, 1809268 triangles, decoded in 0.212 s, hierarchy and grown voxels in 2.494 s
-  region_-40_30.rtri: 15903749 bytes, 3852761 triangles, decoded in 0.478 s, hierarchy and grown voxels in 5.818 s
-  region_210_-220.rtri: 26001993 bytes, 7258717 triangles, decoded in 1.079 s, hierarchy and grown voxels in 10.375 s
-  region_210_-470.rtri: 12256965 bytes, 3255628 triangles, decoded in 0.355 s, hierarchy and grown voxels in 4.509 s
-  region_210_-720.rtri: 13414490 bytes, 3566870 triangles, decoded in 0.480 s, hierarchy and grown voxels in 4.896 s
-  region_210_30.rtri: 13870677 bytes, 4125011 triangles, decoded in 0.475 s, hierarchy and grown voxels in 5.630 s
-  region_460_-220.rtri: 22233436 bytes, 6448469 triangles, decoded in 1.047 s, hierarchy and grown voxels in 8.713 s
-  region_460_-470.rtri: 16702271 bytes, 4446054 triangles, decoded in 0.681 s, hierarchy and grown voxels in 6.236 s
-  region_460_-720.rtri: 12427550 bytes, 3223183 triangles, decoded in 0.374 s, hierarchy and grown voxels in 4.152 s
-  region_460_30.rtri: 16350867 bytes, 4559414 triangles, decoded in 0.573 s, hierarchy and grown voxels in 6.344 s
-fallujah: 100000 segments, 45071 exact blocked
-voxel walk alone                             false clear  494 ( 67 grazing)  false blocked  5609 ( 3437 grazing)  wrong 6.10 %  without grazing 2.60 %
-  69.83 us per segment (one thread)
-  16 regions of 300 m x 300 m: file bytes min 6481078 median 15903749 max 26001993 total 239212291; triangles min 1809268 max 7258717
-precision pass, target at the segment end    false clear   35 (  2 grazing)  false blocked   409 (  268 grazing)  wrong 0.44 %  without grazing 0.17 %
-  sent to the exact pass 60119 = 60.12 %, 50.02 us per segment (one thread)
-precision pass, target at the segment start  false clear    7 (  1 grazing)  false blocked    37 (   24 grazing)  wrong 0.04 %  without grazing 0.02 %
-  sent to the exact pass 65089 = 65.09 %, 85.77 us per segment (one thread)
+  region_-290_-220.rtri: 18259129 bytes, 4621512 triangles, decoded in 0.374 s, hierarchy and grown voxels in 4.934 s
+  region_-290_-470.rtri: 10954122 bytes, 2972706 triangles, decoded in 0.255 s, hierarchy and grown voxels in 2.911 s
+  region_-290_-720.rtri: 7271171 bytes, 2157734 triangles, decoded in 0.206 s, hierarchy and grown voxels in 1.979 s
+  region_-290_30.rtri: 20244651 bytes, 5245360 triangles, decoded in 0.538 s, hierarchy and grown voxels in 5.351 s
+  region_-40_-220.rtri: 17370479 bytes, 4282182 triangles, decoded in 0.333 s, hierarchy and grown voxels in 4.680 s
+  region_-40_-470.rtri: 9424238 bytes, 2579315 triangles, decoded in 0.245 s, hierarchy and grown voxels in 4.800 s
+  region_-40_-720.rtri: 6480226 bytes, 1809377 triangles, decoded in 0.202 s, hierarchy and grown voxels in 3.039 s
+  region_-40_30.rtri: 15901640 bytes, 3852887 triangles, decoded in 0.480 s, hierarchy and grown voxels in 6.440 s
+  region_210_-220.rtri: 26005333 bytes, 7258961 triangles, decoded in 1.003 s, hierarchy and grown voxels in 12.141 s
+  region_210_-470.rtri: 12240080 bytes, 3255628 triangles, decoded in 0.369 s, hierarchy and grown voxels in 6.360 s
+test the_precision_pass_agrees_with_the_exact_tracer_better_than_the_voxel_walk has been running for over 60 seconds
+  region_210_-720.rtri: 13413352 bytes, 3566894 triangles, decoded in 0.444 s, hierarchy and grown voxels in 6.404 s
+  region_210_30.rtri: 13870212 bytes, 4125159 triangles, decoded in 0.434 s, hierarchy and grown voxels in 7.684 s
+  region_460_-220.rtri: 22230789 bytes, 6448474 triangles, decoded in 0.769 s, hierarchy and grown voxels in 10.420 s
+  region_460_-470.rtri: 16685276 bytes, 4446057 triangles, decoded in 0.519 s, hierarchy and grown voxels in 7.762 s
+  region_460_-720.rtri: 12425967 bytes, 3223195 triangles, decoded in 0.395 s, hierarchy and grown voxels in 5.746 s
+  region_460_30.rtri: 16351746 bytes, 4559414 triangles, decoded in 0.531 s, hierarchy and grown voxels in 10.099 s
+  region_-290_-220.rtri: 18259129 bytes, 4621512 triangles, decoded in 0.520 s, hierarchy and grown voxels in 9.348 s
+  region_-290_-470.rtri: 10954122 bytes, 2972706 triangles, decoded in 0.340 s, hierarchy and grown voxels in 6.491 s
+  region_-290_-720.rtri: 7271171 bytes, 2157734 triangles, decoded in 0.234 s, hierarchy and grown voxels in 5.053 s
+  region_-290_30.rtri: 20244651 bytes, 5245360 triangles, decoded in 0.610 s, hierarchy and grown voxels in 9.933 s
+  region_-40_-220.rtri: 17370479 bytes, 4282182 triangles, decoded in 0.510 s, hierarchy and grown voxels in 8.695 s
+  region_-40_-470.rtri: 9424238 bytes, 2579315 triangles, decoded in 0.308 s, hierarchy and grown voxels in 5.490 s
+  region_-40_-720.rtri: 6480226 bytes, 1809377 triangles, decoded in 0.182 s, hierarchy and grown voxels in 3.918 s
+  region_-40_30.rtri: 15901640 bytes, 3852887 triangles, decoded in 0.443 s, hierarchy and grown voxels in 7.832 s
+  region_210_-220.rtri: 26005333 bytes, 7258961 triangles, decoded in 0.927 s, hierarchy and grown voxels in 14.429 s
+  region_210_-470.rtri: 12240080 bytes, 3255628 triangles, decoded in 0.406 s, hierarchy and grown voxels in 6.823 s
+  region_210_-720.rtri: 13413352 bytes, 3566894 triangles, decoded in 0.398 s, hierarchy and grown voxels in 6.826 s
+  region_210_30.rtri: 13870212 bytes, 4125159 triangles, decoded in 0.479 s, hierarchy and grown voxels in 8.032 s
+  region_460_-220.rtri: 22230789 bytes, 6448474 triangles, decoded in 0.749 s, hierarchy and grown voxels in 11.914 s
+  region_460_-470.rtri: 16685276 bytes, 4446057 triangles, decoded in 0.445 s, hierarchy and grown voxels in 5.544 s
+  region_460_-720.rtri: 12425967 bytes, 3223195 triangles, decoded in 0.324 s, hierarchy and grown voxels in 3.779 s
+  region_460_30.rtri: 16351746 bytes, 4559414 triangles, decoded in 0.459 s, hierarchy and grown voxels in 6.996 s
+  region_-290_-220.rtri: 18259129 bytes, 4621512 triangles, decoded in 0.582 s, hierarchy and grown voxels in 7.656 s
+  region_-290_-470.rtri: 10954122 bytes, 2972706 triangles, decoded in 0.344 s, hierarchy and grown voxels in 5.293 s
+  region_-290_-720.rtri: 7271171 bytes, 2157734 triangles, decoded in 0.215 s, hierarchy and grown voxels in 4.306 s
+  region_-290_30.rtri: 20244651 bytes, 5245360 triangles, decoded in 0.612 s, hierarchy and grown voxels in 8.961 s
+  region_-40_-220.rtri: 17370479 bytes, 4282182 triangles, decoded in 0.503 s, hierarchy and grown voxels in 7.336 s
+  region_-40_-470.rtri: 9424238 bytes, 2579315 triangles, decoded in 0.277 s, hierarchy and grown voxels in 4.643 s
+  region_-40_-720.rtri: 6480226 bytes, 1809377 triangles, decoded in 0.184 s, hierarchy and grown voxels in 3.177 s
+  region_-40_30.rtri: 15901640 bytes, 3852887 triangles, decoded in 0.460 s, hierarchy and grown voxels in 6.498 s
+  region_210_-220.rtri: 26005333 bytes, 7258961 triangles, decoded in 0.895 s, hierarchy and grown voxels in 12.687 s
+  region_210_-470.rtri: 12240080 bytes, 3255628 triangles, decoded in 0.373 s, hierarchy and grown voxels in 5.910 s
+  region_210_-720.rtri: 13413352 bytes, 3566894 triangles, decoded in 0.403 s, hierarchy and grown voxels in 6.263 s
+  region_210_30.rtri: 13870212 bytes, 4125159 triangles, decoded in 0.463 s, hierarchy and grown voxels in 7.701 s
+  region_460_-220.rtri: 22230789 bytes, 6448474 triangles, decoded in 0.783 s, hierarchy and grown voxels in 12.092 s
+  region_460_-470.rtri: 16685276 bytes, 4446057 triangles, decoded in 0.506 s, hierarchy and grown voxels in 7.570 s
+  region_460_-720.rtri: 12425967 bytes, 3223195 triangles, decoded in 0.368 s, hierarchy and grown voxels in 5.668 s
+  region_460_30.rtri: 16351746 bytes, 4559414 triangles, decoded in 0.525 s, hierarchy and grown voxels in 7.627 s
+fallujah: 100000 segments, 45706 exact blocked
+voxel walk alone                             false clear    0 (  0 grazing)  false blocked  5682 ( 3389 grazing)  wrong 5.68 %  without grazing 2.29 %
+  11.00 us per segment (one thread)
+  16 regions of 300 m x 300 m: file bytes min 6480226 median 15901640 max 26005333 total 239128411; triangles min 1809377 max 7258961
+precision pass, target at the segment end    false clear    0 (  0 grazing)  false blocked   428 (  257 grazing)  wrong 0.43 %  without grazing 0.17 %
+  sent to the exact pass 60395 = 60.40 %, 40.18 us per segment (one thread)
+precision pass, target at the segment start  false clear    0 (  0 grazing)  false blocked    31 (   19 grazing)  wrong 0.03 %  without grazing 0.01 %
+  sent to the exact pass 65441 = 65.44 %, 66.28 us per segment (one thread)
 
 test the_precision_pass_agrees_with_the_exact_tracer_better_than_the_voxel_walk ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 329.31s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 377.53s
+
