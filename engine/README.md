@@ -202,7 +202,7 @@ only difference from a regeneration). The BVH never disagreed with the exact ans
 ## Voxel columns (`VCOL1`)
 
 The browser cannot hold the collision triangles of a map (Fallujah: 5.7 GB of BVH), but it can hold its voxel columns
-(Fallujah statics at 0.5 m x 0.25 m: 4.7 MB gzip). `voxel::VoxelColumns::from_bytes` reads the file of
+(Fallujah statics at 0.5 m x 0.25 m: 3.4 MB gzip, 3.7 MB with the foliage; 4.7 MB with the earlier sample-lattice builder). `voxel::VoxelColumns::from_bytes` reads the file of
 `tools/volumetric/py/codec.py` (layout there; gzip or already decompressed, malformed input is an error, never a
 panic). A voxel `(column, row, z)` is the half-open box `[min_x + column * cell, +cell) x [min_y + row * cell, +cell) x
 [z_min + z * dz, +dz)`; at most 4096 height indices per column. The positions of every query are in the frame the file
@@ -332,11 +332,37 @@ landscape), same region: 0 false clear and 0 false blocked with the region at al
 126 (floor +0.30), 0 (roof) and 604 (landscape) and no false clear. The target (-93, -213) (floor +0.30), region `region_-29_-229.rtri` (5.04 MB, 2.78 M
 triangles): 0 / 0 with the region, 0 false clear and 130 false blocked without it. The logs are in the issue.
 
+These runs (and the table) are with the sample-lattice voxel file that is served today. **With the exact-voxeliser file**
+(a staged copy of the Jensen directory with the new 85 476 B `volume.vcol`; the region file and `terrain.bin` unchanged, since
+the region rebuilt from the new voxels is identical after gunzip) the building at (127, -205) no longer offers its windows:
+the dialog's heights are `roof +6.30` only. In the old file the wall at y = -205 to -204.5 has a 0.5 m wide gap at
+x = 127.0 to 127.5, the window; in the new file the voxels the frame triangles touch on both sides of it fill the wall
+across x = 124 to 128 (read from the two decoded files at the heights 1.12 and 4.0 m), and `classifyColumn` finds no free space with
+solid on both sides. The exact tracer still has the opening (1 081 clear positions for the window height in the old run),
+so a thin opening is a case where the conservative voxels are wrong in the blocking direction and only the precision region
+can recover it. The validation therefore ran on the roof and on the landscape of that target (31 560 positions):
+
+| 31 560 positions | roof +6.30 m: voxel | + region | landscape: voxel | + region |
+|---|---|---|---|---|
+| exact tracer: clear / blocked | 8 685 / 22 702 | 8 685 / 22 702 | 1 725 / 29 662 | 1 725 / 29 662 |
+| false CLEAR | 0 | 0 | 0 | 0 |
+| false BLOCKED | 2 355 | **8** (all beyond 100 m from the target) | 717 | **0** |
+| shooter inside an object (out) differs from exact | 2 793 (306 of them clear by exact) | 615 (0 clear) | 2 793 (527) | 615 (0) |
+
+The other targets with the new file: (131, -195) (floors +3.30 and +0.30, roof +6.05, the landscape; region `region_221_-229.rtri`):
+0 false clear and 0 false blocked with the region at all four heights; without it false blocked 0 (floor +3.30), 139 (floor
++0.30), 0 (roof) and 571 (landscape) and no false clear (old file: 0, 126, 0, 604). The target (-93, -213) (floor +0.30), region
+`region_-29_-229.rtri`: 0 / 0 with the region, 0 false clear and 129 false blocked without it (old: 130). The output is in
+`~/work/ui-shots/heat-val-exact/` of the build host. The browser check `heatmap_check.mjs` passes on a staged build with the
+new file when told to use the roof (`--height roof:0 --reference heat-val-exact`: the page's run equals the validation's, 6 of
+36 360 positions differ by one in value, 0 false clear and 8 false blocked as in the validation) and on the served build with
+the old file as before (`--reference heat-val`, window).
+
 How to read it:
 
 * **The voxel walk blocks what grazes**: its false blocked are lines that pass within a voxel diagonal of a corner or a frame
   (mostly in the first 50 m for a window, where the frames are); the precision region removes them all inside its square.
-  The few false clear are triangles that clip a voxel corner the builder lost.
+  The few false clear of the old file were triangles that clip a voxel corner the sample-lattice builder lost; the exact-voxeliser file has none.
 * **"Out" positions**: the shooter's body probe asks the same question as a line of fire. A voxel is marked when a
   triangle meets it, so a position beside a wall or under a tree can read as inside it while the exact triangles do not
   contain it; 315 and 283 positions that are clear by the exact tracer are lost that way without the region, none with it
@@ -355,7 +381,9 @@ map builds that run there, so read the numbers as an order of magnitude, not as 
 nearest the centre of the map (a floor, a window or a doorway found by the vertical ray), DF_M2A1_50, the voxel walk alone, at the
 ranges 600 m and 2000 m (80 480 positions each, cell 3.7 m and 12.5 m). *trace* is the worker's own time for all the rays,
 *wall* the time from the request to the values in the page (it adds the messages between the batches); a position outside the
-map or the landscape counts as out, so the big maps' 2000 m rows have fewer traced positions.
+map or the landscape counts as out, so the big maps' 2000 m rows have fewer traced positions. The files are the sample-lattice
+voxel files served on 2026-11-04; the table was not repeated with the exact-voxeliser files because they are not served yet
+(their sizes are in the thesis report, section 4).
 
 | map (side, volume file) | range | positions | trace, ms | per position, us | wall, ms | clear / blocked / out |
 |---|---|---|---|---|---|---|
@@ -394,20 +422,27 @@ map or the landscape counts as out, so the big maps' 2000 m rows have fewer trac
   10.5 to 15.9 s with the region and 7.7 to 9.8 s to load it. The load is the build of the hierarchy of the region's triangles
   in wasm, ten times its native time (0.38 s + 3.3 s for the 2.78 M region); it is paid once per target.
 * **GPU: not measured.** tk104 has no GPU (no `/dev/dri`, no `nvidia-smi`; Chromium's only WebGL/Vulkan device is SwiftShader, a
-  CPU rasteriser). The WGSL kernel of the voxel walk (`engine/wgsl/voxel.wgsl`) was measured on SwiftShader only (about 19 000
-  segments/s, `wgsl/test/last-run-voxel.txt`), which says nothing about a GPU; the heatmap uses the wasm walk. Raw output:
+  CPU rasteriser). The WGSL kernel of the voxel walk (`engine/wgsl/voxel.wgsl`) was measured on SwiftShader only (7 200 and 11 400
+  segments/s on a loaded host, about 19 000 on an idle one before; `wgsl/test/last-run-voxel.txt`), which says nothing about a GPU; the heatmap uses the wasm walk. Raw output:
   deadline-squad/deadline-squadcalc#22.
 
 ### Voxel DDA against the python model and the exact triangles
 
 100 000 random segments per map (`tools/make_voxel_segments.py`: 70 % start within 3 m of an occupied voxel, lengths
 3-500 m, inside the densest 1 km x 1 km window of the map, at least 0.25 m above the landscape, so the comparison is
-about objects). Maps with a small `.vcol` from `~/data/volumetric/maps/`: **Jensen** (statics only, 117 KB, 3 594 819
-triangles in the window) and **Kokan** (statics + foliage, 789 KB, 2 007 949 voxels, 8 085 424 triangles in the
+about objects). Maps with a small `.vcol` from `~/data/volumetric/maps/`: **Jensen** (statics only, 85 KB, 3 594 819
+triangles in the window) and **Kokan** (statics + foliage, 697 KB, 2 198 643 voxels, 8 085 424 triangles in the
 window). Exact = the BVH of this crate on the Visibility-blocking triangles that `world_tris.py` gives for those
 layers (the channel `build_columns.py` voxelises). The check inside `make_voxel_segments.py` rebuilds the voxels of the
 window from those triangles with the builder itself: 0 voxels of the file are missing from the rebuild and 0 rebuilt
 voxels above the landscape are missing from the file, so the file and the triangles describe the same scene.
+
+The files are the ones the exact conservative voxeliser (`columns.py`, issue deadline-squad/deadline-squadcalc#23, agl
+`e34e481`, memory fix `f116a2b`) wrote on 2026-11-05. Everything below was measured again with them; the figures of the
+earlier sample-lattice builder are kept as the "old" columns. Because the segments are drawn from the file (70 % near an
+occupied voxel), the 100 000 segments of the new run are not the same segments as the old run (exact blocked 30 071 against
+29 732 on Jensen, 13 214 against 12 709 on Kokan); the same segments answered by the new file give 4.04 % and 8.51 % wrong
+(false blocked 4 039 and 8 508, the side experiment recorded in issue #23), so the change is not an effect of the draw.
 
 ```sh
 # the generator runs in the squadcalc-heightmaps-py image (numpy, scipy) with tools/volumetric/py and tools/heightmaps/py
@@ -417,58 +452,68 @@ ENGINE_VOXEL_DIR=out ENGINE_VOXEL_MAPS=jensen,kokan cargo test --release --featu
 sh js/build.sh && node wgsl/test/run_voxel.mjs out jensen,kokan      # the WGSL kernel and the wasm build on the same segments
 ```
 
-| 100 000 segments | Jensen | Kokan |
-|---|---|---|
-| **DDA vs the sampled python voxel model** (`models.py`, step 0.0833 m) | | |
-| both clear / both blocked | 66 449 / 33 450 | 79 043 / 20 764 |
-| DDA blocked, model clear | 101 | 193 |
-| DDA clear, model blocked | **0** | **0** |
-| **DDA vs the exact triangles** | | |
-| exact blocked / clear | 29 732 / 70 268 | 12 709 / 87 291 |
-| false CLEAR (voxels let a hit through) | 129 (14 grazing, 115 not) | 83 (9 grazing, 74 not) |
-| false BLOCKED (voxels block, triangles do not) | 3 948 (2 637 grazing, 1 311 not) | 8 331 (3 840 grazing, 4 491 not) |
-| wrong, of all segments | 4.08 % | 8.41 % |
-| wrong without grazing | **1.43 %** | **4.57 %** |
-| **WGSL kernel (f32, SwiftShader) vs the exact triangles** | | |
-| false CLEAR / false BLOCKED | 128 / 3 948 | 83 / 8 330 |
-| wrong / without grazing | 4.08 % / 1.43 % | 8.41 % / 4.56 % |
-| **WGSL kernel vs the native f64 DDA** | | |
-| blocked/clear flips, other first voxel | 1, 9 | 1, 1 |
+| 100 000 segments | Jensen old | Jensen | Kokan old | Kokan |
+|---|---|---|---|---|
+| **DDA vs the sampled python voxel model** (`models.py`, step 0.0833 m) | | | | |
+| both clear / both blocked | 66 449 / 33 450 | 66 007 / 33 916 | 79 043 / 20 764 | 78 287 / 21 534 |
+| DDA blocked, model clear | 101 | 77 | 193 | 179 |
+| DDA clear, model blocked | **0** | **0** | **0** | **0** |
+| **DDA vs the exact triangles** | | | | |
+| exact blocked / clear | 29 732 / 70 268 | 30 071 / 69 929 | 12 709 / 87 291 | 13 214 / 86 786 |
+| false CLEAR (voxels let a hit through) | 129 (14 grazing, 115 not) | **0** | 83 (9 grazing, 74 not) | **0** |
+| false BLOCKED (voxels block, triangles do not) | 3 948 (2 637 grazing, 1 311 not) | 3 922 (2 607 grazing, 1 315 not) | 8 331 (3 840 grazing, 4 491 not) | 8 499 (4 055 grazing, 4 444 not) |
+| wrong, of all segments | 4.08 % | **3.92 %** | 8.41 % | **8.50 %** |
+| wrong without grazing | 1.43 % | **1.31 %** | 4.57 % | **4.44 %** |
+| **WGSL kernel (f32, SwiftShader) vs the exact triangles** | | | | |
+| false CLEAR / false BLOCKED | 128 / 3 948 | 0 / 3 922 | 83 / 8 330 | 0 / 8 499 |
+| wrong / without grazing | 4.08 % / 1.43 % | 3.92 % / 1.31 % | 8.41 % / 4.56 % | 8.50 % / 4.44 % |
+| **WGSL kernel vs the native f64 DDA** | | | | |
+| blocked/clear flips, other first voxel | 1, 9 | 0, 9 | 1, 1 | 0, 0 |
 
 How to read it:
 
 * **Grazing** = the exact answer flips when the segment is moved 0.25 m up, down or sideways (the definition of
   `eval_los.py`). Those pairs are decided by sub-voxel placement and are counted apart.
+* **False clear is gone.** The old builder marked a voxel only if a sample point of its barycentric lattice landed in
+  it, so a triangle that clipped a voxel corner could be lost (115 + 74 not-grazing cases, every one of them a hit in a
+  voxel that was empty in the file). The exact voxeliser marks every voxel a triangle meets: 0 false clear on both maps
+  and, in the precision runs below, on Fallujah too. False blocked hardly moves: 3 948 -> 3 922 on Jensen and
+  8 331 -> 8 499 on Kokan on the new draw; on the same segments the new files block 91 (Jensen) and 177 (Kokan) more
+  (4 039 and 8 508), so the total is 0.04 points **better** on Jensen (129 false clear gone) and 0.10 points **worse** on
+  Kokan (83 gone, 177 more). The conservative file has more voxels (673 122 -> 723 221 on Jensen, 2 007 949 -> 2 198 643
+  on Kokan) and is smaller anyway (112 531 -> 85 476 B and 789 376 -> 696 798 B; probably because filled surfaces make
+  longer runs, not checked). Thin openings can disappear, see
+  "Openings" in `tools/volumetric/README.md`.
 * **DDA against the python model.** The model samples every `min(cell, dz) / 3`; a sample is a point of the DDA's
-  walk, so the model can never block where the DDA is clear (0). The 101 / 193 segments the DDA blocks and the model
+  walk, so the model can never block where the DDA is clear (0). The 77 / 179 segments the DDA blocks and the model
   does not all cross the first voxel in a chord shorter than one sampling step (checked per segment in the test): the
-  sampled model steps over a voxel corner, the DDA does not. For 174 / 216 segments both are blocked but the model's
+  sampled model steps over a voxel corner, the DDA does not. For 162 / 180 segments both are blocked but the model's
   first blocked sample is further along than one step, for the same reason.
 * **False blocked.** A voxel is marked when a triangle meets it, so a segment that enters a marked voxel can still pass
-  up to a voxel diagonal (0.75 m) from the surface. Every one of the not-grazing cases (1 311 + 4 491) was checked: the
-  voxel the DDA reports overlaps a triangle (exact triangle-box overlap test). Kokan has more because its foliage
-  triangles are small and dense.
-* **False clear.** In all 115 + 74 not-grazing cases the voxel that holds the exact hit point is empty in the file: the
-  builder marks a voxel only if a sample point of its barycentric lattice (spacing 0.45 of the smallest voxel edge,
-  `columns.py`) lands in it, so a triangle that clips a voxel corner can be lost. The DDA itself never loses a voxel of
-  the file (0 DDA-clear / model-blocked above); `tests/voxel_parity.rs` fails on any not-grazing disagreement that
-  neither this nor the previous point explains.
-* **WGSL vs the native DDA** differ on 10 (Jensen) and 2 (Kokan) of 100 000 segments, at a voxel face where the
-  segment's f32 coordinates differ from f64; for each, the native DDA on the f32-rounded segment, or on a segment moved
-  by 1 mm, gives the GPU's answer. In the same voxel the entry point differs by at most 9.1e-3 m.
+  up to a voxel diagonal (0.75 m) from the surface. Every one of the not-grazing cases (1 315 + 4 444) was checked: the
+  voxel the DDA reports overlaps a triangle (exact triangle-box overlap test), and `tests/voxel_parity.rs` fails on any
+  not-grazing disagreement that this does not explain (0 unexplained). Kokan has more because its foliage triangles are
+  small and dense.
+* **WGSL vs the native DDA** differ on 9 (Jensen) and 0 (Kokan) of 100 000 segments, all of them a different first
+  voxel at a voxel face where the segment's f32 coordinates differ from f64 (no blocked/clear flip on either map); for
+  each, the native DDA on the f32-rounded segment, or on a segment moved by 1 mm, gives the GPU's answer. In the same
+  voxel the entry point differs by at most 7.5e-3 m.
 * The wasm build equals the native DDA on all 200 000 segments.
-* Speed on this machine (shared, 100 000 segments, all threads): the DDA answers 416 000 (Jensen) and 167 000 (Kokan)
-  segments/s, the BVH 917 000 and 838 000. The BVH is faster but needs the triangles (hundreds of MB for these windows,
-  GB for a whole map); the DDA needs the 117-789 KB file. The WGSL kernel runs about 19 000 segments/s on SwiftShader
-  (a CPU; no GPU was measured).
+* Speed on this machine (shared, load average 11 to 13, 100 000 segments, all threads): the DDA answers 518 700 (Jensen)
+  and 570 500 (Kokan) segments/s; the BVH answers 22 800 and 12 400 segments/s **including its build** (4.4 s and 8.0 s;
+  the older 917 000 and 838 000 did not count the build, so the two sets are not comparable). The BVH needs the triangles
+  (hundreds of MB for these windows, GB for a whole map); the DDA needs the 85-697 KB file. The WGSL kernel runs 7 200
+  (Jensen) and 11 400 (Kokan) segments/s on SwiftShader (a CPU, two cores here; the old 19 000 was measured on an idle
+  host; no GPU was measured).
 
 Full output: [`wgsl/test/last-run-voxel.txt`](wgsl/test/last-run-voxel.txt).
 
 ## Precision pass (`RTRI1`)
 
-The voxel walk is wrong in two ways that a bigger file does not fix: it blocks a segment that enters a marked voxel
-but passes up to a voxel diagonal from the surface (false blocked, most of its errors), and it misses a triangle in a
-voxel the builder's sampling lost (false clear). Around one chosen target the engine can therefore re-check with the
+The voxel walk is wrong in a way that a bigger file does not fix: it blocks a segment that enters a marked voxel
+but passes up to a voxel diagonal from the surface (false blocked, all of its errors on the exact voxel files). The earlier
+sample-lattice builder also lost voxels, so the walk missed triangles in them (false clear); the exact voxeliser does not.
+Around one chosen target the engine can therefore re-check with the
 real triangles. `precision::PrecisionRegion` is built from the voxel columns of the map and a **region file**:
 
 * The region is the square `centre +- 150 m` (X/Y, the frame of the voxel file) with the Visibility-blocking triangles
@@ -502,17 +547,20 @@ Unit tests: `src/precision.rs` (every case of the pass on hand-made scenes, the 
 
 ### Measured on Jensen, Kokan and Fallujah
 
-The same 100 000 segments, voxel files and exact answers (BVH on the window's triangles) as in the table above, one
-run of `tests/precision_parity.rs`. Targets: a 4 x 4 grid of regions of 150 m radius over the 1 km window (250 m
-apart); each segment is answered with the region nearest to its **end** (the target is where the line of fire ends);
-a second run uses the **start** as the target. Segments are 3-500 m long, so a long one has most of its length
-outside the square, where only the voxels decide.
+Measured on 2026-11-05 with the `.vcol` files of the exact conservative voxeliser (the files of
+`~/data/volumetric/maps/`; the figures of the earlier sample-lattice builder are shown as "old" where they differ). The
+100 000 segments are drawn again from the new files (see the voxel section above for what that changes), the exact answers
+are the BVH on the window's triangles, one run of `tests/precision_parity.rs`. **The regions were rebuilt** from the new
+voxel files with `build_region.py` (the old ones had been chosen by the old voxel set). Targets: a 4 x 4 grid of regions of
+150 m radius over the 1 km window (250 m apart); each segment is answered with the region nearest to its **end** (the
+target is where the line of fire ends); a second run uses the **start** as the target. Segments are 3-500 m long, so a long
+one has most of its length outside the square, where only the voxels decide.
 
 **Fallujah** (statics + foliage: `fallujah.vcol` holds the voxels of both layers, so the exact answer uses both,
 72.1 M + 30.7 M triangles from `world_tris.py` shards of 5 M; the check inside `make_voxel_segments.py` finds 0 voxels
 of the file missing from the rebuild and 0 rebuilt voxels above the landscape missing from the file; densest window
-(-415, -845), 45.3 M triangles, 20.8 M voxels in the file) was run under a 3 GB cap per process, which changed three
-things and nothing in the protocol itself:
+(-415, -845), 45.3 M triangles, 26.2 M voxels in the window, 3 721 024 B file) was run under caps (4 GB per python
+process, 5 GB for the Rust test; the first run used 3 GB), which changes three things and nothing in the protocol itself:
 
 * the exact tracer holds the window's triangles in slices of 5 M (`ENGINE_EXACT_SLICE_TRIANGLES`, tests/voxel_parity.rs):
   one hierarchy per slice in turn, the first hit is the nearest over the slices. On Jensen the sliced run gives
@@ -522,70 +570,104 @@ things and nothing in the protocol itself:
   in both modes on Jensen;
 * `build_region.py` encodes in chunks with int32 corners: the two densest regions (210, -220: 7.5 M triangles; 460,
   -220: 6.5 M) were killed at 3 GB by the earlier encoder. The bytes before gzip are the same as before (checked on random
-  soups with repeated and degenerate triangles and on re-encoded regions of Jensen and Fallujah).
+  soups with repeated and degenerate triangles and on re-encoded regions of Jensen and Fallujah). This run built the
+  regions four at a time under 4 GB without a failure.
 
-The margin sweep with a region of the whole window was not run on Fallujah: 45.3 M triangles do not fit 3 GB.
+The margin sweep with a region of the whole window was not run on Fallujah: 45.3 M triangles do not fit the cap.
 
 ```sh
-python3 build_region.py <map>.vcol regions/<map> $(cat regions/<map>.centres) <tris.npz>...   # in the python image, 3 GB
+python3 build_region.py <map>.vcol regions/<map> $(cat regions/<map>.centres) <tris.npz>...   # in the python image, 4 GB
 ENGINE_VOXEL_DIR=out ENGINE_REGION_DIR=regions ENGINE_VOXEL_MAPS=jensen,kokan ENGINE_PRECISION_MARGINS=0,0.25,0.3,0.5,0.6,1.0 \
   cargo test --release --features threads --test precision_parity -- --ignored --nocapture
 ```
 
 | 100 000 segments | Jensen voxel walk | Jensen precision pass | Kokan voxel walk | Kokan precision pass | Fallujah voxel walk | Fallujah precision pass |
 |---|---|---|---|---|---|---|
-| false CLEAR (of them grazing) | 129 (14) | 8 (1) | 83 (9) | 4 (1) | 494 (67) | 35 (2) |
-| false BLOCKED (of them grazing) | 3 948 (2 637) | 279 (185) | 8 331 (3 840) | 858 (391) | 5 609 (3 437) | 409 (268) |
-| **wrong, all segments** | 4.08 % | **0.29 %** | 8.41 % | **0.86 %** | 6.10 % | **0.44 %** |
-| **wrong without grazing** | 1.43 % | **0.10 %** | 4.57 % | **0.47 %** | 2.60 % | **0.17 %** |
-| sent to the exact pass | - | 42.0 % | - | 37.0 % | - | 60.1 % |
-| time per segment, one thread | 7.7 us | 8.9 us | 12.1 us | 14.4 us | 69.8 us * | 50.0 us * |
-| with the start as the target: wrong / without grazing | | 0.00 % / 0.00 % (0 + 3) | | 0.10 % / 0.05 % (0 + 103) | | 0.04 % / 0.02 % (7 + 37) |
+| false CLEAR (of them grazing) | 0 | 0 | 0 | 1 (0) | 0 | 0 |
+| false BLOCKED (of them grazing) | 3 922 (2 607) | 301 (195) | 8 499 (4 055) | 866 (420) | 5 682 (3 389) | 428 (257) |
+| **wrong, all segments** | 3.92 % | **0.30 %** | 8.50 % | **0.87 %** | 5.68 % | **0.43 %** |
+| **wrong without grazing** | 1.31 % | **0.11 %** | 4.44 % | **0.45 %** | 2.29 % | **0.17 %** |
+| sent to the exact pass | - | 42.4 % | - | 37.4 % | - | 60.4 % |
+| time per segment, one thread | 3.8 us | 6.2 us | 7.8 us | 10.6 us | 11.0 us * | 40.2 us * |
+| with the start as the target: wrong / without grazing | | 0.01 % / 0.00 % (0 + 9) | | 0.11 % / 0.05 % (1 + 106) | | 0.03 % / 0.01 % (0 + 31) |
 
-\* Fallujah was timed at a load average of about 20 on 8 cores, region by region (the voxel walk in file order); the same
-load gave 11.3 / 17.9 us on Jensen and 27.9 / 29.2 us on Kokan (voxel walk / precision pass in file order). Compare the
-Fallujah times with those, not with the first four columns.
+The same table before the exact voxeliser (old files, old segments, old regions):
 
-Region files (16 regions of 300 m x 300 m per map, margin 0.6 m, gzip):
+| | Jensen walk -> pass | Kokan walk -> pass | Fallujah walk -> pass |
+|---|---|---|---|
+| false CLEAR | 129 -> 8 | 83 -> 4 | 494 -> 35 |
+| false BLOCKED | 3 948 -> 279 | 8 331 -> 858 | 5 609 -> 409 |
+| wrong, all / without grazing | 4.08 % / 1.43 % -> 0.29 % / 0.10 % | 8.41 % / 4.57 % -> 0.86 % / 0.47 % | 6.10 % / 2.60 % -> 0.44 % / 0.17 % |
+| sent to the exact pass | 42.0 % | 37.0 % | 60.1 % |
+| start as the target: wrong / without grazing | 0.00 % / 0.00 % (0 + 3) | 0.10 % / 0.05 % (0 + 103) | 0.04 % / 0.02 % (7 + 37) |
+
+What changed: the voxel walk has no false clear any more (129 / 83 / 494 -> 0 / 0 / 0), so the precision pass loses the
+false clear it inherited from lost voxels (8 / 4 / 35 -> 0 / 1 / 0). False blocked is where the two builders differ least:
+the pass leaves 301 / 866 / 428 against 279 / 858 / 409, all of it on the stretches of the segments outside the 150 m
+square, where only the voxels decide, and the conservative file blocks a few more of those. The total after the pass is
+therefore **0.01 points worse on Jensen (0.29 -> 0.30 %) and Kokan (0.86 -> 0.87 %) and 0.01 better on Fallujah
+(0.44 -> 0.43 %)**: the pass already removed almost everything, and what is left is the voxel walk outside the square,
+which the exact voxeliser did not improve. The voxel walk alone is better on Jensen and Fallujah (4.08 -> 3.92 %,
+6.10 -> 5.68 %) and 0.09 points worse on Kokan (8.41 -> 8.50 %).
+
+The one false clear left (Kokan, the same segment with the target at either end, not grazing) is a ray 0.04 mm from the
+shared edge of two foliage triangles of 5 cm; the region file stores vertices on a 0.1 mm lattice (`RTRI1`), which moves the
+edge by up to 0.05 mm, and the segment passes between them (shifted 1 mm up it hits the region's triangle). Not a voxel
+problem; it is the stated precision of the file.
+
+\* Every time here is from the shared host (load average 11 to 14 on 8 cores when sampled between the runs; not recorded
+per run). Fallujah was timed region by region (the voxel walk in file order), so compare its two times with each other,
+not with the first four columns. The old run was at a load average of about 20 (69.8 / 50.0 us).
+
+Region files (16 regions of 300 m x 300 m per map, margin 0.6 m, gzip), old in brackets where different:
 
 | | Jensen (statics) | Kokan (statics + foliage) | Fallujah (statics + foliage) |
 |---|---|---|---|
 | smallest / median / largest file | 57 B (no triangles) / 100 KB / 5.0 MB | 1.04 MB / 2.48 MB / 3.52 MB | 6.48 MB / 15.9 MB / 26.0 MB |
-| total of the 16 | 8.6 MB | 38.0 MB | 239.2 MB |
-| triangles per region | 0 - 2 778 978 | 315 706 - 1 097 166 | 1 809 268 - 7 258 717 |
-| load (decode + hierarchy + grown voxels), native | 0.001 - 3.7 s (the 2.78 M region 0.38 + 3.3 s) | 0.4 - 1.4 s | 2.7 - 11.4 s (the 7.26 M region 1.1 + 10.4 s) |
+| total of the 16 | 8.6 MB | 38.0 MB | 239.1 MB (239.2) |
+| triangles per region | 0 - 2 778 978 | 315 743 - 1 097 271 (315 706 - 1 097 166) | 1 809 377 - 7 258 961 (1 809 268 - 7 258 717) |
+| load (decode + hierarchy + grown voxels), native | 0.000 - 2.8 s (the 2.78 M region 0.19 + 2.6 s) | 0.2 - 0.9 s | 2.2 - 13.1 s (the 7.26 M region 1.0 + 12.1 s) |
+
+The sizes and triangle counts hardly moved (a region keeps a triangle when an occupied voxel lies within the margin of its
+box). The Jensen region `region_221_-229.rtri` is identical
+to the published one after gunzip (6 650 334 bytes, equal byte for byte; only the gzip header's time stamp differs), so the
+published file stays. The load times were taken on a loaded host.
 
 The margin, measured with the exact triangles of the **whole window** available (one region, so the only errors left
 are the ones the margin allows):
 
 | margin (grid steps) | Jensen false clear / false blocked, sent to exact | Kokan false clear / false blocked, sent to exact |
 |---|---|---|
-| 0 m (0 columns, 0 heights) | 129 / 0, 33.6 % | 83 / 0, 21.0 % |
-| 0.25 m (1, 1) | 0 / 0, 39.1 % | 5 / 0, 30.7 % |
-| 0.3 m and 0.5 m (1, 2) | 0 / 0, 40.8 % | 1 / 0, 33.0 % |
-| **0.6 m (2, 3)** | **0 / 0, 45.0 %** | **0 / 0, 40.7 %** |
-| 1.0 m (2, 4) | 0 / 0, 46.4 % | 0 / 0, 42.8 % |
+| 0 m (0 columns, 0 heights) | 0 / 0, 34.0 % (old 129 / 0, 33.6 %) | 0 / 0, 21.7 % (old 83 / 0, 21.0 %) |
+| 0.25 m (1, 1) | 0 / 0, 39.4 % (old 0 / 0, 39.1 %) | 0 / 0, 31.0 % (old 5 / 0, 30.7 %) |
+| 0.3 m and 0.5 m (1, 2) | 0 / 0, 41.0 % (old 0 / 0, 40.8 %) | 0 / 0, 33.4 % (old 1 / 0, 33.0 %) |
+| **0.6 m (2, 3)** | **0 / 0, 45.2 %** (old 0 / 0, 45.0 %) | **0 / 0, 41.1 %** (old 0 / 0, 40.7 %) |
+| 1.0 m (2, 4) | 0 / 0, 46.6 % (old 0 / 0, 46.4 %) | 0 / 0, 43.2 % (old 0 / 0, 42.8 %) |
 
 How to read it:
 
-* **The margin 0.6 m is kept**: it is the smallest of the tested values with no wrong answer on both maps (0.3 m
-  leaves one false clear on Kokan). The price is the share sent to the exact pass, 41-45 % here. These segments are
-  not typical: 70 % of them start within 3 m of an occupied voxel, so a share this high says little about a real
-  heatmap.
-* **With the triangles available everywhere the pass is exact** on these segments (0 wrong at 0.6 m), including the
-  grazing ones; with margin 0 only the false blocked disappear (the segment must enter a voxel to be re-checked) and
-  the 129 / 83 false clear stay: they are hits in voxels the builder lost, and a lost voxel is found only when a
-  marked voxel is within reach.
+* **The margin sweep changed its meaning.** With the old builder a margin was needed to find the voxels the sampling had
+  lost (129 and 83 false clear at margin 0, 1 at 0.3 m on Kokan). With the exact voxeliser every margin, including 0, is
+  exact on these segments, because every voxel a triangle meets is in the file: the margin only buys sent-to-exact
+  share, 34 % at 0 against 45 % at 0.6 m. **0.6 m is kept** because the regions already published (Jensen) were built with
+  it and because the file served today is still the old lattice file, for which 0.6 m is the smallest tested margin with no
+  wrong answer; once the exact files are served a margin of 0 (about a quarter fewer re-checks and a smaller region file)
+  would give the same answers on these segments. That was not run with 150 m regions and is not changed here. The
+  segments are not typical: 70 % of them start within 3 m of an occupied voxel, so a share this high says little about a
+  real heatmap.
+* **With the triangles available everywhere the pass is exact** on these segments (0 wrong at every margin), including
+  the grazing ones; before, with margin 0 only the false blocked disappeared (the segment must enter a voxel to be
+  re-checked) and the 129 / 83 false clear stayed.
 * **What is left with a 150 m region** is geometry outside the square: the part of a segment beyond 150 m from its
-  target is answered by the voxels alone (the target at the start reverses which end is precise: 0 + 3 and 0 + 103
+  target is answered by the voxels alone (the target at the start reverses which end is precise: 0 + 9, 1 + 106 and 0 + 31
   wrong). A bigger radius costs file size, a smaller one precision. On Fallujah, where the 150 m regions hold
-  1.8 - 7.3 M triangles, the wrong share after the pass is 0.44 % (0.17 % without grazing) and the start-as-target run
-  leaves 44 wrong segments.
-* **The cost**: 1.1-1.7 times the voxel walk per segment on one thread on Jensen and Kokan (shared machine, so read it
-  as an order of magnitude), plus the file: 0.1 - 5 MB gzip on Jensen, 1 - 3.5 MB on Kokan, 6.5 - 26 MB on Fallujah
-  (median 15.9 MB; a dense city is far from the other two maps), and one hierarchy build per loaded region (seconds for
-  the densest regions, up to 11 s on Fallujah, more in wasm). The share sent to the exact pass is 60 % on Fallujah. The
-  voxel file stays the only whole-map download.
+  1.8 - 7.3 M triangles, the wrong share after the pass is 0.43 % (0.17 % without grazing) and the start-as-target run
+  leaves 31 wrong segments.
+* **The cost**: 1.4-1.6 times the voxel walk per segment on one thread on Jensen and Kokan (3.8 -> 6.2 us, 7.8 -> 10.6 us;
+  shared machine, so read it as an order of magnitude; the old run said 1.1-1.7), plus the file: 0.1 - 5 MB gzip on
+  Jensen, 1 - 3.5 MB on Kokan, 6.5 - 26 MB on Fallujah (median 15.9 MB; a dense city is far from the other two maps), and
+  one hierarchy build per loaded region (seconds for the densest regions, up to 13 s on Fallujah, more in wasm). The share
+  sent to the exact pass is 60 % on Fallujah. The voxel file stays the only whole-map download.
 
 Full output: [`tests/last-run-precision.txt`](tests/last-run-precision.txt).
 

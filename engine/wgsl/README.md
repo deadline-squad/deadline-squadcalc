@@ -95,7 +95,7 @@ test server). Window 100 x 100 m of Fallujah, 1 574 368 triangles, 1 048 575 BVH
 * Two-chunk accumulate vs one BVH: 0 differing segments. Heatmap: 784 candidates x 2 arcs, 0 state mismatches vs the float64 mirror.
 * Throughput on SwiftShader: about 20 000 segments/s (200 000-segment dispatch, kernel only). This is a CPU number; real GPUs are not measured.
 * `naga` 30.0.1 validates both concatenated shaders ("Validation successful", no warnings); Chromium's tint compiles them with 0 messages.
-* Voxel kernel (`run_voxel.mjs`, Jensen and Kokan, 100 000 segments each): see `test/last-run-voxel.txt` and the table in `engine/README.md`. tint compiles `voxel.wgsl` with 0 messages; the wasm build equals the native DDA on all segments; GPU vs native f64 DDA differs on 10 / 2 segments, all explained by `f32` rounding at voxel faces; against the exact triangles 1.43 % (Jensen) and 4.56 % (Kokan) of segments are wrong without counting grazing pairs. About 19 000 segments/s on SwiftShader (a CPU).
+* Voxel kernel (`run_voxel.mjs`, Jensen and Kokan, 100 000 segments each): see `test/last-run-voxel.txt` and the table in `engine/README.md`. tint compiles `voxel.wgsl` with 0 messages; the wasm build equals the native DDA on all segments; GPU vs native f64 DDA differs on 9 / 0 segments (a different first voxel, no blocked/clear flip), all explained by `f32` rounding at voxel faces; against the exact triangles 1.31 % (Jensen) and 4.44 % (Kokan) of segments are wrong without counting grazing pairs (files of the exact voxeliser, 2026-11-05; 1.43 % and 4.56 % with the earlier sample-lattice files). 7 200 and 11 400 segments/s on SwiftShader (a CPU, two cores of a loaded host; about 19 000 on an idle one before).
 
 ## Tests
 
