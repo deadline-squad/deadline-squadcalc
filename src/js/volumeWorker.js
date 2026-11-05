@@ -52,6 +52,10 @@ import { createPositionClassifier } from "./positionHeatmap.js";
 const VOXEL = "volume";
 const REGION = "region";
 
+// Metres a point may lie under the landscape without meeting it: the trajectory solver lands a shell on the target
+// within 1e-9 m, so a target on the landscape itself ends a hair under it
+const TERRAIN_TOLERANCE = 1e-4;
+
 // Highest index of a voxel column (engine/README.md: at most 4096 height indices per column)
 const MAX_HEIGHT_INDICES = 4096;
 
@@ -128,7 +132,9 @@ async function load({ base, volume, generated, engineUrl, wasmUrl }) {
 
 
 /**
- * First point of a polyline that meets the landscape or a voxel
+ * First point of a polyline that meets the landscape or a voxel. The landscape is met at a point that lies more than
+ * TERRAIN_TOLERANCE under it. Of a voxel and the landscape on the same segment (a voxel buried under the ground) the
+ * one the segment reaches first is reported, the landscape at the height where the segment crosses it.
  * @param {Float64Array} path - x, y, z per point
  * @returns {{index: number, t: number, z: number}|null}
  */
@@ -137,12 +143,23 @@ function firstHit(path) {
         const x = path[3 * i];
         const y = path[3 * i + 1];
         const z = path[3 * i + 2];
-        if (i > 0) {
-            const hit = engine.voxelFirstBlock(VOXEL, [path[3 * i - 3], path[3 * i - 2], path[3 * i - 1], x, y, z]);
-            if (hit) return { index: i, t: hit.t, z: path[3 * i - 1] + hit.t * (z - path[3 * i - 1]) };
-        }
         const ground = terrainHeight(terrain, x, y);
-        if (z < ground) return { index: i, t: 1, z: ground };
+        const underGround = z < ground - TERRAIN_TOLERANCE;
+        if (i > 0) {
+            const fromX = path[3 * i - 3];
+            const fromY = path[3 * i - 2];
+            const fromZ = path[3 * i - 1];
+            const hit = engine.voxelFirstBlock(VOXEL, [fromX, fromY, fromZ, x, y, z]);
+            if (hit) {
+                const voxelHit = { index: i, t: hit.t, z: fromZ + hit.t * (z - fromZ) };
+                if (!underGround) return voxelHit;
+                const clearance = fromZ - terrainHeight(terrain, fromX, fromY);
+                const crossing = clearance / (clearance - (z - ground));
+                if (!(crossing < hit.t)) return voxelHit;
+                return { index: i, t: crossing, z: fromZ + crossing * (z - fromZ) };
+            }
+        }
+        if (underGround) return { index: i, t: 1, z: ground };
     }
     return null;
 }
