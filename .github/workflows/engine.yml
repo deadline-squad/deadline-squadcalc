@@ -27,4 +27,4 @@ jobs:
         run: |
           cargo install wasm-bindgen-cli --version 0.2.130 --locked
           sh js/build.sh
-          node --test js/test/
+          node --test "js/test/*.test.mjs"

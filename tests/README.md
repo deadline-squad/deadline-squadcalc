@@ -1,6 +1,9 @@
 # Tests
 
-`npm test` runs `node --test` over `tests/` (no extra dependency; Node >= 22.13). The pure modules
+`npm test` runs `node --test` over the `tests/*.test.mjs` glob (no extra dependency; Node >= 22.13; from Node 22 a directory
+argument is no longer searched, it fails with `ERR_UNSUPPORTED_DIR_IMPORT`, so the script names the files by glob; CI runs it on
+Node 22). `leaflet.test.mjs` and `structureInfo.test.mjs` import the packages `leaflet` and `i18next`: run `npm ci` first, on a
+checkout without `node_modules` they stop with `ERR_MODULE_NOT_FOUND`. The pure modules
 (`squadBallistics.js`, `squadDamage.js`, `squadHeightmaps.js`, `squadFiringSolution.js`, `squadWeapons.js`,
 `weapons.js`) import `../app.js` (the whole UI); `register.mjs` preloads `loader.mjs`, which replaces it
 with `stubs/app.mjs` (gravity and the active weapon) and, for modules in `src/`, Leaflet with empty
@@ -18,6 +21,7 @@ classes. `leaflet.test.mjs` imports the real Leaflet 2 package.
 - `structureInfo.test.mjs`: the marker near a target and the structure line of the dialog and popups.
 - `volumeLayer.test.mjs`: the volume worker end to end on a synthetic wall with a doorway and a small house (the `column` query of the target heights, the `cover` damage zone: a soldier behind the wall is covered, one in line with the doorway is not; the `heat` reverse-position heatmap: positions behind the wall blocked, those in line with the doorway clear) through the real WebAssembly engine (skipped unless `npm run build:engine` was run), and the structures of the fire-coverage classifier.
 - `positionHeatmap.test.mjs`: the reverse-position heatmap's scoring (closer is better, a long shot stays viable, clearance counts), the classification of positions on flat ground, behind a ridge, out of the map and out of the weapon's reach, the polylines handed to the objects callback, the image, and the choice of a precision region.
+- `squadVolume.test.mjs`: the load of the volume layer when the setting is switched while meta.json is being fetched (one worker, `volume:ready` once). `sha256.test.mjs`: the plain-JavaScript SHA-256 against `node:crypto`.
 - `leaflet.test.mjs`: Leaflet 2 event names (pointer, not mouse; `bubblingPointerEvents`).
 
 What needs a browser (hover, drag, clean console on a served build) is covered by

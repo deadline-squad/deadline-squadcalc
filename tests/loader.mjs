@@ -14,3 +14,15 @@ export async function resolve(specifier, context, nextResolve) {
     }
     return nextResolve(specifier, context);
 }
+
+
+/**
+ * `import pkg from "../../package.json"` of the sources is resolved by webpack without an import attribute;
+ * Node needs one, so the file is served as a module that exports the parsed JSON.
+ */
+export async function load(url, context, nextLoad) {
+    if (!url.endsWith("/package.json") || context.importAttributes?.type === "json") return nextLoad(url, context);
+    const { readFile } = await import("node:fs/promises");
+    const source = `export default ${await readFile(new URL(url), "utf8")};`;
+    return { format: "module", source, shortCircuit: true };
+}

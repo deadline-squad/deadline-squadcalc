@@ -61,7 +61,7 @@
   <summary><b>Object volumes in the line of fire</b></summary>
   </br>
   The heightmap holds one height per cell, so a doorway or an open window looks like solid wall, and trees are missing.
-  With <i>Object volumes in the line of fire</i> turned on in the settings (off by default), the obstacle check of a direct-fire weapon and the fire coverage test the shell against the voxel columns of the buildings, walls, bridges and trees instead: a shot passes through an open window or doorway, and is stopped by a closed window or a tree. Windows and doors do not let a shot through and no penetration is computed.
+  With <i>Object volumes in the line of fire</i> turned on in the settings (off by default), the obstacle check of a direct-fire weapon and the fire coverage test the shell against the voxel columns of the buildings, walls, bridges and trees instead: a shot passes through an open window or doorway (a door is either open or absent, so a doorway is always a hole), and is stopped by a closed window, a wall or a tree. No penetration is computed.
   The volume files (about 0.1 to 15 MB per map plus 1 to 6 MB of landscape heights) and the 0.4 MB WebAssembly engine are downloaded only when the setting is on and the map has them; otherwise, and when anything fails to load, the heightmap is used as before. Details and accuracy: <a href="./engine/README.md">engine/README.md</a>.
 
   </br>

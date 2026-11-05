@@ -65,6 +65,15 @@ test("the line of fire to a ground target stops 3 m short of it, to an elevated 
     assert.ok(Math.abs(lastHeight(elevatedQuestions[0]) - 12) < 0.05, `ends at ${lastHeight(elevatedQuestions[0])}`);
 });
 
+test("the samples to an elevated target run to 0.5 m before it, then the target itself (a roof 1 to 3 m short of it still counts)", () => {
+    const questions = [];
+    solution(mapWithVolume(questions), 12, 200.7);
+    const xs = Array.from(questions[0].path).filter((_, i) => i % 3 === 0);
+    assert.ok(xs[xs.length - 2] > 200.7 - 0.5 - 1, `last step sample ${xs[xs.length - 2]}`);
+    assert.ok(xs[xs.length - 2] <= 200.7 - 0.5, `last step sample ${xs[xs.length - 2]}`);
+    assert.equal(xs[xs.length - 1], 200.7);
+});
+
 test("the answer cache keys differ by target height", () => {
     const questions = [];
     solution(mapWithVolume(questions), null);

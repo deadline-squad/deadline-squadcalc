@@ -2,7 +2,7 @@ import { ImageOverlay, LatLngBounds } from "leaflet";
 import i18next from "i18next";
 import { App } from "../app.js";
 import { SHOULDER_HEIGHT } from "./squadCoverageRays.js";
-import { heatmapGrid, MAX_RANGE, rasterizeHeatmap } from "./positionHeatmap.js";
+import { heatmapGrid, heatmapSignature, MAX_RANGE, rasterizeHeatmap } from "./positionHeatmap.js";
 
 // Stacking of the image in the overlay pane, as the fire coverage's (below the damage zones and the markers' SVG)
 const HEATMAP_Z_INDEX = 2;
@@ -100,9 +100,7 @@ export default class SquadPositionHeatmap {
 
         const weapon = App.activeWeapon;
         const latlng = target.getLatLng();
-        const signature = [
-            this.map.activeMap.name, weapon.name, weapon.velocity, weapon.moa, latlng.lat, latlng.lng, target.getTargetHeight(),
-        ].join("|");
+        const signature = heatmapSignature(this.map.activeMap.name, weapon, App.gravity, latlng, target.getTargetHeight());
         if (!force && signature === this.signature) return;
         this.signature = signature;
         this.compute(target, weapon);

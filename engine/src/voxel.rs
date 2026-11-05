@@ -157,10 +157,20 @@ impl VoxelColumns {
         };
         let (width, height) = (reader.u32_at(28), reader.u32_at(32));
         let column_count = reader.u32_at(36) as usize;
-        let cell = reader.f32_at(16);
-        let dz = reader.f32_at(20);
-        if !(cell > 0.0 && dz > 0.0) {
-            return Err(VoxelError::Invalid("cell and dz must be positive"));
+        let (min_x, min_y, cell, dz, z_min) = (
+            reader.f32_at(8),
+            reader.f32_at(12),
+            reader.f32_at(16),
+            reader.f32_at(20),
+            reader.f32_at(24),
+        );
+        if !(min_x.is_finite() && min_y.is_finite() && z_min.is_finite()) {
+            return Err(VoxelError::Invalid("origin must be finite"));
+        }
+        if !(cell.is_finite() && dz.is_finite() && cell > 0.0 && dz > 0.0) {
+            return Err(VoxelError::Invalid(
+                "cell and dz must be finite and positive",
+            ));
         }
         let grid_columns = u64::from(width) * u64::from(height);
         if grid_columns == 0 || grid_columns > u64::from(u32::MAX) {
@@ -179,7 +189,9 @@ impl VoxelColumns {
             if index > 0 && delta == 0 {
                 return Err(VoxelError::Invalid("column ids must increase"));
             }
-            id += delta;
+            id = id
+                .checked_add(delta)
+                .ok_or(VoxelError::Invalid("column outside the grid"))?;
             if id >= grid_columns {
                 return Err(VoxelError::Invalid("column outside the grid"));
             }
@@ -191,21 +203,30 @@ impl VoxelColumns {
             }
             let mut end = 0u64;
             for _ in 0..run_count {
-                let start = end + reader.varint()?;
-                end = start + reader.varint()? + 1;
-                if end > u64::from(Z_COUNT) {
+                let start = end
+                    .checked_add(reader.varint()?)
+                    .ok_or(VoxelError::Invalid("run above the height range"))?;
+                let run_end = start
+                    .checked_add(reader.varint()?)
+                    .and_then(|last| last.checked_add(1))
+                    .ok_or(VoxelError::Invalid("run above the height range"))?;
+                if start >= run_end {
+                    return Err(VoxelError::Invalid("empty run"));
+                }
+                if run_end > u64::from(Z_COUNT) {
                     return Err(VoxelError::Invalid("run above the height range"));
                 }
+                end = run_end;
                 runs.extend([start as u32, end as u32]);
             }
         }
         first.push((runs.len() / 2) as u32);
         Ok(VoxelColumns {
-            min_x: reader.f32_at(8),
-            min_y: reader.f32_at(12),
+            min_x,
+            min_y,
             cell,
             dz,
-            z_min: reader.f32_at(24),
+            z_min,
             width,
             height,
             ids,
@@ -822,5 +843,81 @@ mod tests {
         assert!((hit.time - 1.5).abs() < 1e-12);
         assert!((hit.point[0] - at(10.0, 0.0, 0.0)[0]).abs() < 1e-12);
         assert!(map.first_block_along(&segments[..1]).is_none());
+    }
+
+    /// A decompressed `VCOL1` file of a 4 x 4 grid with the given header floats and column body.
+    fn raw_file(floats: [f32; 5], body: &[u8]) -> Vec<u8> {
+        let mut bytes = MAGIC.to_vec();
+        for value in floats {
+            bytes.extend(value.to_le_bytes());
+        }
+        for value in [4u32, 4, 1] {
+            bytes.extend(value.to_le_bytes());
+        }
+        bytes.extend(body);
+        bytes
+    }
+
+    const GOOD_FLOATS: [f32; 5] = [100.0, -50.0, 0.5, 0.25, -10.0];
+
+    fn invalid(bytes: &[u8]) -> &'static str {
+        match VoxelColumns::from_bytes(bytes) {
+            Err(VoxelError::Invalid(message)) => message,
+            other => panic!("expected an invalid file, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_well_formed_file_decodes() {
+        // Column 3 with one run: gap 2, length 4 + 1 -> heights 2..7
+        let map = VoxelColumns::from_bytes(&raw_file(GOOD_FLOATS, &[3, 1, 2, 4])).unwrap();
+        assert_eq!(map.ids, vec![3]);
+        assert_eq!(map.runs, vec![2, 7]);
+    }
+
+    #[test]
+    fn a_header_value_that_is_not_finite_is_rejected() {
+        let body = [3, 1, 2, 4];
+        for index in 0..5 {
+            for bad in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+                let mut floats = GOOD_FLOATS;
+                floats[index] = bad;
+                let message = invalid(&raw_file(floats, &body));
+                assert!(
+                    message.contains("finite"),
+                    "header value {index} = {bad}: {message}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn a_column_id_that_wraps_around_is_rejected() {
+        // Two columns; the second delta is 2^64 - 1 (nine 0xFF-continuation bytes and a 0x01), which wrapped to id - 1
+        let mut bytes = raw_file(GOOD_FLOATS, &[3, 1, 0, 0]);
+        bytes[36..40].copy_from_slice(&2u32.to_le_bytes());
+        bytes.extend([0xFF; 9]);
+        bytes.extend([0x01, 1, 0, 0]);
+        assert_eq!(invalid(&bytes), "column outside the grid");
+    }
+
+    #[test]
+    fn a_run_that_wraps_around_is_rejected() {
+        // One column, one run: gap 2^64 - 1 (wraps start to end - 1), length 0
+        let mut body = vec![3, 1];
+        body.extend([0xFF; 9]);
+        body.extend([0x01, 0]);
+        assert_eq!(
+            invalid(&raw_file(GOOD_FLOATS, &body)),
+            "run above the height range"
+        );
+        // A length of 2^64 - 1 wraps end + 1 to 0
+        let mut body = vec![3, 1, 0];
+        body.extend([0xFF; 9]);
+        body.push(0x01);
+        assert_eq!(
+            invalid(&raw_file(GOOD_FLOATS, &body)),
+            "run above the height range"
+        );
     }
 }
