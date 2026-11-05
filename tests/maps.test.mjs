@@ -1,6 +1,7 @@
 /**
- * The map list (src/data/maps.js): Belaya Pass, the one map whose heights are community data and not the server
- * package's, is listed, sized from its bounds, flagged, and labelled in every language.
+ * The map list (src/data/maps.js): the 25 maps whose heights are derived from the Squad dedicated server package,
+ * each named once and labelled in every language. A map is picked by its name (the `?map=` URL parameter), never by
+ * its position, so the list may change without breaking a saved link.
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -12,26 +13,11 @@ const locale = (language, namespace) => JSON.parse(readFileSync(new URL(`../publ
 
 initMapsProperties();
 
-test("26 maps, each named once and with a name in every language", () => {
-    assert.equal(MAPS.length, 26);
+test("25 maps, each named once and with a name in every language", () => {
+    assert.equal(MAPS.length, 25);
     assert.equal(new Set(MAPS.map((map) => map.name)).size, MAPS.length);
     for (const language of LANGUAGES) {
         const names = locale(language, "maps");
         for (const map of MAPS) assert.ok(names[map.name], `${language}: no name for ${map.name}`);
-    }
-});
-
-test("Belaya is sized from SquadHeight's bounds, which are its heightmap's grid (3905 x 3906 samples of 1 m)", () => {
-    const belaya = MAPS.find((map) => map.name === "Belaya");
-    assert.deepEqual([belaya.size, belaya.sizeY], [3904, 3905]);
-    assert.deepEqual(belaya.SDK_data.heightmap.size, [belaya.size + 1, belaya.sizeY + 1]);
-    assert.ok(belaya.SDK_data.heightmapPNG.scale[2] > 0, "the 8-bit fallback needs its metres per level");
-});
-
-test("only Belaya is flagged as community terrain, and the notice is worded in every language", () => {
-    assert.deepEqual(MAPS.filter((map) => map.communityTerrain).map((map) => map.name), ["Belaya"]);
-    for (const language of LANGUAGES) {
-        const tooltips = locale(language, "tooltips");
-        for (const key of ["communityTerrain", "communityTerrainShort", "communityTerrainDesc"]) assert.ok(tooltips[key], `${language}: ${key}`);
     }
 });
