@@ -58,6 +58,8 @@
 
   The calculator has 25 maps, and the heights of every one are built from the Squad dedicated server files (the accuracy figures of `tools/heightmaps` apply).
 
+  The grid is the game's: 300 m keypads with 3 x 3 sub-keypads, starting (A1) at the north-west corner of the minimap of the loaded layer (`MapTextureCorner0/1` of the layer's `SQWorldSettings`, `SDK_data.minimap.game` in `src/data/maps.js` without a layer). Skirmish and Seed layers have a minimap of their own, so their grid starts at its corner, not at the map's.
+
   </br>
 </details>
 

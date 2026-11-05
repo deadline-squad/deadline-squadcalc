@@ -175,6 +175,7 @@ export const squadMinimap = Map.extend({
         if (this.layer) this.layer = "";
 
         this.grid = new squadGrid(this, {opacity: App.userSettings.gridOpacity}).addTo(this.layerGroup);
+        this.grid.setOrigin(this.activeMap.gridOffset);
         this.grid.setBounds([[0,0], [-this.pixelSize, this.pixelSize]]);
 
         // load map

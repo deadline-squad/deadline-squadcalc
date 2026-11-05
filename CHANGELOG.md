@@ -1,3 +1,14 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.30.0** *(2026-11-05)*
+
+</br><img src="https://img.shields.io/badge/-fixes-orange">  
+- The grid starts where the game's grid starts. Audit of the map constants against the Squad dedicated server package (build 26005357): the game anchors A1 at the north-west corner of the minimap (`MapTextureCorner0/1` of each gameplay layer's `SQWorldSettings`) and splits 300 m keypads into 3 x 3 sub-keypads (`UI/Widgets/Map/Grids/W_SQMapGridLines`, scale factors 1, 3, 9), which the grid already did; what was wrong is its origin. Skorpo's image corners (`-3611 / 3238`, fitted to the image) lie 9.5 m / 10.5 m from the game's (`-3601.5 / 3248.5`), so every Skorpo grid line was 9.5 m west of the game's; the other 24 maps are within 1 m (rounded or truncated corners). Layers that ship a smaller minimap of their own (Skirmish and Seed layers of Chora, Mutaha, Tallil, Skorpo, GooseBay, Manicouagan and Black Coast) start their grid at that layer's corner, up to 1.2 km from the map's (Chora Skirmish v1: 1007 m east, 1222 m south), and a few regular layers differ by 0.5 to 1.5 m (Manicouagan RAAS v1/v2). The grid now starts at the game's corner of the loaded layer (the layer's `mapTextureCorners`), or the map's `SDK_data.minimap.game` corners without a layer; nothing is drawn north or west of it, and lines and letters are counted instead of tested for multiples. The map image, the heightmap and the markers keep the image corners.
+- `SDK_data.minimap.game` holds the game's corners of all 25 maps (metres, from the layers' `SQWorldSettings`); `corner0` / `corner1` remain the image and heightmap extent.
+
+</br><img src="https://img.shields.io/badge/-%20dev%20-lightgrey">  
+- Tests: `tests/squadGrid.test.mjs` (grid origin, rows and columns, game corners of all 25 maps within 1 m of the image except Skorpo, the layer offset of a Skirmish layer); `tests/loader.mjs` lets `squadGrid.js` use the real Leaflet.
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.29.0** *(2026-11-05)*
 
 </br><img src="https://img.shields.io/badge/-new%20features-green">  
