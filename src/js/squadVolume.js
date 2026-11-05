@@ -40,6 +40,8 @@ export default class SquadVolume {
         this.answers = new Map();
         this.pending = new Set();
         this.refreshQueued = false;
+        // Counts the loads (and disposals): a load that finds another one started after it, or the layer disposed, stops
+        this.loadId = 0;
         this.coverageJob = null;
         this.coverageJobs = 0;
         this.heatJob = null;
@@ -85,6 +87,7 @@ export default class SquadVolume {
         if (!this.enabled || !heightmap || heightmap.failed) return;
         if (this.heightmap === heightmap && this.state !== "idle") return;
         this.dispose();
+        const loadId = this.loadId;
         this.heightmap = heightmap;
         this.state = "loading";
 
@@ -93,7 +96,7 @@ export default class SquadVolume {
         try {
             const response = await fetch(`${base}meta.json`);
             const meta = response.ok ? await response.json() : null;
-            if (this.heightmap !== heightmap || this.state !== "loading") return;
+            if (loadId !== this.loadId) return;
             if (!meta?.volume) {
                 console.debug(`[VOLUME] ${mapName} has no volume layer`);
                 this.state = "unavailable";
@@ -103,12 +106,13 @@ export default class SquadVolume {
             this.zMin = meta.z_min_m;
             this.regions = meta.volume.regions ?? [];
             await this.start(base, meta);
-            if (this.heightmap !== heightmap || this.state !== "loading") return;
+            if (loadId !== this.loadId) return;
             this.state = "ready";
             console.debug(`[VOLUME] Loaded ${mapName}: ${meta.volume.bytes} + ${meta.volume.terrain.bytes} bytes`);
             $(document).trigger("volume:ready");
             this.map.updateTargets();
         } catch (error) {
+            if (loadId !== this.loadId) return;
             console.warn("[VOLUME] The volume layer could not be loaded, using the heightmap:", error.message ?? error);
             this.dispose();
             this.heightmap = heightmap;
@@ -202,6 +206,7 @@ export default class SquadVolume {
      * Stop the worker and forget the answers
      */
     dispose() {
+        this.loadId++;
         this.requests.forEach((resolve) => resolve(null));
         this.requests.clear();
         this.coverageJob?.resolve(null);

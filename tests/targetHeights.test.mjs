@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { classifyColumn, HEADROOM, MIN_OPENING, SURFACE_LIFT, DOORWAY_AIM } from "../src/js/targetHeights.js";
+import { classifyColumn, keptHeightChoice, HEADROOM, MIN_OPENING, SURFACE_LIFT, DOORWAY_AIM } from "../src/js/targetHeights.js";
 
 const ground = (top) => [-Infinity, top];
 
@@ -54,4 +54,14 @@ test("a free space in a wall is a window below HEADROOM and a doorway from it", 
 test("a free space in a wall is not also a floor and a ceiling", () => {
     const choices = classifyColumn([ground(0), [3, 3.5]], [true, false]);
     assert.deepEqual(choices.map(({ kind }) => kind), ["roof", "doorway"]);
+});
+
+test("a height choice that is still offered is kept, one that is not offered any more goes back to the ground", () => {
+    const window = { kind: "window", height: 14.5, above: 2 };
+    assert.equal(keptHeightChoice(null, [window]), null, "the ground stays the ground");
+    assert.equal(keptHeightChoice(window, [{ kind: "roof", height: 20.1 }, { ...window }]), window);
+    assert.equal(keptHeightChoice(window, [{ kind: "roof", height: 20.1 }]), null, "no longer offered");
+    assert.equal(keptHeightChoice(window, []), null, "nothing offered at this point");
+    assert.equal(keptHeightChoice(window, [{ kind: "doorway", height: 14.5 }]), null, "same height, other kind");
+    assert.equal(keptHeightChoice(window, [{ kind: "window", height: 14.6 }]), null, "same kind, other height");
 });

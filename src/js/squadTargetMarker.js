@@ -10,7 +10,7 @@ import { squadMarker } from "./squadMarker.js";
 import { damageField, hitProbability, roundsNeeded, KILL_DAMAGE, WOUND_DAMAGE } from "./squadDamage.js";
 import { notifyBridgeChange } from "./smcConnector.js";
 import { findNearbyStructure, describeStructure } from "./structureInfo.js";
-import { MIN_OPENING } from "./targetHeights.js";
+import { MIN_OPENING, keptHeightChoice } from "./targetHeights.js";
 import i18next from "i18next";
 
 const CARPET_MAX_TARGETS = 10;
@@ -1132,7 +1132,7 @@ export const squadTargetMarker = squadMarker.extend({
         if (line) structureRow.querySelector(".infStructure").textContent = line;
 
         const found = await this.map.volume.heightsAt(this.getLatLng());
-        if (dialogTarget !== this || !found?.choices.length) return;
+        if (dialogTarget !== this || !found) return;
 
         // The heightmap fuses buildings with the landscape: where it stands above it, the default "ground" is the top
         // of the building and the landscape under it is a choice of its own
@@ -1140,7 +1140,17 @@ export const squadTargetMarker = squadMarker.extend({
         const label = (kind, above) => `${i18next.t(`common:targetHeight_${kind}`)}${above === 0 ? "" : ` ${above > 0 ? "+" : ""}${above.toFixed(1)}${meters}`}`;
         const choices = [...found.choices];
         const mapAbove = this.map.heightmap.getHeight(this.getLatLng()) - found.landscape;
-        if (Math.abs(mapAbove) >= MIN_OPENING) choices.push({ kind: "landscape", height: found.landscape, above: 0 });
+        if (choices.length && Math.abs(mapAbove) >= MIN_OPENING) choices.push({ kind: "landscape", height: found.landscape, above: 0 });
+
+        // A height the list no longer shows (the choice was made on another map, weapon or setting) must not keep applying
+        // while the list reads "ground"
+        if (this.getTargetHeight() !== null && !keptHeightChoice(this.heightChoice, choices)) {
+            this.heightChoice = null;
+            this.updateCalc();
+            this.drawSimulations();
+            this.map.positionHeatmap?.update();
+        }
+        if (!choices.length) return;
         const options = [{ text: label("ground", Math.abs(mapAbove) >= MIN_OPENING ? mapAbove : 0), choice: null }];
         choices.forEach((choice) => options.push({ text: label(choice.kind, choice.above), choice }));
         select.replaceChildren(...options.map(({ text }, index) => new Option(text, String(index))));

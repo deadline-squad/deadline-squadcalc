@@ -38,6 +38,20 @@ export const DOORWAY_AIM = 1.0;
  */
 
 /**
+ * The height choice a target keeps once the heights offered at its point are known: the choice it has when the same
+ * one (kind and height) is still offered, else none, so the target goes back to the ground instead of keeping a height
+ * the list no longer shows
+ * @param {{kind: string, height: number}|null} chosen - the choice the target has
+ * @param {Array<{kind: string, height: number}>} offered - the choices offered now, in the page's heights
+ * @returns {{kind: string, height: number}|null}
+ */
+export function keptHeightChoice(chosen, offered) {
+    if (!chosen) return null;
+    return offered.find(({ kind, height }) => kind === chosen.kind && Math.abs(height - chosen.height) < 1e-6) ? chosen : null;
+}
+
+
+/**
  * The heights offered at a point
  * @param {Array<[number, number]>} solids - bottom and top of every solid on the ray, ascending and disjoint; the
  *   first is the landscape (its bottom is -Infinity), a voxel run on it starts at its top
