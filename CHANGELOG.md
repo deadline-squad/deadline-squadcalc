@@ -1,3 +1,13 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.29.0** *(2026-11-05)*
+
+</br><img src="https://img.shields.io/badge/-new%20features-green">  
+- Belaya Pass was removed from the map list (25 maps again): its level is not in the Squad dedicated server package, so its terrain could only come from community data that nothing here can check, and the owner decided to leave the map out. The terrain-only notice, the selector tooltip, the load toast, their translations in six languages and the special cases that skipped the layer API and the Detailed tiles for it are gone. A map is picked by its name (`?map=`), never by its position, so no saved link or selection moves; a link to the removed map opens a random map as for any unknown name.
+
+</br><img src="https://img.shields.io/badge/-%20dev%20-lightgrey">  
+- Tests: `tests/maps.test.mjs` now checks the 25 maps, each named once and in six languages; the terrain-only tests were removed, the "no `volume` entry starts no worker" test stays with a neutral map.
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.28.0** *(2026-11-05)*
 
 </br><img src="https://img.shields.io/badge/-new%20features-green">  

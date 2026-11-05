@@ -39,7 +39,7 @@ const COLOUR_MAPS = ["albasrah", "fallujah", "gorodok"];
 const RELIEF_LAYER = "relief";
 // Maps that have an archive (a map without one is not asked for a file that does not exist)
 const RELIEF_MAPS = [
-    "albasrah", "anvil", "belaya", "blackcoast", "chora", "fallujah", "foolsroad", "goosebay", "gorodok", "harju", "jensen",
+    "albasrah", "anvil", "blackcoast", "chora", "fallujah", "foolsroad", "goosebay", "gorodok", "harju", "jensen",
     "kamdesh", "kohat", "kokan", "lashkar", "logar", "manicouagan", "mestia", "mutaha", "narva", "pacific",
     "sanxian", "skorpo", "sumari", "tallil", "yehorivka",
 ];
@@ -243,15 +243,14 @@ export const squadMinimap = Map.extend({
      * (terrain cover, hillshade, contours, foliage, buildings; tools/maptiles in the deployment repository),
      * served by this deployment in /maptiles/<map>/ with their meta.json ({maxNativeZoom, generated, ...}).
      * The map may then zoom DETAILED_EXTRA_ZOOM levels past the finest tiles. A map without tiles shows the
-     * upstream topographic map instead (a map flagged `communityTerrain` has none and does not ask); a map without
-     * tiles in the game's colours shows the detailed map.
+     * upstream topographic map instead; a map without tiles in the game's colours shows the detailed map.
      * @param {TileLayer|ImageOverlay} [oldLayer] - layer to remove once the new one loaded
      * @param {number} request - number of this layer change; a later change or map switch wins
      * @param {string} [suffix] - COLOUR_SUFFIX for the tiles in the game's colours (/maptiles/<map>-colour/)
      */
     showDetailedLayer: function(oldLayer, request, suffix = "") {
         const mapName = this.activeMap.mapURL.split("/").filter(Boolean).pop();
-        const available = suffix ? COLOUR_MAPS.includes(mapName) : !this.activeMap.communityTerrain;
+        const available = !suffix || COLOUR_MAPS.includes(mapName);
         (available ? this.detailedMeta(mapName + suffix) : Promise.resolve(null)).then((meta) => {
             if (request !== this.layerRequest) return;
             if (!meta && suffix) {
@@ -262,7 +261,7 @@ export const squadMinimap = Map.extend({
                 return;
             }
             if (!meta) {
-                if (available) console.warn(`[MAP] No detailed tiles for ${mapName}, showing the topographic map`);
+                console.warn(`[MAP] No detailed tiles for ${mapName}, showing the topographic map`);
                 this.setMaxZoom(DEFAULT_MAX_ZOOM);
                 this.showMapImage(this.upstreamLayer("topomap"), oldLayer);
                 return;

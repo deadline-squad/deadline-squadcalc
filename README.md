@@ -56,7 +56,7 @@
 
   </br>
 
-  The calculator has 26 maps. For 25 of them the heights are built from the Squad dedicated server files (the accuracy figures of `tools/heightmaps` apply). <b>Belaya Pass is terrain only</b>: its level is not in the server package, so its heightmap is the community <a href="https://github.com/Metroseksuaali/SquadHeight">SquadHeight</a> 1.3.0 export (Squad Mod SDK), not validated against server data, with no building or object heights and no volume layer. The map selector and a notice on load say so.
+  The calculator has 25 maps, and the heights of every one are built from the Squad dedicated server files (the accuracy figures of `tools/heightmaps` apply).
 
   </br>
 </details>
