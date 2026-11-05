@@ -68,7 +68,7 @@
   </br>
   The heightmap holds one height per cell, so a doorway or an open window looks like solid wall, and trees are missing.
   With <i>Object volumes in the line of fire</i> turned on in the settings (off by default), the obstacle check of a direct-fire weapon and the fire coverage test the shell against the voxel columns of the buildings, walls, bridges and trees instead: a shot passes through an open window or doorway (a door is either open or absent, so a doorway is always a hole), and is stopped by a closed window, a wall or a tree. No penetration is computed.
-  The volume files (about 0.1 to 15 MB per map plus 1 to 6 MB of landscape heights) and the 0.4 MB WebAssembly engine are downloaded only when the setting is on and the map has them; otherwise, and when anything fails to load, the heightmap is used as before. Details and accuracy: <a href="./engine/README.md">engine/README.md</a>.
+  All 25 maps have volume files: 0.1 to 48.6 MB per map (Yehorivka, Harju, Gorodok and Chora are over 36 MB) plus 0.4 to 13.0 MB of landscape heights, 1.3 to 61.6 MB in all (table in <a href="./engine/README.md">engine/README.md</a>), and the 0.4 MB WebAssembly engine; they are downloaded only when the setting is on; otherwise, and when anything fails to load, the heightmap is used as before. Details and accuracy: <a href="./engine/README.md">engine/README.md</a>.
 
   </br>
 </details>

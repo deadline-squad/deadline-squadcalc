@@ -1,3 +1,14 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.32.0** *(2026-11-05)*
+
+</br><img src="https://img.shields.io/badge/-new%20features-green">  
+- **Object volumes in the line of fire for all 25 maps.** Until now 11 maps had volume files, built with the earlier lattice method; all 25 now have the exact conservative builds (a voxel is occupied when any collision triangle of the game touches it, so a thin opening may close but a wall never opens). `volume.vcol` is 0.1 to 48.6 MB per map and `terrain.bin` 0.4 to 13.0 MB, 1.3 to 61.6 MB together (table in `engine/README.md`, "Files served for each map"). The biggest (Yehorivka, Harju, Gorodok, Chora) are ready 2.7 to 4.4 s after the setting is turned on in headless Chromium on a fast local link and make the browser use 0.9 to 1.8 GB more memory; nothing failed.
+- The setting's label states the download: *Object volumes in the line of fire (downloads 1 to 62 MB of map data)* (all six languages).
+
+</br><img src="https://img.shields.io/badge/-%20dev%20-lightgrey">  
+- Documentation: the sizes, voxel and column counts of the 25 files, the heatmap time per map re-measured with them (`engine/README.md`, "Time"), the file sizes in `README.md`.
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.31.0** *(2026-11-05)*
 
 </br><img src="https://img.shields.io/badge/-fixes-orange">  

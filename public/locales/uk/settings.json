@@ -19,7 +19,7 @@
     "weaponOptions": "Опції зброї",
     "weaponDrag": "Сітка маркера",
     "realMaxRange": "Використовувати реальну максимальну дальність",
-    "volumeLayer": "Об'єми об'єктів на лінії вогню (завантажує дані карти)",
+    "volumeLayer": "Об'єми об'єктів на лінії вогню (завантажує від 1 до 62 МБ даних карти)",
     "moddedWeapons": "Увімкнути модову зброю",
     "SuperMod": "SuperMod",
     "InfiniteWarefare": "Infinite Warefare",
