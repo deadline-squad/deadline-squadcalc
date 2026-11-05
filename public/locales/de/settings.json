@@ -19,6 +19,7 @@
     "weaponOptions": "Waffenoptionen",
     "weaponDrag": "Rasterfeld beim Ziehen anzeigen",
     "realMaxRange": "Reale maximale Reichweite verwenden",
+    "volumeLayer": "Objektvolumen in der Schusslinie (lädt 1 bis 62 MB Kartendaten)",
     "moddedWeapons": "Modded-Waffen aktivieren",
     "SuperMod": "SuperMod",
     "InfiniteWarefare": "Infinite Warefare",

@@ -6,12 +6,13 @@ import { animateCSS, animateCalc } from "./animations.js";
 import { loadLanguage } from "./localization.js";
 import { tooltip_save, createSessionTooltips, leaveSessionTooltips } from "./tooltips.js";
 import { checkApiHealth, fetchLayersByMap, fetchLayerByName } from "./squadCalcAPI.js";
-import { initWebSocket } from "./smcConnector.js";
+import { initWebSocket, getTargetData, getLastTarget, getRevision } from "./smcConnector.js";
 import { LatLng } from "leaflet";
 import SquadServersBrowser from "./squadServersBrowser.js";
 import SquadSession from "./squadSession.js";
 import SquadFiringSolution from "./squadFiringSolution.js";
 import SquadSettings from "./squadSettings.js";
+import { observeAriaPressed } from "./accessibility.js";
 import packageInfo from "../../package.json";
 import { marked, Renderer } from "marked";
 
@@ -92,6 +93,23 @@ export default class SquadCalc {
         this.loadTheme();
         checkApiHealth();
         initWebSocket();
+        // Read by Squad Ballistics (embedded map): it solves the targets for the same weapon
+        window.squadBallistics = {
+            // 4: targets carry the terrain and building profile to the target
+            // 5: lastTarget() and revision(); heightDiff is null until the heights loaded
+            version: 5,
+            // Every target, in the order they were placed
+            targets: getTargetData,
+            // The newest target only, or null
+            lastTarget: getLastTarget,
+            // Counter that changes when a target, the weapon or the heights change: poll it, read
+            // lastTarget() when it moved
+            revision: getRevision,
+            // Name of the selected weapon in Squad Ballistics' weapons.json, null if it has none
+            weapon: () => this.activeWeapon?.ballistics ?? null,
+            // The weapon picked in Squad Ballistics, selected here too (fire coverage, popups)
+            selectWeapon: (name) => this.selectBallisticsWeapon(name),
+        };
         console.log(`SquadCalc v${this.version} Loaded! 🎯`);
     }
 
@@ -550,7 +568,18 @@ export default class SquadCalc {
                 weapon.heightOffset,
                 weapon.angleOffset,
                 weapon.projectileLifespan,
-                weapon.mod
+                weapon.mod,
+                weapon.elevationRate,
+                weapon.heatmap,
+                weapon.acceleration,
+                weapon.accelerationTime,
+                weapon.holdElevation,
+                weapon.ballistics,
+                weapon.image,
+                weapon.muzzle,
+                weapon.maxSpeed,
+                weapon.rotationFollowsVelocity,
+                weapon.legacyBallistics
             );
         });
         
@@ -877,6 +906,8 @@ export default class SquadCalc {
         });
 
 
+        observeAriaPressed();
+
         $("#mapLayerMenu").find("button.layers").on("click", (event) => {
 
             if ($(event.currentTarget).hasClass("active")) { return; }
@@ -899,6 +930,17 @@ export default class SquadCalc {
         $("#mapLayerMenu").find("button.btn-helpmap").on("click", () => {
             $(".btn-helpmap").toggleClass("active");
             this.minimap.toggleHeatmap();
+        });
+
+        // Fire coverage of the first weapon marker (see squadCoverage.js), remembered across visits
+        const coverageEnabled = localStorage.getItem("settings-coverage") === "1";
+        $(".btn-coverage").toggleClass("active", coverageEnabled);
+        this.minimap.coverage.setEnabled(coverageEnabled);
+        $("#mapLayerMenu").find("button.btn-coverage").on("click", () => {
+            const enabled = !$(".btn-coverage").hasClass("active");
+            $(".btn-coverage").toggleClass("active", enabled);
+            localStorage.setItem("settings-coverage", +enabled);
+            this.minimap.coverage.setEnabled(enabled);
         });
 
         $("#mapLayerMenu").find("button.btn-hd").on("click", () => {
@@ -1225,7 +1267,8 @@ export default class SquadCalc {
         }
 
         if (this.matchesShortcut(event, "toggleMap")) {
-            const layers = ["topomap", "terrainmap", "basemap"];
+            const layers = ["detailed", "detailed-colour", "relief", "topomap", "terrainmap", "basemap"]
+                .filter((layer) => !$(`.btn-${layer}`).data("unavailable"));
             const currentLayer = $("#mapLayerMenu .layers.active").attr("value") || "basemap";
             const nextIndex = (layers.indexOf(currentLayer) + 1) % layers.length;
             const nextLayer = layers[nextIndex];
@@ -1389,7 +1432,7 @@ export default class SquadCalc {
         });
         this.SHELL_SELECTOR.val(0).trigger("change");
 
-        $("#mortarImg").attr("src", `/img/weapons/${this.activeWeapon.name}.webp`);
+        $("#mortarImg").attr("src", `/img/weapons/${this.activeWeapon.image}.webp`);
         
         this.shoot();
     
@@ -1399,6 +1442,18 @@ export default class SquadCalc {
 
         // Refresh Heatmap
         this.minimap.toggleHeatmap();
+    }
+
+    /**
+     * Select the weapon whose Squad Ballistics name is `name`, as if picked in the weapon selector
+     * @param {string} name - weapon name in Squad Ballistics' weapons.json, or one it had before it was renamed
+     * @returns {boolean} - false if no weapon here has that name (or it is hidden by the mod filter)
+     */
+    selectBallisticsWeapon(name) {
+        const index = WEAPONS.findIndex((weapon) => weapon.ballistics === name || weapon.legacyBallistics?.includes(name));
+        if (index === -1 || !this.WEAPON_SELECTOR.find(`option[value="${index}"]`).length) return false;
+        if (String(this.WEAPON_SELECTOR.val()) !== String(index)) this.WEAPON_SELECTOR.val(index).trigger("change");
+        return true;
     }
 
     /**
@@ -1459,13 +1514,15 @@ export default class SquadCalc {
             return 1;
         }
 
-        aPos = {lat: -aPos.lng * this.minimap.gameToMapScale, lng: aPos.lat * this.minimap.gameToMapScale};
-        bPos = {lat: -bPos.lng * this.minimap.gameToMapScale, lng: bPos.lat * this.minimap.gameToMapScale};
+        aPos = {lat: -aPos.lng * this.minimap.gameToMapScaleY, lng: aPos.lat * this.minimap.gameToMapScale};
+        bPos = {lat: -bPos.lng * this.minimap.gameToMapScaleY, lng: bPos.lat * this.minimap.gameToMapScale};
 
         let firingSolution = new SquadFiringSolution(aPos, bPos, this.minimap, 0);
 
         let elevation = this.activeWeapon.getAngleType() === -1 ? firingSolution.elevation.high : firingSolution.elevation.low;
-        elevation = this.activeWeapon.unit === "mil" ? elevation.mil : elevation.deg;
+        if (this.activeWeapon.unit === "sec") elevation = this.activeWeapon.getHoldTime(elevation.deg);
+        else if (this.activeWeapon.type === "directFire") elevation = firingSolution.getSightAngle(elevation.rad);
+        else elevation = this.activeWeapon.unit === "mil" ? elevation.mil : elevation.deg;
     
 
         // If Target too close/far
@@ -1487,7 +1544,7 @@ export default class SquadCalc {
         animateCalc(bearing.toFixed(1), 500, "bearingNum");
         animateCalc(elevation.toFixed(this.activeWeapon.elevationPrecision), 500, "elevationNum");
 
-        if (this.activeWeapon.name != "Mortar" && this.activeWeapon.name != "UB-32") $("#highlow").addClass("active");
+        if (this.activeWeapon.name != "Mortar" && this.activeWeapon.name != "UB-32" && !this.activeWeapon.elevationRate) $("#highlow").addClass("active");
         if (this.activeWeapon.getAngleType() === -1) $("#highlowicon").css({ transform: "rotate(0deg)"});
         else $("#highlowicon").css({transform: "rotate(180deg)"});
 
@@ -1672,7 +1729,7 @@ export default class SquadCalc {
             `<p class=savedrow>
                 <input maxlength=20 spellcheck=false placeholder="${$("#target-location").val()}" class=friendlyname></input>
                 <span class=savespan> 
-                    ➜ ${$("#bearingNum").text()} - ${$("#elevationNum").text()}
+                    ➜ ${$("#bearingNum").text()} - ${$("#elevationNum").text()}${this.activeWeapon.unit === "sec" ? i18next.t("common:s") : ""}
                 </span>
                 <span class="del">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM160 128l41.4 0 11.3-11.3c3-3 7.1-4.7 11.3-4.7l64 0c4.2 0 8.3 1.7 11.3 4.7L310.6 128l41.4 0c8.8 0 16 7.2 16 16s-7.2 16-16 16l-192 0c-8.8 0-16-7.2-16-16s7.2-16 16-16zm0 64l192 0L338.4 354.7c-1.4 16.6-15.2 29.3-31.9 29.3l-101.1 0c-16.6 0-30.5-12.8-31.9-29.3L160 192z"/></svg>
@@ -1704,7 +1761,7 @@ export default class SquadCalc {
         }
 
         animateCSS($(".copy"), "headShake");
-        navigator.clipboard.writeText(`${$("#target-location").val()} ➜ ${$("#bearingNum").text()} - ${$("#elevationNum").text()}`);
+        navigator.clipboard.writeText(`${$("#target-location").val()} ➜ ${$("#bearingNum").text()} - ${$("#elevationNum").text()}${this.activeWeapon.unit === "sec" ? i18next.t("common:s") : ""}`);
         this.openToast("success", "copied", "");
 
     }

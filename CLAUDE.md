@@ -5,6 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 - `npm start` — webpack dev server (localhost:3000)
 - `npm run build` — production build to `/dist/`
+- `npm run build:engine` — builds the WebAssembly engine (`engine/`, needs the pinned Rust toolchain and `wasm-bindgen-cli`) and copies it to `public/engine/` (gitignored); the volume layer loads it at run time, without it the site works and the layer stays unavailable
 - `npm run lint` — stylelint + htmlhint + eslint (run once after a batch of changes, not after every edit)
 
 ## Setup
@@ -38,6 +39,9 @@ App.sanitize(str); // HTML escape utility (static method)
 |---|---|---|
 | `SquadCalc` | `squadCalc.js` | Main app — weapon selector, UI wiring, URL state, toast/shortcuts |
 | `squadMinimap` | `squadMinimap.js` | Leaflet `Map` **extension** (not a regular class) — basemap, markers, heatmap, context menu |
+| `SquadVolume` | `squadVolume.js` | Volume layer (voxel columns of buildings, walls, bridges, trees): lazy `volumeWorker.js` with the WASM engine; used by `SquadFiringSolution.getObstacle`, `SquadCoverage`, the damage zone's cover (`squadDamage.damageField` with `objects`) and the position heatmap when the `volumeLayer` setting is on and the map's `meta.json` has a `volume` entry |
+| position heatmap | `positionHeatmap.js`, `squadPositionHeatmap.js` | Reverse-position heatmap of a target (button in the target dialog, direct-fire weapons, needs the volume layer): which ground positions have a clear line of fire to it, scored by distance and clearance. `positionHeatmap.js` is the pure classifier (run by the volume worker with the voxel walk and, where `meta.json` `volume.regions` has a precision region of the target, the exact triangles), `squadPositionHeatmap.js` the lazy-loaded layer that draws it |
+| target heights, structure damage | `targetHeights.js`, `structureInfo.js`, `structureDamage.js` | `targetHeights.js` turns a vertical ray through the volume layer (`SquadVolume.heightsAt`, worker `column`) into the floors, ceilings, roof, windows and doorways offered by the target dialog; `squadTargetMarker.heightChoice` feeds `SquadFiringSolution`'s `targetHeight`. `structureInfo.js` + `structureDamage.js` (`structureOutcome`) give the shells that destroy a deployable marker's structure; `src/data/structureLinks.js` links `weapons.js` shells and marker icons to the game data |
 | `SquadLayer` | `squadLayer.js` | Renders one game layer: objectives, capture zones, spawn groups, faction assets |
 | `SquadFiringSolution` | `squadFiringSolution.js` | Ballistics engine — computes bearing, elevation (low/high), spread, time of flight from two LatLngs |
 | `SquadFactions` | `squadFactions.js` | Faction/unit picker dialogs and background images |
@@ -75,6 +79,7 @@ App.sanitize(str); // HTML escape utility (static method)
 ### Locales
 - Namespaces: `tooltips`, `settings`, `maps`, `weapons`, `common`, `factions`, `units`, `vehicles`
 - Languages: `en`, `fr`, `de`, `ru`, `uk`, `zh`
+- `npm run locales` fails when a language lacks a key that `en` has (there is no fallback language)
 - Files: `public/locales/{{lng}}/{{ns}}.json`, cache-busted with `?v=${version}` from `package.json`
 - Weapon display names: key = `weapon.name` value — **spaces in weapon names break i18next keys**, use underscores (e.g. `type_63` not `Type 63`)
 

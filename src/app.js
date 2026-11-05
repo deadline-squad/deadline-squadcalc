@@ -7,6 +7,7 @@ import "animate.css";
 import "leaflet/dist/leaflet.css";
 
 // Local styles
+import "./components/shared/_fonts.scss";
 import "./components/header/header.scss";
 import "./components/map/map.scss";
 import "./components/map/mapFactionCtxMenu.scss";
@@ -44,7 +45,10 @@ var options = {
         ["fr", "FR"],
         ["de", "DE"]
     ],
-    gravity: 9.78,
+    // Squad's world gravity: DefaultGravityZ = -980 cm/s² in the engine config, not overridden by the
+    // SQWorldSettings of any of the 219 layers (Squad build 26005357). The 9.78 used before was fitted
+    // on in-game shots while the muzzle offset was ignored (weapons.js `muzzle`).
+    gravity: 9.80,
     mapSize: 256,
     debug: false,
 };

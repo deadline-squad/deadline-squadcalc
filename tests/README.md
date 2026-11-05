@@ -1,0 +1,31 @@
+# Tests
+
+`npm test` runs `node --test` over the `tests/*.test.mjs` glob (no extra dependency; Node >= 22.13; from Node 22 a directory
+argument is no longer searched, it fails with `ERR_UNSUPPORTED_DIR_IMPORT`, so the script names the files by glob; CI runs it on
+Node 22). `leaflet.test.mjs` and `structureInfo.test.mjs` import the packages `leaflet` and `i18next`: run `npm ci` first, on a
+checkout without `node_modules` they stop with `ERR_MODULE_NOT_FOUND`. The pure modules
+(`squadBallistics.js`, `squadDamage.js`, `squadHeightmaps.js`, `squadFiringSolution.js`, `squadWeapons.js`,
+`weapons.js`) import `../app.js` (the whole UI); `register.mjs` preloads `loader.mjs`, which replaces it
+with `stubs/app.mjs` (gravity and the active weapon) and, for modules in `src/`, Leaflet with empty
+classes. `leaflet.test.mjs` imports the real Leaflet 2 package.
+
+- `squadBallistics.test.mjs`: elevation roots, range, and that the solved elevation lands the shot of every kind of weapon.
+- `squadDamage.test.mjs`: damage falloff, cover, hit probability, rounds needed, and `damageField` with the objects of the volume layer as cover (the blocked-between-clearances callback, the landscape still covering, the impact height).
+- `squadHeightmaps.test.mjs`: height interpolation (the game's triangle rule), edges, height path.
+- `structureDamage.test.mjs`: damage of shells to player-built structures (the native rules of ASQDeployable::TakeDamage on a made-up wall: direct-hit multiplier, no direct-radial multiplier, minimum-damage floor, only-direct near miss, exact damage-type class, burst distance; and the game data for the mortar round and HEAT against the FOB radio and a HAB, `structureOutcome`, and the links of `src/data/structureLinks.js` to the shells of `weapons.js`).
+- `weapons.test.mjs`: invariants of the `weapons.js` data.
+- `maps.test.mjs`: the map list (25 maps, each named once and in six languages). `squadVolume.test.mjs` also checks that a `meta.json` without a `volume` entry starts no worker and keeps the heightmap.
+- `hitProbability.test.mjs`: the hit probability of direct-fire weapons from a muzzle above the ground against a simulation of the game's cone (#19).
+- `volumeTerrain.test.mjs`: the `TER1` landscape file of the volume layer (decoding, the game's triangle rule, holes).
+- `targetHeights.test.mjs`: the heights a vertical ray offers (floor, ceiling, roof, window, doorway) from the solids it crosses.
+- `targetHeight.test.mjs`: a target with a height of its own in the firing solution and the line-of-fire samples.
+- `structureInfo.test.mjs`: the marker near a target and the structure line of the dialog and popups.
+- `targetPopup.test.mjs`: the content of a target's calculation popup (`targetPopup.js`): the line of the height chosen in the dialog, the elevation following the height, the ammunition and the weapon, and the order of the lines.
+- `volumeLayer.test.mjs`: the volume worker end to end on a synthetic wall with a doorway and a small house (the `column` query of the target heights, the `cover` damage zone: a soldier behind the wall is covered, one in line with the doorway is not; the `heat` reverse-position heatmap: positions behind the wall blocked, those in line with the doorway clear) through the real WebAssembly engine (skipped unless `npm run build:engine` was run), and the structures of the fire-coverage classifier.
+- `positionHeatmap.test.mjs`: the reverse-position heatmap's scoring (closer is better, a long shot stays viable, clearance counts), the classification of positions on flat ground, behind a ridge, out of the map and out of the weapon's reach, the polylines handed to the objects callback, the image, and the choice of a precision region.
+- `squadVolume.test.mjs`: the load of the volume layer when the setting is switched while meta.json is being fetched (one worker, `volume:ready` once). `sha256.test.mjs`: the plain-JavaScript SHA-256 against `node:crypto`.
+- `leaflet.test.mjs`: Leaflet 2 event names (pointer, not mouse; `bubblingPointerEvents`).
+
+What needs a browser (hover, drag, clean console on a served build) is covered by
+`tools/browser_check/browser_check.mjs`, `volume_check.mjs` (the volume layer), `targets_check.mjs` (target heights, structure damage) and `heatmap_check.mjs` (the position heatmap and the damage zone with voxel cover, against the exact triangle tracer's output) in the deployment repository (Playwright and Chromium).
+CI: `.github/workflows/test.yml`.

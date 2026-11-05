@@ -8,6 +8,7 @@ import { Hexagon } from "./libs/leaflet-hexagon.js";
 import { squadSpawnGroup } from "./squadSpawnGroup.js";
 import { squadCameraActor } from "./squadCameraActor.js";
 import { SquadVehicleSpawner } from "./squadVehicleSpawner.js";
+import { layerGridOffset } from "../data/maps.js";
 
 export default class SquadLayer {
 
@@ -23,6 +24,9 @@ export default class SquadLayer {
         this.isRandomized = this.isRandomized(); 
         
         [this.offset_x, this.offset_y] = this.getLayerOffsets(this.layerData.mapTextureCorners);
+        if (this.layerData.mapTextureCorners) {
+            this.map.grid?.setOrigin(layerGridOffset(this.map.activeMap.SDK_data.minimap, this.layerData.mapTextureCorners));
+        }
         this.isVisible = true;
         this.currentPosition = 0;
 
@@ -339,7 +343,7 @@ export default class SquadLayer {
 
                 obj.splinePoints.forEach((point) => {
                     let latlng = this.convertToLatLng(point.location_x, point.location_y);
-                    totalLat += ((point.location_y - this.offset_y) / 100 * -this.map.gameToMapScale);
+                    totalLat += ((point.location_y - this.offset_y) / 100 * -this.map.gameToMapScaleY);
                     totalLng += ((point.location_x - this.offset_x) / 100 * this.map.gameToMapScale);
                     latlngs.push(latlng);
                 });
@@ -413,13 +417,14 @@ export default class SquadLayer {
 
     
     /**
-     * Convert a SDK coordinate to a Leaflet LatLng coordinate
-     * @param {number} x - latitude in cm as found in the squadpipeline extraction
-     * @param {number} y - longitude in cm as found in the squadpipeline extraction
-     * @returns {Array} - [latitude, longitude] in meters
+     * Convert a SDK coordinate to a Leaflet LatLng coordinate, world X and Y each with the scale of
+     * its map axis (squadMinimap.draw)
+     * @param {number} x - world X in cm as found in the squadpipeline extraction
+     * @param {number} y - world Y in cm as found in the squadpipeline extraction
+     * @returns {Array} - [latitude, longitude] in map units
      */ 
     convertToLatLng(x, y) {
-        return [(y - this.offset_y) / 100 * -this.map.gameToMapScaleY, (x - this.offset_x) / 100 * this.map.gameToMapScaleY];
+        return [(y - this.offset_y) / 100 * -this.map.gameToMapScaleY, (x - this.offset_x) / 100 * this.map.gameToMapScale];
     }
 
 
@@ -627,10 +632,10 @@ export default class SquadLayer {
 
                 // Radiis
                 let protectRadiusX = ( pZone.objects[0].boxExtent.extent_x / 100 ) * -this.map.gameToMapScale;
-                let protectRadiusY = ( pZone.objects[0].boxExtent.extent_y / 100 ) * -this.map.gameToMapScale;
+                let protectRadiusY = ( pZone.objects[0].boxExtent.extent_y / 100 ) * -this.map.gameToMapScaleY;
 
                 let nodeploRadiusX = protectRadiusX + ( pZone.deployableLockDistance / 100 ) * -this.map.gameToMapScale;
-                let nodeploRadiusY = protectRadiusY + ( pZone.deployableLockDistance / 100 ) * -this.map.gameToMapScale;
+                let nodeploRadiusY = protectRadiusY + ( pZone.deployableLockDistance / 100 ) * -this.map.gameToMapScaleY;
 
                 // Bounds
                 let protectNWCorner = [(location_y + protectRadiusY) , (location_x + protectRadiusX)];
@@ -1355,6 +1360,7 @@ export default class SquadLayer {
         this.spawnGroups = [];
         this.vehicleSpawners = [];
         this.hexs = [];
+        this.map.grid?.setOrigin(this.map.activeMap.gridOffset);
     }
 
 }

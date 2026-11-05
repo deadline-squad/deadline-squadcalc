@@ -97,7 +97,16 @@ export default async (env) => {
                     /manifest\.json$/,
                     /\.map$/,
                     /\/favicons\//,
+                    // The WebAssembly engine of the volume layer: loaded by its worker when the layer is turned on
+                    /\/engine\//,
                     /robots\.txt/,
+                    // Fonts: the licence texts and the latin-ext and cyrillic subsets (about 270 kB) are not
+                    // precached, sw.js caches each on first use; the three latin files stay precached
+                    /(^|\/)fonts\/(?!(montserrat|oswald|roboto)-v\d+-latin\.woff2$)/,
+                    // README screenshots, and the 220 vehicle images (15 MB), cached on first use by sw.js; the
+                    // placeholder shown for a missing image stays precached
+                    /(^|\/)img\/github\//,
+                    /(^|\/)img\/vehicles\/(?!placeholder\.webp)/,
                     // /\.webp$/,
                     /\.mp3$/,
                     /\.json$/,
@@ -121,7 +130,9 @@ export default async (env) => {
                     vendor: {
                         test: /[\\/]node_modules[\\/]/,
                         name: 'vendors',
-                        chunks: 'all',
+                        // The page only: the heightmap worker (src/js/heightmapWorker.js) keeps its few
+                        // modules in its own chunk instead of importing every vendor chunk of the page
+                        chunks: (chunk) => chunk.name === 'main',
                         maxSize: env.WEBPACK_BUILD ? 50000 : Infinity,
                     },
                 },

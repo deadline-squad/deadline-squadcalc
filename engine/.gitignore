@@ -1,0 +1,5 @@
+/target
+/pkg
+/js/pkg*
+*.bin
+!wgsl/bench/fixture/*.bin

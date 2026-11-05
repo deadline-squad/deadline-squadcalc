@@ -1,0 +1,46 @@
+[package]
+name = "squad-engine"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+description = "Core of the Squad ballistics engine: closed-form firing solutions, analytic trajectory segments, SAH BVH and exact line-of-fire queries."
+license = "GPL-3.0-or-later"
+publish = false
+
+[lib]
+name = "squad_engine"
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "squad-cli"
+path = "src/bin/cli.rs"
+
+[features]
+default = []
+# Rayon: parallel BVH build and batch queries (native). On wasm32 it also needs the
+# wasm-bindgen-rayon setup described in README.md.
+threads = ["dep:rayon"]
+# wasm-bindgen exports (build with `--target wasm32-unknown-unknown --features wasm`).
+wasm = ["dep:wasm-bindgen", "dep:console_error_panic_hook"]
+# Threads in the browser: `threads` plus wasm-bindgen-rayon. Needs a nightly toolchain with atomics and
+# build-std (see README.md); not part of the pinned stable build.
+wasm-threads = ["threads", "wasm", "dep:wasm-bindgen-rayon"]
+# SIMD128 triangle test (wasm32 built with `-C target-feature=+simd128`; ignored elsewhere).
+simd = []
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
+png = { version = "0.17", default-features = false }
+rayon = { version = "1", optional = true }
+wasm-bindgen = { version = "=0.2.130", optional = true }
+wasm-bindgen-rayon = { version = "1", optional = true }
+console_error_panic_hook = { version = "0.1", optional = true }
+
+[dev-dependencies]
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1

@@ -1,10 +1,13 @@
 import { App } from "../app.js";
 import "./libs/leaflet-visual-click.js";
-import { Marker, Circle, CircleMarker, Popup, Polygon, Icon } from "leaflet";
+import { Marker, Circle, CircleMarker, Popup, Polygon, Icon, DivIcon } from "leaflet";
 import i18next from "i18next";
 import { sendMarkerData } from "./squadCalcAPI.js";
 import { v4 as uuidv4 } from "uuid";
 import { animateCSS } from "./animations.js";
+import { heightAt } from "./squadBallistics.js";
+import { makeMarkerIconOperable } from "./accessibility.js";
+import { describeStructure } from "./structureInfo.js";
 
 
 /*
@@ -13,6 +16,9 @@ import { animateCSS } from "./animations.js";
 export const squadMarker = Marker.extend({
 
     options: {
+        // Empty until the subclass sets its icon: Leaflet's default one would request
+        // images/marker-icon.png and marker-shadow.png, which this site does not serve (404)
+        icon: new DivIcon({ className: "", html: "", iconSize: [0, 0] }),
         draggable: true,
         riseOnHover: true,
         keyboard: false,
@@ -36,6 +42,23 @@ export const squadMarker = Marker.extend({
 
 
     /**
+     * Name announced for the marker when it takes the keyboard focus (set by the keyboard-operable subclasses)
+     * @returns {string} translated accessible name
+     */
+    getAccessibleName: function() {
+        return "";
+    },
+
+    // Leaflet creates a new icon element on every setIcon(): make each one keyboard-operable again
+    _initIcon: function() {
+        Marker.prototype._initIcon.call(this);
+        if (this.options.keyboard) {
+            makeMarkerIconOperable(this._icon, this.getAccessibleName(), () => this.fire("click"));
+        }
+    },
+
+
+    /**
      * Force a given event to stay inside the map bounds
      * @param {event} [event] - event
      * @returns {event} - same event with corrected Latlng 
@@ -51,6 +74,14 @@ export const squadMarker = Marker.extend({
 });
 
 export const squadWeaponMarker = squadMarker.extend({
+
+    options: {
+        keyboard: true,
+    },
+
+    getAccessibleName: function() {
+        return i18next.t("tooltips:weaponMarker");
+    },
 
     initialize: function (latlng, options, map) {
         const CIRCLESCOLOR = "#00137f";
@@ -119,7 +150,8 @@ export const squadWeaponMarker = squadMarker.extend({
 
 
         this.angleType = App.activeWeapon.angleType;
-        this.heightPadding = options.heightPadding || 0;
+        // Meters above the ground; a number even when a session peer sent it as a string
+        this.heightPadding = parseFloat(options.heightPadding) || 0;
 
         // Create the min/max range markers
         this.minRangeMarker = new Circle(latlng, this.minDistCircleOn).addTo(this.map.markersGroup);
@@ -135,7 +167,7 @@ export const squadWeaponMarker = squadMarker.extend({
             this.minRangeMarker.setStyle(this.minMaxDistCircleOff);
         }
 
-        if (!options.uid) {
+        if (!options.uid && App.activeWeapon.heatmap) {
             sendMarkerData({
                 lat: this._latlng.lat,
                 lng: this._latlng.lng,
@@ -152,8 +184,6 @@ export const squadWeaponMarker = squadMarker.extend({
         // Custom events handlers
         this.on("click", this._handleClick, this);
         this.on("drag", this._handleDrag, this);
-        this.on("dragStart", this._handleDragStart, this);
-        this.on("dragEnd", this._handleDragEnd, this);
         this.on("dblclick", this._handleDblclick, this);
         this.on("contextmenu", this._handleContextMenu, this);
         if (App.hasMouse){
@@ -183,7 +213,7 @@ export const squadWeaponMarker = squadMarker.extend({
         let iconUrl;
 
         if (layers.length === 1) {
-            iconUrl = `/img/markers/weapons/${App.activeWeapon.name}.webp`;
+            iconUrl = `/img/markers/weapons/${App.activeWeapon.image}.webp`;
         }
 
         if (layers.length === 2) {
@@ -241,9 +271,8 @@ export const squadWeaponMarker = squadMarker.extend({
         } = options;
 
         const weaponPos = this.getLatLng();
-        const G = App.gravity * App.activeWeapon.gravityScale;
+        const shot = App.activeWeapon.getShot(App.gravity * App.activeWeapon.gravityScale);
         const estimatedMaxDistance = App.activeWeapon.getMaxDistance();
-        const degreesPerMeter = this.map.gameToMapScale;
         const weaponHeight = this.map.heightmap.getHeight(weaponPos) + this.heightPadding;
         const points = [];
 
@@ -281,20 +310,16 @@ export const squadWeaponMarker = squadMarker.extend({
     
             while (right - left > maxRangeTreshold) {
                 const mid = Math.floor((left + right) / 2);
-                const currentVelocity = App.activeWeapon.getVelocity(mid);
-                const deltaLat = mid * Math.cos(angle) * degreesPerMeter;
-                const deltaLng = mid * Math.sin(angle) * degreesPerMeter;
-                let landingX = weaponPos.lat + deltaLat;
-                let landingY = weaponPos.lng + deltaLng;
+                const landing = this.map.fromMeters(weaponPos, mid * Math.sin(angle), mid * Math.cos(angle));
+                let landingX = landing.lat;
+                let landingY = landing.lng;
                 const landingHeight = this.map.heightmap.getHeight({ lat: landingX, lng: landingY });
                 let hitObstacle = false;
                 let noHit = false;
                 
                 for (let launchAngle = launchElevation; launchAngle <= maxElevation; launchAngle += turnLaunchAngle) {
                     const launchAngleRadians = ((launchAngle) * Math.PI) / 180;
-                    const time = mid / (currentVelocity * Math.cos(launchAngleRadians));
-                    const yVel = currentVelocity * Math.sin(launchAngleRadians);
-                    const currentHeight = weaponHeight + yVel * time - 0.5 * G * time * time;
+                    const currentHeight = weaponHeight + heightAt(shot, launchAngleRadians, mid);
     
                     if (currentHeight <= landingHeight) {
                         hitObstacle = true;
@@ -321,8 +346,7 @@ export const squadWeaponMarker = squadMarker.extend({
                 }
             }
             if (!foundMaxDistance) {
-                let finalLat = weaponPos.lat + right * Math.cos(angle) * degreesPerMeter;
-                let finalLng = weaponPos.lng + right * Math.sin(angle) * degreesPerMeter;
+                let { lat: finalLat, lng: finalLng } = this.map.fromMeters(weaponPos, right * Math.sin(angle), right * Math.cos(angle));
                 if (finalLat < -this.map.pixelSize) {finalLat = -this.map.pixelSize;}
                 if (finalLat > 0) {finalLat = 0;}
                 if (finalLng > this.map.pixelSize) {finalLng = this.map.pixelSize;}
@@ -377,7 +401,7 @@ export const squadWeaponMarker = squadMarker.extend({
         if (App.activeWeapon.shells.length > 1) name += ` (${$(".dropbtn3 option:selected").text().trim()})`;
 
         // Logo
-        $(".weaponIcon").first().attr("src", `/img/weapons/${App.activeWeapon.name}.webp`);
+        $(".weaponIcon").first().attr("src", `/img/weapons/${App.activeWeapon.image}.webp`);
         $("#dialogWeaponTitle").text(name);
         $(".infRange").first().text(`${App.activeWeapon.minDistance + i18next.t("common:m")} - ${App.activeWeapon.maxDistance.toFixed(0) + i18next.t("common:m")}`);
         $(".infMOA").first().text(`${App.activeWeapon.moa} (${(App.activeWeapon.moa / 60).toFixed(1) + i18next.t("common:°")})`);
@@ -388,7 +412,16 @@ export const squadWeaponMarker = squadMarker.extend({
         $(".inf25damage").first().text(App.activeWeapon.twentyFiveDamageRadius.toFixed(1) + i18next.t("common:m"));
         $(".infVelocity").first().text(`${App.activeWeapon.velocity + i18next.t("common:m")}/${i18next.t("common:s")}`);
 
-        if (["Mortar", "UB-32"].includes(App.activeWeapon.name)) {
+        // Weapons aimed by holding the elevation key (AGS-17) : show the hold time range instead of angles
+        if (App.activeWeapon.elevationRate) {
+            $(".infHoldTime").first().text(`0${i18next.t("common:s")} - ${App.activeWeapon.getMaxHoldTime().toFixed(App.activeWeapon.elevationPrecision)}${i18next.t("common:s")}`);
+            $(".infElevationRate").first().text(`${App.activeWeapon.elevationRate}${i18next.t("common:°")}/${i18next.t("common:s")}`);
+            $(".holdTimeRow").show();
+        } else {
+            $(".holdTimeRow").hide();
+        }
+
+        if (["Mortar", "UB-32"].includes(App.activeWeapon.name) || App.activeWeapon.elevationRate) {
             $("#angleChoice").hide();
         } else {
             $("#angleChoice").show();
@@ -433,7 +466,7 @@ export const squadWeaponMarker = squadMarker.extend({
                         uid: this.uid,
                         lat: this._latlng.lat,
                         lng: this._latlng.lng,
-                        heightPadding: input.value,
+                        heightPadding: weapon.heightPadding,
                     })
                 );
             }
@@ -517,8 +550,8 @@ export const squadWeaponMarker = squadMarker.extend({
 
         this.map.updateTargets();
 
-        // Report marker to squadcalc API
-        sendMarkerData({
+        // Report marker to squadcalc API (only weapons it collects data for)
+        if (App.activeWeapon.heatmap) sendMarkerData({
             lat: this._latlng.lat,
             lng: this._latlng.lng,
             weapon: App.activeWeapon.name,
@@ -538,7 +571,7 @@ export const squadWeaponMarker = squadMarker.extend({
         const pos = App.getPos(kp);
         if (Number.isNaN(pos.lat) || Number.isNaN(pos.lng)) return false;
 
-        let latlng = { lat: -pos.lng * this.map.gameToMapScale, lng: pos.lat * this.map.gameToMapScale };
+        let latlng = { lat: -pos.lng * this.map.gameToMapScaleY, lng: pos.lat * this.map.gameToMapScale };
         latlng = this.keepOnMap({ latlng }).latlng;
 
         this.setLatLng(latlng);
@@ -661,10 +694,8 @@ export const squadStratMarker = squadMarker.extend({
 
         // Custom events handlers
         this.on("drag", this._handleDrag, this);
-        this.on("dragStart", this._handleDragStart, this);
-        this.on("dragEnd", this._handleDragEnd, this);
-        this.on("mouseover", this._handleMouseOver, this);
-        this.on("mouseout", this._handleMouseOut, this);
+        this.on("pointerover", this._handleMouseOver, this);
+        this.on("pointerout", this._handleMouseOut, this);
         this.on("click", this._handleClick, this);
         this.on("dblclick", this._handleDblclick, this);
         this.on("contextmenu", this._handleContextMenu, this);
@@ -686,8 +717,44 @@ export const squadStratMarker = squadMarker.extend({
         this.setIcon(newIcon);
     },
 
-    // Catch this events so user can't place a target by mistake while trying move the strat marker
-    _handleClick: function(){},
+    /**
+     * Shells the active weapon's shell needs to destroy the structure this marker stands for (FOB radio, HAB, a
+     * deployable), in a popup; nothing for the markers the game data does not cover. Also catches the click so the
+     * user can't place a target by mistake while trying to move the strat marker.
+     */
+    _handleClick: function(){
+        if (this.structurePopup?.isOpen()) {
+            this.structurePopup.close();
+            return;
+        }
+        const content = this.formatStructurePopup();
+        if (!content) return;
+        this.structurePopup = new Popup({ autoClose: false, offset: [0, -10], className: "structurePopup" })
+            .setLatLng(this.getLatLng())
+            .setContent(content)
+            .openOn(this.map);
+    },
+
+    /**
+     * Content of the structure popup for the active weapon and shell
+     * @returns {string} - HTML, empty when the game data does not cover this marker for the weapon
+     */
+    formatStructurePopup: function(){
+        const line = describeStructure(this.icontype, App.activeWeapon);
+        if (!line) return "";
+        return `<span title="${i18next.t("tooltips:structureDamageDesc")}"><b>${i18next.t("common:structureShells")}</b><br>${line}</span>`;
+    },
+
+    /**
+     * Bring an open structure popup up to date after the weapon or the shell changed: new content, or closed when
+     * the active weapon has no figures for this structure
+     */
+    refreshStructurePopup: function(){
+        if (!this.structurePopup?.isOpen()) return;
+        const content = this.formatStructurePopup();
+        if (content) this.structurePopup.setContent(content);
+        else this.structurePopup.close();
+    },
     _handleDblclick: function(){},
 
     
@@ -717,6 +784,7 @@ export const squadStratMarker = squadMarker.extend({
         if (this.options.circles1Size) this.constructionRange.removeFrom(this.map.markersGroup).remove();
         if (this.options.circles2Size) this.exclusionRange.removeFrom(this.map.markersGroup).remove();           
         this.posPopUp.removeFrom(this.map.markersGroup).remove();
+        this.structurePopup?.close();
         this.off();
         this.removeFrom(this.map.markersGroup).removeFrom(this.map.activeMarkers);
 
@@ -736,6 +804,7 @@ export const squadStratMarker = squadMarker.extend({
 
     _handleDrag: function (event) {
         event = this.keepOnMap(event);
+        this.structurePopup?.close();
         this.setLatLng(event.latlng);
         if (this.options.circles1Size) this.constructionRange.setLatLng(event.latlng); 
         if (this.options.circles2Size) this.exclusionRange.setLatLng(event.latlng);
@@ -752,14 +821,14 @@ export const squadStratMarker = squadMarker.extend({
         }
 
         this.map.mouseLocationPopup.close();
-        this.map.off("mousemove", this.map._handleMouseMove);
+        this.map.off("pointermove", this.map._handleMouseMove);
         this.posPopUp.openOn(this.map);
     },
 
 
     _handleDragEnd: function () {
 
-        if (App.userSettings.keypadUnderCursor) this.map.on("mousemove", this.map._handleMouseMove);
+        if (App.userSettings.keypadUnderCursor) this.map.on("pointermove", this.map._handleMouseMove);
 
         this.isDragging = false;
         this.posPopUp.close();

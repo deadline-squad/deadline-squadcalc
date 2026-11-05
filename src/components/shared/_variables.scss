@@ -82,6 +82,15 @@ button:focus {
     outline: none;
 }
 
+// Keyboard focus only: a pointer click keeps the button as it was
+
+button:focus-visible,
+input[type="range"]:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px $mainColor;
+}
+
 
 // Text-Shadows/Ouline
 @mixin text-outline {

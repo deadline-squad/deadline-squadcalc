@@ -1,0 +1,42 @@
+fixture: 1574368 triangles, 20000 segments, window 300,-200,100, reference hits 15851
+JS exporter built the BVH in 3005 ms (1048575 nodes)
+WebGPU device: {"vendor":"google","architecture":"swiftshader","description":"","maxStorageBufferBindingSize":1073741824,"maxComputeInvocationsPerWorkgroup":256}
+PASS  real WebGPU adapter acquired in headless Chromium (software Vulkan)
+PASS  tint (Chromium WebGPU) compiles trace.wgsl + heatmap.wgsl with 0 messages
+float64 JS BVH traversal of 20000 segments: 983 ms
+JS f64 BVH vs python reference: both hit 15851, both miss 4147, hit/no-hit disagreements 2, max |dt| 1.24e+1 m, triangle id differs at equal t (<1 mm) 11, at different t 20
+GPU f32 vs python reference: both hit 15844, both miss 4133, hit/no-hit disagreements 23, max |dt| 1.24e+1 m, triangle id differs at equal t (<1 mm) 10, at different t 20
+adjudication by float64 brute force over all 1574368 triangles: 43 disputed segments; wrong against brute force: python reference 22, JS f64 BVH 0, GPU f32 21
+  GPU grazing {"segment":750,"kind":"GPU hit, truth miss","tri":1433574,"tTruth":null,"tGpu":1,"missByMetres":0.000002000773346097447,"tToEndMetres":16.940053697441698}
+  GPU grazing {"segment":2064,"kind":"GPU miss, truth hit","tri":1180025,"tTruth":0.9999999774809245,"tGpu":null,"missByMetres":0,"tToEndMetres":0.0000011244409221356002}
+  GPU grazing {"segment":2731,"kind":"GPU miss, truth hit","tri":593854,"tTruth":0.9999999966554148,"tGpu":null,"missByMetres":0,"tToEndMetres":2.3035810388036526e-7}
+  GPU grazing {"segment":2930,"kind":"GPU miss, truth hit","tri":1521490,"tTruth":1,"tGpu":null,"missByMetres":0,"tToEndMetres":0}
+  GPU grazing {"segment":3004,"kind":"GPU hit, truth miss","tri":1474972,"tTruth":null,"tGpu":1,"missByMetres":0.00000683561839882621,"tToEndMetres":37.98714466167483}
+  GPU grazing {"segment":3153,"kind":"GPU hit, truth miss","tri":1361383,"tTruth":null,"tGpu":1,"missByMetres":2.2199684770677194e-7,"tToEndMetres":14.397455258342209}
+  GPU grazing {"segment":4793,"kind":"GPU hit, truth miss","tri":1170897,"tTruth":null,"tGpu":0.9999999403953552,"missByMetres":5.569492358603587e-7,"tToEndMetres":19.09018944898734}
+  GPU grazing {"segment":5565,"kind":"GPU hit, truth miss","tri":1463524,"tTruth":null,"tGpu":0.9999998807907104,"missByMetres":9.514988460975626e-7,"tToEndMetres":23.41288780321986}
+  GPU grazing {"segment":6387,"kind":"GPU hit, truth miss","tri":933386,"tTruth":null,"tGpu":1,"missByMetres":0.000015267494300963067,"tToEndMetres":29.630034363607912}
+  GPU grazing {"segment":6751,"kind":"GPU hit, truth miss","tri":1131392,"tTruth":null,"tGpu":0.9999995827674866,"missByMetres":0.000003621743779631016,"tToEndMetres":35.71618804632946}
+  GPU grazing {"segment":7599,"kind":"GPU hit, truth miss","tri":1500966,"tTruth":null,"tGpu":1,"missByMetres":0.000014098038376337003,"tToEndMetres":37.084147776859226}
+  GPU grazing {"segment":9338,"kind":"GPU hit, truth miss","tri":1442604,"tTruth":null,"tGpu":1,"missByMetres":9.456138165633624e-7,"tToEndMetres":27.597678587596423}
+  GPU grazing {"segment":9503,"kind":"GPU miss, truth hit","tri":1247951,"tTruth":1,"tGpu":null,"missByMetres":0,"tToEndMetres":0}
+  GPU grazing {"segment":10855,"kind":"GPU hit, truth miss","tri":481237,"tTruth":null,"tGpu":1,"missByMetres":0.00000790664873583396,"tToEndMetres":17.257138162918434}
+  GPU grazing {"segment":11461,"kind":"GPU hit, truth miss","tri":1070785,"tTruth":null,"tGpu":0.9999998807907104,"missByMetres":4.991272058495494e-9,"tToEndMetres":10.355398334169495}
+  GPU grazing {"segment":12055,"kind":"GPU hit, truth miss","tri":1104596,"tTruth":null,"tGpu":1,"missByMetres":0.0000057560140805578126,"tToEndMetres":27.07898894665386}
+  GPU grazing {"segment":12196,"kind":"GPU miss, truth hit","tri":1375202,"tTruth":0.9999998104170985,"tGpu":null,"missByMetres":0,"tToEndMetres":0.0000021040400500845164}
+  GPU grazing {"segment":14487,"kind":"GPU miss, truth hit","tri":1215878,"tTruth":1,"tGpu":null,"missByMetres":0,"tToEndMetres":0}
+  GPU grazing {"segment":16014,"kind":"GPU miss, truth hit","tri":585578,"tTruth":0.999999947052289,"tGpu":null,"missByMetres":0,"tToEndMetres":0.000001835053687280698}
+  GPU grazing {"segment":17273,"kind":"GPU hit, truth miss","tri":1193990,"tTruth":null,"tGpu":0.9999999403953552,"missByMetres":0.0000034614438992166224,"tToEndMetres":8.644962835880929}
+  GPU grazing {"segment":18524,"kind":"GPU hit, truth miss","tri":1415076,"tTruth":null,"tGpu":1,"missByMetres":0.000001570285023673578,"tToEndMetres":48.21727004715195}
+GPU f32 vs exact: 19979 of 20000 segments agree; 21 grazing (largest numeric margin 1.53e-5 m), 0 real errors
+PASS  BVH + exporter layout: f64 traversal equals brute force on every disputed segment
+PASS  GPU: every disagreement with the exact result is a grazing hit below 1 mm
+throughput (trace_segments, 200000 segments, kernel submit->done, runs ms 9787,10301,10005): 20436 segments/s on swiftshader (google)
+trajectories: 1500 x 16 chords, 739 occluded by the f64 CPU, 0 first-occluded-segment mismatches []
+PASS  trace_trajectories matches the f64 first occluded segment (0 mismatches)
+2-chunk accumulate vs single BVH on the GPU: 0 segments differ
+PASS  multi-chunk split over two BVHs gives the single-BVH result
+heatmap: 784 candidates x 2 arcs (clear 826, blocked 742, unreachable 0), 248 ms, state mismatches vs f64 CPU 0 [], max clearance diff 6.80e-5 m
+PASS  heatmap cells match the f64 CPU mirror (state, clearance, weight)
+
+all checks passed

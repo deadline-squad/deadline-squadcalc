@@ -19,6 +19,7 @@
     "weaponOptions": "Weapons Options",
         "weaponDrag": "Keypads while dragging",
         "realMaxRange": "Use Real Max Range",
+        "volumeLayer": "Object volumes in the line of fire (downloads 1 to 62 MB of map data)",
         "moddedWeapons": "Enable modded weapons",
         "SuperMod": "SuperMod",
         "InfiniteWarefare": "Infinite Warefare",

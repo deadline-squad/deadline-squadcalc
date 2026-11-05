@@ -55,6 +55,44 @@
   [Check out the Wiki](https://github.com/sh4rkman/SquadCalc/wiki/Deducing-Altitude) to understand how it works.
 
   </br>
+
+  The calculator has 25 maps, and the heights of every one are built from the Squad dedicated server files (the accuracy figures of `tools/heightmaps` apply).
+
+  The grid is the game's: 300 m keypads with 3 x 3 sub-keypads, starting (A1) at the north-west corner of the minimap of the loaded layer (`MapTextureCorner0/1` of the layer's `SQWorldSettings`, `SDK_data.minimap.game` in `src/data/maps.js` without a layer). Skirmish and Seed layers have a minimap of their own, so their grid starts at its corner, not at the map's.
+
+  </br>
+</details>
+
+<details>
+  <summary><b>Object volumes in the line of fire</b></summary>
+  </br>
+  The heightmap holds one height per cell, so a doorway or an open window looks like solid wall, and trees are missing.
+  With <i>Object volumes in the line of fire</i> turned on in the settings (off by default), the obstacle check of a direct-fire weapon and the fire coverage test the shell against the voxel columns of the buildings, walls, bridges and trees instead: a shot passes through an open window or doorway (a door is either open or absent, so a doorway is always a hole), and is stopped by a closed window, a wall or a tree. No penetration is computed.
+  All 25 maps have volume files: 0.1 to 48.6 MB per map (Yehorivka, Harju, Gorodok and Chora are over 36 MB) plus 0.4 to 13.0 MB of landscape heights, 1.3 to 61.6 MB in all (table in <a href="./engine/README.md">engine/README.md</a>), and the 0.4 MB WebAssembly engine; they are downloaded only when the setting is on; otherwise, and when anything fails to load, the heightmap is used as before. Details and accuracy: <a href="./engine/README.md">engine/README.md</a>.
+
+  </br>
+</details>
+
+<details>
+  <summary><b>Firing positions and the damage zone with cover</b></summary>
+  </br>
+  With <i>Object volumes in the line of fire</i> on, a map that has volume files and a direct-fire weapon (one with a sight and a spread) selected, the target dialog has a <i>Firing positions</i> button. It draws on the map the ground positions, up to the weapon's range (at most 2000 m), from where a shooter has a clear line of fire to the target at the height chosen for it (a floor, a window, a roof, or the ground). Green is a close position with room around the line, amber a far one or one where the line passes close to an obstacle, faint red a blocked one. The score counts the distance (a far position stays viable) and the clearance of the line of fire around obstacles, as wide as the weapon's spread. The line is the weapon's low trajectory from the muzzle; open windows and doorways let it through, closed windows and walls stop it, and no penetration is computed. It is off by default, loaded only when the button is pressed, and computed in the background.
+  </br></br>
+  The voxel walk errs on the side of blocking. Where the target lies at least 50 m inside the square of a <i>precision region</i> (the exact collision triangles of 150 m around a target, 0.1 to 5 MB, published for a few targets only, currently one on Jensen) the legend says <i>Exact triangles within N m of the target, voxels beyond</i> and the lines of fire that pass close to geometry within that square are decided by the exact triangles; otherwise it says <i>Voxels only</i>. Measured against the exact triangle tracer on a target in a Jensen building: no false clear and no false blocked position with the region, 1 and 275 (2 and 1 337 at another height) of 31 560 without it. Details, timings per map and the method: <a href="./engine/README.md">engine/README.md</a>.
+  </br></br>
+  The damage zone drawn around a target (the red, orange and blue circles of the explosion) uses the voxels as cover when the same setting is on: a soldier behind a wall is covered, one in line with an open doorway or window is not, and the round lands at the height chosen for the target.
+
+  </br>
+</details>
+
+<details>
+  <summary><b>Target heights and structure damage</b></summary>
+  </br>
+  With <i>Object volumes in the line of fire</i> on and a map that has volume files, clicking a target opens its dialog with a <i>Target height</i> list: the floors, ceilings, roof, windows and doorways found by a vertical ray through the voxel column at the target (open windows and doorways are holes, closed windows are solid, a door is open or absent; they are recognised from the shape of the walls). The chosen height is used for the elevation, the height difference and the line-of-fire check, and shows in the target's popup. <i>Ground</i>, the default, is the heightmap's height as before.
+  </br></br>
+  Clicking a deployable marker (FOB radio, HAB, mortar, HMG, GMG, AA gun, ammo crate, repair station) shows how many shells of the selected ammunition destroy it from full health; the target dialog shows the same for a target within 5 m of such a marker. Health, damage-type multipliers and the way the game applies them to a structure (minimum damage, direct hit against near miss, distance from the burst) are the game's, read from the server code; the impact of a direct hit and the mortars' secondary explosion are inferred. Nothing is measured in game. Armour-piercing and machine-gun rounds do no structure damage. Method and data: <code>tools/volumetric/docs/structure-damage.md</code> of the deployment repository.
+
+  </br>
 </details>
 
 <details>

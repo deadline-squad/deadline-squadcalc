@@ -1,6 +1,8 @@
 import {Icon, ImageOverlay, TileLayer, Map, CRS, SVG, Util, LayerGroup, Popup, LatLngBounds, LatLng, Browser } from "leaflet";
 import squadGrid from "./squadGrid.js";
 import squadHeightmap from "./squadHeightmaps.js";
+import SquadCoverage from "./squadCoverage.js";
+import SquadVolume from "./squadVolume.js";
 import { App } from "../app.js";
 import { squadWeaponMarker } from "./squadMarker.js";
 import { squadTargetMarker } from "./squadTargetMarker.js";
@@ -16,7 +18,31 @@ import "tippy.js/dist/tippy.css";
 import "./libs/leaflet-edgebuffer.js";
 import "./libs/leaflet-spin.js";
 import "./libs/leaflet-imageoverlay-rotated.js";
+import { notifyBridgeChange } from "./smcConnector.js";
+import { createReliefLayer } from "./squadReliefLayer.js";
 
+
+// Ctrl + double-click marks a burst for the nearest target within this distance, in meters
+const IMPACT_MAX_DISTANCE = 200;
+
+// Deepest zoom of the map images served by the upstream API
+const DEFAULT_MAX_ZOOM = 8;
+
+// Zoom levels the detailed layer allows beyond its finest tiles (Leaflet scales those up)
+const DETAILED_EXTRA_ZOOM = 2;
+// Layer value and tile folder suffix of the detailed layer in the game's colours (tools/maptiles, style "colour")
+const COLOUR_LAYER = "detailed-colour";
+const COLOUR_SUFFIX = "-colour";
+// Maps that have those tiles (a map without them is not asked for a meta.json that does not exist)
+const COLOUR_MAPS = ["albasrah", "fallujah", "gorodok"];
+// Layer value of the shaded relief (tools/maptiles/py/relief.py), one PMTiles archive per map in /maptiles/relief/
+const RELIEF_LAYER = "relief";
+// Maps that have an archive (a map without one is not asked for a file that does not exist)
+const RELIEF_MAPS = [
+    "albasrah", "anvil", "blackcoast", "chora", "fallujah", "foolsroad", "goosebay", "gorodok", "harju", "jensen",
+    "kamdesh", "kohat", "kokan", "lashkar", "logar", "manicouagan", "mestia", "mutaha", "narva", "pacific",
+    "sanxian", "skorpo", "sumari", "tallil", "yehorivka",
+];
 
 /**
  * Squad Minimap
@@ -42,7 +68,7 @@ export const squadMinimap = Map.extend({
             closePopupOnClick: false,
             crs: CRS.Simple,
             doubleClickZoom: false,
-            maxZoom: 8,
+            maxZoom: DEFAULT_MAX_ZOOM,
             minZoom: 1,
             renderer: new SVG({ padding: 3}),
             zoom: 2,
@@ -64,6 +90,11 @@ export const squadMinimap = Map.extend({
         this.spinOptions = {color: "white", scale: 1.5, width: 5, shadow: "5px 5px 5px transparent"};
         this.activeTargetsMarkers = new LayerGroup().addTo(this);
         this.activeWeaponsMarkers = new LayerGroup().addTo(this);
+        this.volume = new SquadVolume(this);
+        this.coverage = new SquadCoverage(this);
+        // The reverse-position heatmap (squadPositionHeatmap.js), created by the target dialog's button on demand
+        this.positionHeatmap = null;
+        $(document).on("heightmap:loaded", () => this._handleHeightmapLoaded());
         this.targetGrids = new LayerGroup().addTo(this);
         this.activeMarkers = new LayerGroup().addTo(this);
         this.activeArrowsGroup = new LayerGroup().addTo(this);
@@ -75,6 +106,9 @@ export const squadMinimap = Map.extend({
         this.activeCircles = [];
         this.activePolylines = [];
         this.layerGroup = new LayerGroup().addTo(this);
+        // Requests for the detailed tiles' meta.json by tile folder, and the number of the latest layer change
+        this.detailedTiles = {};
+        this.layerRequest = 0;
         this.markersGroup = new LayerGroup().addTo(this);
         this.history = [];
         this.mouseLocationPopup = new Popup({
@@ -122,12 +156,18 @@ export const squadMinimap = Map.extend({
      */
     draw: function(){
 
+        // The map image is a square of pixelSize units spanning the minimap corners, which are not
+        // square on every map (Skorpo 6849 x 6869 m): lng (world X) and lat (world Y) have their own
+        // scale. A distance in meters is converted with toMeters/fromMeters; the X scale alone only
+        // sizes round shapes (range rings, radii), where the difference is under 0.3 %.
         this.gameToMapScale = this.pixelSize / this.activeMap.size;
         this.gameToMapScaleY = this.pixelSize / this.activeMap.sizeY;
         this.mapToGameScale = this.activeMap.size / this.pixelSize;
+        this.mapToGameScaleY = this.activeMap.sizeY / this.pixelSize;
         this.detailedZoomThreshold = ( 3 + (this.activeMap.size / 7000) ) * 0.8;
        
-        // Load Heightmap
+        // Load Heightmap (stop loading the previous map's one)
+        this.heightmap?.dispose();
         this.heightmap = new squadHeightmap(this);
 
         // remove existing grid and replace it
@@ -135,6 +175,7 @@ export const squadMinimap = Map.extend({
         if (this.layer) this.layer = "";
 
         this.grid = new squadGrid(this, {opacity: App.userSettings.gridOpacity}).addTo(this.layerGroup);
+        this.grid.setOrigin(this.activeMap.gridOffset);
         this.grid.setBounds([[0,0], [-this.pixelSize, this.pixelSize]]);
 
         // load map
@@ -143,64 +184,195 @@ export const squadMinimap = Map.extend({
 
 
     /**
-     * remove existing layer and replace it
+     * Remove the existing map image and replace it with the one of the layer selected in #mapLayerMenu:
+     * an upstream image (basemap, terrainmap, topomap) or the detailed tactical tiles of this deployment
+     * (see showDetailedLayer)
+     * @param {boolean} [changemap] - the map changed: also redraw the grid and the heatmap
      */
     changeLayer: function(changemap = false) {
         const LAYERMODE = $("#mapLayerMenu .active").attr("value");
         const OLDLAYER = this.activeLayer;
+        const request = ++this.layerRequest;
 
         // Show spinner
         this.spin(true, this.spinOptions);
 
-        let imagePath = `${this.activeMap.mapURL}${LAYERMODE}`;
+        if (LAYERMODE === "detailed" || LAYERMODE === COLOUR_LAYER) {
+            this.showDetailedLayer(OLDLAYER, request, LAYERMODE === COLOUR_LAYER ? COLOUR_SUFFIX : "");
+        } else if (LAYERMODE === RELIEF_LAYER) {
+            this.showReliefLayer(OLDLAYER, request);
+        } else {
+            this.setMaxZoom(DEFAULT_MAX_ZOOM);
+            this.showMapImage(this.upstreamLayer(LAYERMODE), OLDLAYER);
+        }
 
+        // Show grid and heatmap
+        if (changemap) {
+            this.updateColourLayerButton();
+            this.updateReliefLayerButton();
+            if (App.userSettings.grid) this.showGrid();
+            this.toggleHeatmap();
+        }
+
+    },
+
+
+    /**
+     * Map image of an upstream layer from the SquadCalc API
+     * @param {string} layerMode - basemap, terrainmap or topomap
+     * @returns {TileLayer|ImageOverlay} - 256 px tiles (zoom 0..5) in high quality mode, else one image
+     */
+    upstreamLayer: function(layerMode) {
+        const imagePath = `${process.env.API_URL}${this.activeMap.mapURL}${layerMode}`;
         if (App.userSettings.highQualityImages) {
-            // Use TileLayer for high-quality images
-            let tilePath = `${process.env.API_URL}${imagePath}_hq/{z}_{x}_{y}.webp`;
-            this.activeLayer = new TileLayer(tilePath, {
+            return new TileLayer(`${imagePath}_hq/{z}_{x}_{y}.webp`, {
                 bounds: this.imageBounds,
                 minNativeZoom: 0,
                 maxNativeZoom : 5,
                 edgeBufferTiles: 4,
                 tileSize: 256,
             });
-            this.activeLayer.addTo(this.layerGroup);
-        } else {
-            // Use ImageOverlay for standard images
-            imagePath = `${process.env.API_URL}${imagePath}.webp`;
-            this.activeLayer = new ImageOverlay(imagePath, this.imageBounds);
-            this.activeLayer.addTo(this.layerGroup);
-            $(this.activeLayer.getElement()).css("opacity", 0);
         }
-    
+        // Decoded off the main thread: the 4096 px webp blocked it for 230-710 ms when the browser decoded
+        // it as the image joined the page
+        return new ImageOverlay(`${imagePath}.webp`, this.imageBounds, { decoding: "async" });
+    },
 
-        this.activeLayer.once("load", () => {
-            if (App.userSettings.highQualityImages) {
-                if (OLDLAYER) OLDLAYER.remove();
+
+    /**
+     * Show the detailed tactical map of the active map: 256 px webp tiles generated from the game files
+     * (terrain cover, hillshade, contours, foliage, buildings; tools/maptiles in the deployment repository),
+     * served by this deployment in /maptiles/<map>/ with their meta.json ({maxNativeZoom, generated, ...}).
+     * The map may then zoom DETAILED_EXTRA_ZOOM levels past the finest tiles. A map without tiles shows the
+     * upstream topographic map instead; a map without tiles in the game's colours shows the detailed map.
+     * @param {TileLayer|ImageOverlay} [oldLayer] - layer to remove once the new one loaded
+     * @param {number} request - number of this layer change; a later change or map switch wins
+     * @param {string} [suffix] - COLOUR_SUFFIX for the tiles in the game's colours (/maptiles/<map>-colour/)
+     */
+    showDetailedLayer: function(oldLayer, request, suffix = "") {
+        const mapName = this.activeMap.mapURL.split("/").filter(Boolean).pop();
+        const available = !suffix || COLOUR_MAPS.includes(mapName);
+        (available ? this.detailedMeta(mapName + suffix) : Promise.resolve(null)).then((meta) => {
+            if (request !== this.layerRequest) return;
+            if (!meta && suffix) {
+                console.warn(`[MAP] No tiles in the game's colours for ${mapName}, showing the detailed map`);
+                $("#mapLayerMenu").find(".layers").removeClass("active");
+                $(".btn-detailed").addClass("active");
+                this.showDetailedLayer(oldLayer, request);
+                return;
+            }
+            if (!meta) {
+                console.warn(`[MAP] No detailed tiles for ${mapName}, showing the topographic map`);
+                this.setMaxZoom(DEFAULT_MAX_ZOOM);
+                this.showMapImage(this.upstreamLayer("topomap"), oldLayer);
+                return;
+            }
+            const version = encodeURIComponent(meta.generated);
+            this.setMaxZoom(Math.max(DEFAULT_MAX_ZOOM, meta.maxNativeZoom + DETAILED_EXTRA_ZOOM));
+            this.showMapImage(new TileLayer(`/maptiles/${mapName}${suffix}/{z}/{x}_{y}.webp?v=${version}`, {
+                bounds: this.imageBounds,
+                minNativeZoom: meta.minNativeZoom,
+                maxNativeZoom: meta.maxNativeZoom,
+                edgeBufferTiles: 1,
+                tileSize: meta.tileSize,
+            }), oldLayer);
+        });
+    },
+
+
+    /**
+     * Show the shaded relief of the active map, read from its PMTiles archive (squadReliefLayer.js; the archive and
+     * the PMTiles reader are downloaded now, not before). A map without an archive, or an archive that cannot be
+     * read, shows the detailed map.
+     * @param {TileLayer|ImageOverlay} [oldLayer] - layer to remove once the new one loaded
+     * @param {number} request - number of this layer change; a later change or map switch wins
+     */
+    showReliefLayer: function(oldLayer, request) {
+        const mapName = this.activeMap.mapURL.split("/").filter(Boolean).pop();
+        const fallback = (reason) => {
+            if (request !== this.layerRequest) return;
+            console.warn(`[MAP] No relief for ${mapName} (${reason}), showing the detailed map`);
+            $("#mapLayerMenu").find(".layers").removeClass("active");
+            $(".btn-detailed").addClass("active");
+            this.showDetailedLayer(oldLayer, request);
+        };
+        if (!RELIEF_MAPS.includes(mapName)) {
+            fallback("no archive");
+            return;
+        }
+        createReliefLayer(`/maptiles/relief/${mapName}.pmtiles`, this.imageBounds).then((layer) => {
+            if (request !== this.layerRequest) return;
+            this.setMaxZoom(Math.max(DEFAULT_MAX_ZOOM, layer.options.maxNativeZoom + DETAILED_EXTRA_ZOOM));
+            this.showMapImage(layer, oldLayer);
+        }).catch((error) => fallback(error.message));
+    },
+
+
+    /**
+     * Show the button of the relief layer only on maps that have an archive (RELIEF_MAPS)
+     */
+    updateReliefLayerButton: function() {
+        const mapName = this.activeMap.mapURL.split("/").filter(Boolean).pop();
+        const available = RELIEF_MAPS.includes(mapName);
+        $(`.btn-${RELIEF_LAYER}`).toggle(available).data("unavailable", !available);
+    },
+
+
+    /**
+     * meta.json of a folder of detailed tiles, requested once per folder
+     * @param {string} folder - folder in /maptiles/ (the map name, or the map name with COLOUR_SUFFIX)
+     * @returns {Promise<object|null>} - the parsed meta.json, null when the folder does not exist
+     */
+    detailedMeta: function(folder) {
+        if (!this.detailedTiles[folder]) {
+            this.detailedTiles[folder] = fetch(`/maptiles/${folder}/meta.json`, { cache: "no-cache" })
+                .then((response) => response.ok ? response.json() : null)
+                .catch(() => null);
+        }
+        return this.detailedTiles[folder];
+    },
+
+
+    /**
+     * Show the button of the detailed layer in the game's colours only on maps that have its tiles (COLOUR_MAPS)
+     */
+    updateColourLayerButton: function() {
+        const mapName = this.activeMap.mapURL.split("/").filter(Boolean).pop();
+        const available = COLOUR_MAPS.includes(mapName);
+        $(`.btn-${COLOUR_LAYER}`).toggle(available).data("unavailable", !available);
+    },
+
+
+    /**
+     * Add a map image under the markers and remove the previous one once it loaded; a single image fades in
+     * @param {TileLayer|ImageOverlay} layer - new map image
+     * @param {TileLayer|ImageOverlay} [oldLayer] - previous map image
+     */
+    showMapImage: function(layer, oldLayer) {
+        this.activeLayer = layer;
+        layer.addTo(this.layerGroup);
+        const tiled = layer instanceof TileLayer;
+        if (!tiled) $(layer.getElement()).css("opacity", 0);
+
+        layer.once("load", () => {
+            if (tiled) {
+                if (oldLayer) oldLayer.remove();
                 this.spin(false);
             }
             else {
                 // Animate the opacity of the new layer
-                $(this.activeLayer.getElement()).fadeTo(700, 1, () => {
-                    if (OLDLAYER) OLDLAYER.remove();
+                $(layer.getElement()).fadeTo(700, 1, () => {
+                    if (oldLayer) oldLayer.remove();
                     this.spin(false);
                 });
             }
         });
 
-        this.activeLayer.once("error", (e) => {
+        layer.once("error", (e) => {
             console.error("Error loading", e.sourceTarget._url);
-            if (OLDLAYER) OLDLAYER.remove();
+            if (oldLayer) oldLayer.remove();
             this.spin(false);
         });
-
-
-        // Show grid and heatmap
-        if (changemap) {
-            if (App.userSettings.grid) this.showGrid();
-            this.toggleHeatmap();
-        }
-
     },
 
 
@@ -210,6 +382,11 @@ export const squadMinimap = Map.extend({
     toggleHeatmap: function(){
 
         if ($(".btn-helpmap").hasClass("active")){
+            // The API only knows the weapons it collected data for
+            if (!App.activeWeapon.heatmap) {
+                if (this.heatmap) this.removeLayer(this.heatmap);
+                return;
+            }
             this.spin(true, this.spinOptions);
             if (this.heatmap) this.heatmap.remove();
             fetchMarkersByMap(this.activeMap.name, App.activeWeapon.name)
@@ -268,6 +445,8 @@ export const squadMinimap = Map.extend({
         this.activeCircles = [];
 
         if (this.layer) this.layer.clear();
+        this.coverage.clear();
+        this.positionHeatmap?.hide();
 
         // Empty and clear buttons of DOM elements
         $(".dropbtn8, .dropbtn9, .dropbtn10, .dropbtn11").empty();
@@ -288,6 +467,24 @@ export const squadMinimap = Map.extend({
             target.updateCalc(copy);
             target.updateIcon();
         });
+        // Weapon moved, deleted or raised: recomputed only if its inputs changed
+        this.coverage.update();
+        this.positionHeatmap?.update();
+        notifyBridgeChange();
+    },
+
+
+    /**
+     * The heights of the active map arrived or failed to load (squadHeightmap, `heightmap:loaded`):
+     * weapons and targets placed while they loaded were solved on flat ground, so solve them again with
+     * the real heights, or mark them as having no height data.
+     */
+    _handleHeightmapLoaded: function(){
+        if (!this.activeWeaponsMarkers.getLayers().length) return;
+        if (App.userSettings.realMaxRange) {
+            this.activeWeaponsMarkers.eachLayer((weapon) => weapon.updateWeaponMaxRange());
+        }
+        this.updateTargets();
     },
 
 
@@ -409,6 +606,36 @@ export const squadMinimap = Map.extend({
         this.activeWeaponsMarkers.eachLayer(function (weapon) {
             weapon.updateWeapon();
         });
+        this.coverage.update();
+    },
+
+
+    /**
+     * Offset in meters from one point of the map to another, each axis with its own scale
+     * @param {LatLng|{lat: number, lng: number}} origin
+     * @param {LatLng|{lat: number, lng: number}} latlng
+     * @returns {{east: number, north: number}} - meters towards east (world +X) and north (world -Y)
+     */
+    toMeters: function(origin, latlng) {
+        return {
+            east: (latlng.lng - origin.lng) * this.mapToGameScale,
+            north: (latlng.lat - origin.lat) * this.mapToGameScaleY,
+        };
+    },
+
+
+    /**
+     * Point at an offset in meters from another (inverse of toMeters)
+     * @param {LatLng|{lat: number, lng: number}} origin
+     * @param {number} east - meters towards east (world +X)
+     * @param {number} north - meters towards north (world -Y)
+     * @returns {{lat: number, lng: number}}
+     */
+    fromMeters: function(origin, east, north) {
+        return {
+            lat: origin.lat + north / this.mapToGameScaleY,
+            lng: origin.lng + east / this.mapToGameScale,
+        };
     },
 
 
@@ -422,7 +649,7 @@ export const squadMinimap = Map.extend({
     getKP: function(lat, lng, precision = Math.round(this.getZoom())) {
         // to minimize confusion
         const x = lng * this.mapToGameScale;
-        const y = lat * this.mapToGameScale;
+        const y = lat * this.mapToGameScaleY;
         const kp = 300 / 3 ** 0; // interval of main keypad, e.g "A5"
         const kpNumber = `0000${Math.floor(y / kp) + 1}`.slice(-2);
         const s1 = 300 / 3 ** 1; // interval of first sub keypad
@@ -520,6 +747,7 @@ export const squadMinimap = Map.extend({
             );
         }
 
+        this.coverage.update();
     },
 
     /**
@@ -533,23 +761,6 @@ export const squadMinimap = Map.extend({
 
         let target = new squadTargetMarker(latlng, {animate: App.userSettings.targetAnimation, uid: uid, skipApiReport: skipApiReport}, this).addTo(this.markersGroup);
         
-        const weaponLatlng = this.activeWeaponsMarkers.getLayers()[0]?.getLatLng();
-        if (weaponLatlng) {
-            const wJson = this.heightmap.getHeightOLD(weaponLatlng);
-            const tJson = this.heightmap.getHeightOLD(latlng);
-            const wPng  = this.heightmap.getHeight(weaponLatlng);
-            const tPng  = this.heightmap.getHeight(latlng);
-            const dJson = tJson - wJson;
-            const dPng  = tPng  - wPng;
-            const f = v => v.toFixed(1);
-            const absDiff = Math.abs(dJson - dPng);
-            const diffIcon = absDiff < 1 ? "✅" : absDiff < 3 ? "⚠️" : "⛔";
-            const diffLabel = `${diffIcon} ${f(dJson - dPng)}`;
-            console.debug(
-                `[HEIGHTMAP] Old : ${f(dJson)} New : ${f(dPng)} \n` +
-                `[HEIGHTMAP] ${diffLabel}`
-            );
-        }
         if (!uid && App.session.ws && App.session.ws.readyState === WebSocket.OPEN) {
             console.debug("[SESSION] sending new target with uid", target.uid);
             App.session.ws.send(
@@ -568,9 +779,12 @@ export const squadMinimap = Map.extend({
         $(".btn-delete, .btn-undo").show();
 
         if (App.userSettings.targetAnimation){
-            if (this.activeWeaponsMarkers.getLayers().length === 1) {
-                if (isNaN(target.firingSolution1.elevation.high.rad)) return;
-            } else if (isNaN(target.firingSolution1.elevation.high.rad) && isNaN(target.firingSolution2.elevation.high.rad)) {
+            // Same angle as the target icon: each weapon marker has its own (user-switchable) angle type
+            const weapons = this.activeWeaponsMarkers.getLayers();
+            const unreachable1 = isNaN(target.firingSolution1.elevation[weapons[0].angleType].rad);
+            if (weapons.length === 1) {
+                if (unreachable1) return;
+            } else if (unreachable1 && isNaN(target.firingSolution2.elevation[weapons[1].angleType].rad)) {
                 return;
             } 
             setTimeout(() => {
@@ -653,7 +867,34 @@ export const squadMinimap = Map.extend({
             return 0;
         }
 
+        // Ctrl (Cmd) + double-click: a round burst here, correct the fire on the nearest target
+        if (event.originalEvent?.ctrlKey || event.originalEvent?.metaKey) {
+            this.nearestTarget(event.latlng, IMPACT_MAX_DISTANCE)?.addImpact(event.latlng);
+            return 0;
+        }
+
         this.createTarget(event.latlng, event);
+    },
+
+
+    /**
+     * Target marker closest to a point
+     * @param {LatLng} latlng
+     * @param {number} maxDistance - meters; farther targets are ignored
+     * @returns {squadTargetMarker|null}
+     */
+    nearestTarget: function(latlng, maxDistance) {
+        let nearest = null;
+        let best = maxDistance;
+        this.activeTargetsMarkers.eachLayer((target) => {
+            const { east, north } = this.toMeters(latlng, target.getLatLng());
+            const distance = Math.hypot(east, north);
+            if (distance <= best) {
+                best = distance;
+                nearest = target;
+            }
+        });
+        return nearest;
     },
 
 
@@ -719,7 +960,6 @@ export const squadMinimap = Map.extend({
         let iconSizeValue = 20 + (markerSizeSetting - 1) * 5;
         let iconSize = [iconSizeValue, iconSizeValue];
 
-        // Not Working TODO: fix
         if (icon === "deployable_mortars" || icon === "deployable_hellcannon") {
             let range = 0;
             if (icon === "deployable_mortars") range = 1237;
@@ -840,7 +1080,7 @@ export const squadMinimap = Map.extend({
         const handleClick = () => {
             if (isDrawing && circle) {
                 isDrawing = false;
-                this.off("mousemove", handleMouseMove);
+                this.off("pointermove", handleMouseMove);
     
                 //if (!circle.uid) circle.uid = uuidv4();
     

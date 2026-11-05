@@ -19,6 +19,7 @@
     "weaponOptions": "Options des armes",
     "weaponDrag": "Grille pendant le déplacement",
     "realMaxRange": "Utiliser la portée maximale réelle",
+    "volumeLayer": "Volumes des objets dans la ligne de tir (télécharge 1 à 62 Mo de données de carte)",
     "moddedWeapons": "Activer les armes moddées",
     "SuperMod": "SuperMod",
     "InfiniteWarefare": "Infinite Warefare",
@@ -72,7 +73,6 @@
     "changelog": "Journal des modifications",
     "changelogTitle": "Journal des modifications",
     "github": "Voir le code sur Github",
-    "bug": "Signaler un bug",
     "discord": "Discord Officiel",
     "wiki": "Wiki"
 }

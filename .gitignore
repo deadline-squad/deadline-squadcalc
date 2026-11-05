@@ -13,3 +13,4 @@ maintenance.enable
 .claude/
 .agents/
 skills-lock.json
+public/engine/

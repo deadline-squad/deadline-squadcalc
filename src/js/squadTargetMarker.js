@@ -1,24 +1,134 @@
 
 import { App } from "../app.js";
-import { CircleMarker, Polyline, Polygon, Popup, Icon } from "leaflet";
+import { CircleMarker, Polyline, Polygon, Popup, Icon, ImageOverlay, LatLngBounds } from "leaflet";
 import SquadSimulation from "./squadSimulation.js";
 import SquadFiringSolution from "./squadFiringSolution.js";
 import TargetGrid from "./squadTargetGrid.js";
 import { sendTargetData } from "./squadCalcAPI.js";
 import { Ellipse } from "./libs/leaflet-ellipse.js";
 import { squadMarker } from "./squadMarker.js";
+import { damageField, hitProbability, roundsNeeded, KILL_DAMAGE, WOUND_DAMAGE } from "./squadDamage.js";
+import { notifyBridgeChange } from "./smcConnector.js";
+import { popupContent, formatHeightChoice } from "./targetPopup.js";
+import { findNearbyStructure, describeStructure } from "./structureInfo.js";
+import { MIN_OPENING, keptHeightChoice } from "./targetHeights.js";
 import i18next from "i18next";
 
 const CARPET_MAX_TARGETS = 10;
 const GRID_MAX_SIDE = 5;
 
+// Damage zone with cover: RGBA of the cells where a round on the target kills, wounds, or would
+// wound a soldier hidden by the terrain or a building
+const COVER_COLORS = {
+    kill: [231, 76, 60, 120],
+    wound: [243, 156, 18, 80],
+    covered: [52, 152, 219, 140],
+};
+
+// Grid step of the damage zone, in meters: finer for small explosions, coarser above COARSE_RADIUS
+const COVER_CELL = 0.5;
+const COVER_CELL_COARSE = 1;
+const COARSE_RADIUS = 30;
+
+// Stacking of the damage zone image in the overlay pane: above the map image and the fire coverage
+// (SquadCoverage), which are image overlays too, below the SVG of the markers' circles (z-index 200)
+const COVER_ZONE_Z_INDEX = 3;
+
+// Confidence the rounds-to-kill count is computed for
+const ROUNDS_CONFIDENCE = 0.9;
+
+// Milliseconds of main-thread work per task when the damage zones are computed
+const COVER_ZONE_BUDGET_MS = 8;
+
+// Damage zone images and hit probabilities kept by (map, position, shell, spread): a target that goes
+// back to a place it has been (undo, a weapon or shell switched back and forth) does not compute again
+const COVER_CACHE_SIZE = 64;
+const coverZoneImages = new Map();
+const hitProbabilities = new Map();
+
+// Target whose information dialog is open: the heights offered by the volume layer arrive after the dialog
+let dialogTarget = null;
+
+// Damage zones waiting to be computed, one task of COVER_ZONE_BUDGET_MS at a time (a MessageChannel
+// message starts each, so input and rendering run between them): redrawing every target when the weapon
+// or shell changes no longer freezes the page
+const coverQueue = [];
+let coverChannel = null;
+let coverScheduled = false;
+
+/**
+ * Remember a value in a bounded cache, the least recently used entry going first
+ * @param {Map} cache
+ * @param {string} key
+ * @param {*} value
+ */
+function remember(cache, key, value) {
+    cache.delete(key);
+    cache.set(key, value);
+    if (cache.size > COVER_CACHE_SIZE) cache.delete(cache.keys().next().value);
+}
+
+/**
+ * Ask for the next task of the damage zone queue
+ */
+function scheduleCoverQueue() {
+    if (coverScheduled || !coverQueue.length) return;
+    if (!coverChannel) {
+        coverChannel = new MessageChannel();
+        coverChannel.port1.onmessage = () => {
+            coverScheduled = false;
+            processCoverQueue();
+        };
+    }
+    coverScheduled = true;
+    coverChannel.port2.postMessage(null);
+}
+
+/**
+ * Compute the queued damage zones for COVER_ZONE_BUDGET_MS, then give the page back. A zone whose target
+ * moved on or was deleted meanwhile (its `coverPending` is no longer the job's signature) is dropped.
+ */
+function processCoverQueue() {
+    const deadline = performance.now() + COVER_ZONE_BUDGET_MS;
+    while (coverQueue.length && performance.now() < deadline) {
+        const job = coverQueue[0];
+        if (job.target.coverPending !== job.signature) {
+            coverQueue.shift();
+            continue;
+        }
+        job.field = damageField(job.heightAt, job.explosion, job.cell, { ...job.field, firstRow: job.field?.nextRow ?? 0, deadline });
+        if (job.field.nextRow < job.field.size) break;
+        coverQueue.shift();
+        job.target.finishCoverZone(job);
+    }
+    scheduleCoverQueue();
+}
+
 export const squadTargetMarker = squadMarker.extend({
+
+    options: {
+        keyboard: true,
+    },
+
+    getAccessibleName: function() {
+        return i18next.t("tooltips:targetMarker");
+    },
 
     initialize: function (latlng, options, map) {
 
         squadMarker.prototype.initialize.call(this, latlng, options, map);
 
         if (options.uid) this.fromSession = true;
+
+        // Bursts marked to correct the fire of the first weapon (addImpact), and the damage zone image
+        this.impacts = [];
+        this.coverOverlay = null;
+        this.coverSignature = null;
+        // Signature of the damage zone in the queue, null when none waits; hidden while other targets are hovered
+        this.coverPending = null;
+        this.coverHidden = false;
+        // Pending frame of the popups and spread when the target is dragged
+        this.calcFrame = null;
         
         let popUpOptions_weapon1 = {
             autoPan: false,
@@ -82,13 +192,17 @@ export const squadTargetMarker = squadMarker.extend({
 
         this.isDragging = false;
 
+        // Height the user chose for the target from the volume layer ({kind, height, above}, squadVolume.heightsAt);
+        // null: on the ground
+        this.heightChoice = null;
+
         // Create marker
         this.addTo(this.map.activeTargetsMarkers);
         this.miniCircle = new CircleMarker(latlng, this.miniCircleOptions).addTo(this.map.markersGroup);
-        this.firingSolution1 = new SquadFiringSolution(this.map.activeWeaponsMarkers.getLayers()[0].getLatLng(), this.getLatLng(), this.map, this.map.activeWeaponsMarkers.getLayers()[0].heightPadding);
+        this.firingSolution1 = new SquadFiringSolution(this.map.activeWeaponsMarkers.getLayers()[0].getLatLng(), this.getAimLatLng(), this.map, this.map.activeWeaponsMarkers.getLayers()[0].heightPadding, this.getLatLng(), this.getTargetHeight());
 
         // Report target to squadcalc API
-        if (!options.uid && !options.skipApiReport) {
+        if (!options.uid && !options.skipApiReport && App.activeWeapon.heatmap) {
             sendTargetData({
                 lat: latlng.lat,
                 lng: latlng.lng,
@@ -112,7 +226,7 @@ export const squadTargetMarker = squadMarker.extend({
 
         // If two weapons already on the map
         if (this.map.activeWeaponsMarkers.getLayers().length === 2) {
-            this.firingSolution2 = new SquadFiringSolution(this.map.activeWeaponsMarkers.getLayers()[1].getLatLng(), this.getLatLng(), this.map, this.map.activeWeaponsMarkers.getLayers()[1].heightPadding);
+            this.firingSolution2 = new SquadFiringSolution(this.map.activeWeaponsMarkers.getLayers()[1].getLatLng(), this.getLatLng(), this.map, this.map.activeWeaponsMarkers.getLayers()[1].heightPadding, this.getLatLng(), this.getTargetHeight());
             this.calcMarker1.setContent(`1. ${html1}`);
             const [html2, clipboard2] = this.getContent(this.firingSolution2, this.map.activeWeaponsMarkers.getLayers()[1].angleType);
             this.calcMarker2.setContent(`2. ${html2}`).openOn(this.map);
@@ -141,8 +255,6 @@ export const squadTargetMarker = squadMarker.extend({
         // Custom events handlers
         this.on("click", this._handleClick, this);
         this.on("drag", this._handleDrag, this);
-        this.on("dragStart", this._handleDragStart, this);
-        this.on("dragEnd", this._handleDragEnd, this);
         this.on("contextmenu", this._handleContextMenu, this);
         this.on("pointerdown", this._handlePointerDown, this);
 
@@ -182,8 +294,12 @@ export const squadTargetMarker = squadMarker.extend({
             console.debug(`[SESSION] Sent delete request for target with UID: ${this.uid}`);
         }
 
+        if (this.map.positionHeatmap?.isShownFor(this)) this.map.positionHeatmap.hide();
+
         // Unbind all custom event handlers
         this.off();
+        cancelAnimationFrame(this.calcFrame);
+        this.calcFrame = null;
 
         // Remove the marker from targets array history
         this.map.history = this.map.history.filter(object => object !== this);
@@ -198,6 +314,8 @@ export const squadTargetMarker = squadMarker.extend({
         this.hundredDamageRadius.removeFrom(this.map.markersGroup).remove();
         this.twentyFiveDamageRadius.removeFrom(this.map.markersGroup).remove();
         this.posPopUp.removeFrom(this.map.markersGroup).remove();
+        this.impacts.forEach((impact) => this.removeImpactLayers(impact));
+        this.removeCoverZone();
 
         this.grid.clear();
         this.removeLineToTarget();
@@ -207,6 +325,7 @@ export const squadTargetMarker = squadMarker.extend({
     
         // If that was the last Marker on the map, hide "delete/undo" buttons
         if (!this.map.hasMarkers()) $(".btn-delete, .btn-undo").hide();
+        notifyBridgeChange();
     },
 
 
@@ -217,78 +336,8 @@ export const squadTargetMarker = squadMarker.extend({
      * @returns {String[]} - [HTML content, summary text]
      */
     getContent: function (firingSolution, angleType) {
-        const DIST = firingSolution.distance;
-        const BEARING = firingSolution.bearing;
-        let heightDiff = firingSolution.heightDiff.toFixed(0);
-
-        // Avoid "-0"
-        if (heightDiff == -0 || Math.sign(heightDiff) === 1) {
-            heightDiff = `+${Math.abs(heightDiff)}`;
-        }
-
-        /**
-         * Formats elevation and time of flight values
-         * @param {Object} elevationData 
-         * @param {Number} timeOfFlight 
-         * @returns {[string, string]} - [elevation, timeOfFlight]
-         */
-        const formatElevationData = (elevationData, timeOfFlight) => {
-            if (isNaN(elevationData?.rad)) return ["---", "---"];
-
-            let convertedElevation;
-
-            const formattedTime = `${timeOfFlight.toFixed(0)}<span data-i18n="common:s">${i18next.t("common:s")}</span>`;
-
-            switch (App.activeWeapon.unit) {
-            case "mil":
-                convertedElevation = elevationData.mil.toFixed(App.activeWeapon.elevationPrecision);
-                break;
-            case "degMin": {
-                // Convert degrees to degrees + minutes
-                let degrees = Math.floor(elevationData.deg);
-                let minutes = Math.round((elevationData.deg - degrees) * 60);
-                if (minutes === 60) {
-                    degrees += 1;
-                    minutes = 0;
-                }
-                convertedElevation = `${degrees}°${minutes.toString().padStart(2, "0")}'`;
-                break;
-            }
-            default:
-                convertedElevation = elevationData.deg.toFixed(App.activeWeapon.elevationPrecision);
-            }
-
-            return [convertedElevation, formattedTime];
-        };
-
-        let elevation, timeOfFlight;
-
-        if (App.userSettings.lowAndHigh && !["Mortar", "UB-32", "M1064M121", "Mk19"].includes(App.activeWeapon.name)) {
-            const [elevationLow, timeLow] = formatElevationData(firingSolution.elevation.low, firingSolution.timeOfFlight.low);
-            const [elevationHigh, timeHigh] = formatElevationData(firingSolution.elevation.high, firingSolution.timeOfFlight.high);
-            elevation = `${elevationLow} / ${elevationHigh}`;
-            timeOfFlight = `${timeLow} / ${timeHigh}`;
-        } else {
-            const selectedElevation = angleType === "high" ? firingSolution.elevation.high : firingSolution.elevation.low;
-            const selectedTimeOfFlight = angleType === "high" ? firingSolution.timeOfFlight.high : firingSolution.timeOfFlight.low;
-            [elevation, timeOfFlight] = formatElevationData(selectedElevation, selectedTimeOfFlight);
-        }
-
-        let content;
-        
-        // Checks if last three elevation digits option is enabled and if selected weapon is "Mortar"
-        // TODO move this in the previous if statement when other weapons are supported
-        if (App.userSettings.lastDigits && ["Mortar"].includes(App.activeWeapon.name)){
-            content = `<span class=calcNumber></span></br><span>${elevation.toString().slice(-3)}</span>`;
-        } else {
-            content = `<span class="calcNumber"></span><br><span>${elevation}</span>`;
-        }
-
-        if (App.userSettings.showBearing) content += `<br><span class=bearingUiCalc>${BEARING.toFixed(1)}<span data-i18n="common:°">${i18next.t("common:°")}</span></span>`;
-        if (App.userSettings.showTimeOfFlight) content += `<br><span class=bearingUiCalc>${timeOfFlight}</span>`;
-        if (App.userSettings.showDistance) content += `<br><span class=bearingUiCalc>${DIST.toFixed(0)}<span data-i18n="common:m">${i18next.t("common:m")}</span></span>`;
-        if (App.userSettings.showHeight) content += `<br><span class=bearingUiCalc>${heightDiff}<span data-i18n="common:m">${i18next.t("common:m")}</span></span>`;
-        return [content, `${i18next.t("common:elevation")}: ${elevation} - ${i18next.t("common:bearing")}: ${BEARING.toFixed(1)}°`];
+        const targetLines = firingSolution === this.firingSolution1 ? this.formatCorrection() + formatHeightChoice(this.getTargetHeight() === null ? null : this.heightChoice) : "";
+        return popupContent(firingSolution, angleType, { formatRounds: (arcs) => this.formatRounds(firingSolution, arcs), targetLines });
     },
 
 
@@ -338,7 +387,8 @@ export const squadTargetMarker = squadMarker.extend({
              App.activeWeapon.name != "UB-32" &&
               App.activeWeapon.name != "M1064M121" &&
                App.activeWeapon.name != "Mk19" &&
-                App.activeWeapon.name != "BTR4-30mm") {  
+                !App.activeWeapon.elevationRate &&
+                 App.activeWeapon.name != "BTR4-30mm") {  
             setSpreadMarker(this.spreadMarker11, this.firingSolution1, 0, true);
         } else {
             this.spreadMarker11.setStyle(this.spreadOptionsOff);
@@ -356,6 +406,7 @@ export const squadTargetMarker = squadMarker.extend({
     disableDamageRadii: function() {
         this.hundredDamageRadius.setStyle(this.spreadOptionsOff);
         this.twentyFiveDamageRadius.setStyle(this.spreadOptionsOff);
+        this.hideCoverZone();
     },
 
 
@@ -426,7 +477,8 @@ export const squadTargetMarker = squadMarker.extend({
             App.activeWeapon.name != "Mortar" &&
              App.activeWeapon.name != "UB-32" &&
               App.activeWeapon.name != "M1064M121" &&
-               App.activeWeapon.name != "Mk19") {
+               App.activeWeapon.name != "Mk19" &&
+                !App.activeWeapon.elevationRate) {
             baseRadiiX = Math.max(this.spreadMarker1.getRadius().x, this.spreadMarker11.getRadius().x);  
             baseRadiiY = Math.max(this.spreadMarker1.getRadius().y, this.spreadMarker11.getRadius().y);
         }
@@ -442,6 +494,337 @@ export const squadTargetMarker = squadMarker.extend({
         this.twentyFiveDamageRadius.setStyle(this.twentyFiveDamageCircleOn);
         this.hundredDamageRadius.setTilt(baseBearing);
         this.twentyFiveDamageRadius.setTilt(baseBearing);
+        this.updateCoverZone();
+    },
+
+
+    /**
+     * Heights around a point, for squadDamage.js: `(east, north)` meters from `center` -> meters.
+     * Flat ground without the precise game heightmap: the 8-bit one (steps up to 2 m) would make cover up.
+     * @param {LatLng} center
+     * @returns {function(number, number): number}
+     */
+    heightAround: function(center) {
+        const heightmap = this.map.heightmap;
+        if (!heightmap?.precise) return () => 0;
+        return (east, north) => heightmap.getHeight(this.map.fromMeters(center, east, north));
+    },
+
+
+    /**
+     * Whether the active weapon's explosion is shown on targets (damage zone, rounds to kill): it has one
+     * (direct-fire weapons that only hit with the projectile, AP rounds and machine guns, have none)
+     * @returns {boolean}
+     */
+    showsExplosion: function() {
+        const explosion = App.activeWeapon.explosion;
+        return Boolean(App.userSettings.damageRadius && explosion && explosion.outer > 0);
+    },
+
+
+    /**
+     * Draw where a round on the target kills, wounds, or is stopped by cover (squadDamage.damageField),
+     * inside the damage circles. Needs the precise heightmap; recomputed only when the target, the
+     * shell or the map changed, and hidden while the target is dragged. A zone seen before is drawn from
+     * the cache at once; a new one is queued and drawn when its turn comes (processCoverQueue). With the
+     * volume layer on (squadVolume.js) the cover is its objects instead of the heightmap and the round lands at
+     * the target's height: the layer's worker computes the zone (coverZone), the queue is the fallback.
+     */
+    updateCoverZone: function() {
+        if (!this.showsExplosion() || this.isDragging || !this.map.heightmap?.precise) {
+            this.removeCoverZone();
+            return;
+        }
+
+        const explosion = App.activeWeapon.explosion;
+        const center = this.getLatLng();
+        // With the volume layer the cover is its objects, and the round lands at the height of the target
+        const impactHeight = this.map.volume.ready ? this.getTargetHeight() ?? this.map.heightmap.getHeight(center) : null;
+        const signature = [this.map.activeMap.name, center.lat, center.lng, JSON.stringify(explosion), impactHeight === null ? "heightmap" : `volume:${impactHeight}`].join("|");
+        this.coverHidden = false;
+        if (this.coverOverlay && signature === this.coverSignature) {
+            this.coverOverlay.setOpacity(1);
+            return;
+        }
+        if (this.coverPending === signature) return;
+        this.removeCoverZone();
+        this.coverSignature = signature;
+
+        const cell = explosion.outer > COARSE_RADIUS ? COVER_CELL_COARSE : COVER_CELL;
+        const cached = coverZoneImages.get(signature);
+        if (cached) {
+            remember(coverZoneImages, signature, cached);
+            this.showCoverZone(cached, center);
+            return;
+        }
+
+        this.coverPending = signature;
+        if (impactHeight === null) {
+            this.queueCoverZone(signature, center, explosion, cell);
+            return;
+        }
+        this.map.volume.coverZone(explosion, cell, center, impactHeight).then((field) => {
+            if (this.coverPending !== signature) return;
+            if (field) this.finishCoverZone({ signature, center, cell, field });
+            else this.queueCoverZone(signature, center, explosion, cell);
+        });
+    },
+
+
+    /**
+     * Queue the damage zone computed from the heightmap on the page (processCoverQueue)
+     * @param {string} signature - see updateCoverZone
+     * @param {LatLng} center
+     * @param {object} explosion
+     * @param {number} cell - grid step, meters
+     */
+    queueCoverZone: function(signature, center, explosion, cell) {
+        coverQueue.push({ target: this, signature, center, explosion, cell, heightAt: this.heightAround(center), field: null });
+        scheduleCoverQueue();
+    },
+
+
+    /**
+     * The queue computed this target's damage zone: draw it and keep it in the cache
+     * @param {object} job - the queue entry: `signature`, `center`, `cell` and the finished `field`
+     */
+    finishCoverZone: function(job) {
+        const { field } = job;
+        const pixels = new Uint8ClampedArray(field.size * field.size * 4);
+        for (let i = 0; i < field.damage.length; i++) {
+            let color = null;
+            if (field.damage[i] >= KILL_DAMAGE) color = COVER_COLORS.kill;
+            else if (field.damage[i] >= WOUND_DAMAGE) color = COVER_COLORS.wound;
+            else if (field.exposed[i] >= WOUND_DAMAGE) color = COVER_COLORS.covered;
+            if (color) pixels.set(color, i * 4);
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = field.size;
+        canvas.getContext("2d").putImageData(new ImageData(pixels, field.size, field.size), 0, 0);
+        const image = { url: canvas.toDataURL(), size: field.size, cell: job.cell };
+        remember(coverZoneImages, job.signature, image);
+        this.coverPending = null;
+        this.showCoverZone(image, job.center);
+    },
+
+
+    /**
+     * Put a damage zone image on the map, centred on the target
+     * @param {{url: string, size: number, cell: number}} image
+     * @param {LatLng} center
+     */
+    showCoverZone: function(image, center) {
+        const half = (image.size * image.cell) / 2;
+        const bounds = new LatLngBounds(this.map.fromMeters(center, -half, -half), this.map.fromMeters(center, half, half));
+        this.coverOverlay = new ImageOverlay(image.url, bounds, { className: "coverZoneOverlay", interactive: false, zIndex: COVER_ZONE_Z_INDEX, opacity: this.coverHidden ? 0 : 1 })
+            .addTo(this.map.markersGroup);
+    },
+
+
+    /**
+     * Hide the damage zone but keep it for updateCoverZone: hovering a target or dragging a weapon
+     * hides the other targets' zones, and recomputing them all on hover-out froze the page
+     */
+    hideCoverZone: function() {
+        this.coverHidden = true;
+        if (this.coverOverlay) this.coverOverlay.setOpacity(0);
+    },
+
+
+    removeCoverZone: function() {
+        if (this.coverOverlay) this.map.markersGroup.removeLayer(this.coverOverlay);
+        this.coverOverlay = null;
+        this.coverSignature = null;
+        this.coverPending = null;
+    },
+
+
+    /**
+     * Popup line with the rounds to fire so that one kills (☠), or at least wounds (🩸), a soldier
+     * standing on the target with ROUNDS_CONFIDENCE, given the spread and the cover around it. Not computed
+     * while the target is dragged (400 cover traces per move): the line comes back when it is dropped.
+     * @param {SquadFiringSolution} firingSolution
+     * @param {string[]} arcs - "low" / "high" in the order they are shown; the first one that reaches counts
+     * @returns {string} - HTML line, empty when the weapon's explosion is not shown, or when a direct-fire
+     *   shot is stopped by an obstacle before the target (it explodes there, not around the target)
+     */
+    formatRounds: function(firingSolution, arcs) {
+        if (!this.showsExplosion() || this.isDragging) return "";
+        const arc = arcs.find((angle) => !isNaN(firingSolution.elevation[angle]?.rad));
+        if (!arc) return "";
+        if (App.activeWeapon.type === "directFire" && firingSolution.obstacle?.[arc]) return "";
+
+        // Half the axes of the drawn spread ellipse (updateSpread), exact for rockets and capped shells
+        const { lateral, along } = firingSolution.getHitSpread(arc);
+        const explosion = App.activeWeapon.explosion;
+        const center = this.getLatLng();
+        const key = [this.map.activeMap.name, center.lat, center.lng, JSON.stringify(explosion), lateral, along, firingSolution.bearing, this.map.heightmap?.precise].join("|");
+        let probabilities = hitProbabilities.get(key);
+        if (!probabilities) probabilities = hitProbability(this.heightAround(center), explosion, lateral, along, firingSolution.bearing);
+        remember(hitProbabilities, key, probabilities);
+        const { kill, wound } = probabilities;
+        const rounds = (probability) => {
+            const count = roundsNeeded(probability, ROUNDS_CONFIDENCE);
+            return Number.isFinite(count) ? count : "—";
+        };
+        return `<br><span class="calcRounds">☠ ${rounds(kill)} · 🩸 ${rounds(wound)}</span>`;
+    },
+
+
+    /**
+     * Height of the target when the user put it off the ground: only while the volume layer can answer (set off,
+     * or a map change, and the target is on the ground again)
+     * @returns {number|null} - in the heightmap's heights (SquadHeightmap.getHeight); null for the ground
+     */
+    getTargetHeight: function() {
+        return this.heightChoice && this.map.volume.ready ? this.heightChoice.height : null;
+    },
+
+
+
+    /**
+     * Popup line of the fire correction: bursts marked and how far the aim moved off the target
+     * @returns {string} - HTML line, empty without marked bursts
+     */
+    formatCorrection: function() {
+        if (!this.impacts.length) return "";
+        const { range, bearing } = this.getCorrection();
+        const signed = (value, digits) => `${value >= 0 ? "+" : "−"}${Math.abs(value).toFixed(digits)}`;
+        const meters = `<span data-i18n="common:m">${i18next.t("common:m")}</span>`;
+        return `<br><span class="calcCorrection">↻${this.impacts.length} ${signed(-range, 0)}${meters} ${signed(-bearing, 1)}°</span>`;
+    },
+
+
+    /**
+     * Distance in meters and bearing in degrees (clockwise from north) from one point to another
+     * @param {LatLng} origin
+     * @param {LatLng} latlng
+     * @returns {{distance: number, bearing: number}}
+     */
+    polarFrom: function(origin, latlng) {
+        const { east, north } = this.map.toMeters(origin, latlng);
+        let bearing = Math.atan2(east, north) * 180 / Math.PI;
+        if (bearing < 0) bearing += 360;
+        return { distance: Math.hypot(east, north), bearing };
+    },
+
+
+    /**
+     * Point at a distance and bearing from another
+     * @param {LatLng} origin
+     * @param {number} distance - meters
+     * @param {number} bearing - degrees clockwise from north
+     * @returns {{lat: number, lng: number}}
+     */
+    latLngAt: function(origin, distance, bearing) {
+        const rad = bearing * Math.PI / 180;
+        return this.map.fromMeters(origin, distance * Math.sin(rad), distance * Math.cos(rad));
+    },
+
+
+    /**
+     * Mean error of the marked bursts in range and bearing from the first weapon: where its rounds
+     * land relative to where it aims. Averaging the bursts cancels most of the spread.
+     * @returns {{range: number, bearing: number}} - meters (+ = long), degrees (+ = clockwise)
+     */
+    getCorrection: function() {
+        const count = this.impacts.length;
+        return {
+            range: this.impacts.reduce((sum, impact) => sum + impact.range, 0) / count,
+            bearing: this.impacts.reduce((sum, impact) => sum + impact.bearing, 0) / count,
+        };
+    },
+
+
+    /**
+     * Point the first weapon aims at: the target moved against the mean error of the marked bursts,
+     * in range and bearing from the weapon, so the correction still holds when the target moves
+     * @returns {LatLng|{lat: number, lng: number}}
+     */
+    getAimLatLng: function() {
+        const weapon = this.map.activeWeaponsMarkers.getLayers()[0];
+        if (!this.impacts.length || !weapon) return this.getLatLng();
+        const { range, bearing } = this.getCorrection();
+        const target = this.polarFrom(weapon.getLatLng(), this.getLatLng());
+        return this.latLngAt(weapon.getLatLng(), target.distance - range, target.bearing - bearing);
+    },
+
+
+    /**
+     * Mark where a round of the first weapon burst (Ctrl + double-click on the map, squadMinimap):
+     * its error from the point aimed at is added to the correction and the solution is recomputed.
+     * Right-click on the burst removes it.
+     * @param {LatLng} latlng - where the round burst
+     */
+    addImpact: function(latlng) {
+        const weapon = this.map.activeWeaponsMarkers.getLayers()[0];
+        if (!weapon) return;
+
+        const aim = this.polarFrom(weapon.getLatLng(), this.getAimLatLng());
+        const burst = this.polarFrom(weapon.getLatLng(), latlng);
+        const impact = {
+            latlng,
+            setup: this.getFiringSetup(),
+            range: burst.distance - aim.distance,
+            bearing: ((burst.bearing - aim.bearing + 540) % 360) - 180,
+        };
+        impact.marker = new CircleMarker(latlng, {
+            radius: 5, color: "#f39c12", weight: 2, fillOpacity: 0.6, bubblingPointerEvents: false,
+        }).addTo(this.map.markersGroup);
+        impact.line = new Polyline([latlng, this.getLatLng()], {
+            color: "#f39c12", weight: 1.5, opacity: 0.8, dashArray: "4 4", interactive: false, showMeasurements: false,
+        }).addTo(this.map.markersGroup);
+        impact.marker.on("contextmenu", (event) => {
+            event.originalEvent.preventDefault();
+            this.removeImpact(impact);
+        });
+
+        this.impacts.push(impact);
+        this.updateCalc(true);
+        this.updateIcon();
+    },
+
+
+    /**
+     * Remove a marked burst and recompute the correction without it
+     * @param {object} impact - an entry of `impacts`
+     */
+    removeImpact: function(impact) {
+        this.removeImpactLayers(impact);
+        this.impacts = this.impacts.filter((other) => other !== impact);
+        this.updateCalc(true);
+        this.updateIcon();
+    },
+
+
+    /**
+     * What a burst was fired with: the first weapon marker, the weapon and its shell. Bursts only
+     * correct the fire of the setup they were marked with (dropStaleImpacts).
+     * @returns {string}
+     */
+    getFiringSetup: function() {
+        const weaponMarker = this.map.activeWeaponsMarkers.getLayers()[0];
+        return [weaponMarker?.uid, App.activeWeapon.name, App.activeWeapon.velocity, App.activeWeapon.moa].join("|");
+    },
+
+
+    /**
+     * Remove the bursts marked with another weapon, shell or first weapon marker: their error says
+     * nothing about the current fire
+     */
+    dropStaleImpacts: function() {
+        const setup = this.getFiringSetup();
+        const stale = this.impacts.filter((impact) => impact.setup !== setup);
+        if (!stale.length) return;
+        stale.forEach((impact) => this.removeImpactLayers(impact));
+        this.impacts = this.impacts.filter((impact) => impact.setup === setup);
+    },
+
+
+    removeImpactLayers: function(impact) {
+        this.map.markersGroup.removeLayer(impact.marker);
+        this.map.markersGroup.removeLayer(impact.line);
     },
 
 
@@ -450,13 +833,14 @@ export const squadTargetMarker = squadMarker.extend({
     */
     updateCalc: function(copy = false){
         let clipboard;
-        this.firingSolution1 = new SquadFiringSolution(this.map.activeWeaponsMarkers.getLayers()[0].getLatLng(), this.getLatLng(), this.map, this.map.activeWeaponsMarkers.getLayers()[0].heightPadding);
+        this.dropStaleImpacts();
+        this.firingSolution1 = new SquadFiringSolution(this.map.activeWeaponsMarkers.getLayers()[0].getLatLng(), this.getAimLatLng(), this.map, this.map.activeWeaponsMarkers.getLayers()[0].heightPadding, this.getLatLng(), this.getTargetHeight());
         const [html1, clipboard1] = this.getContent(this.firingSolution1, this.map.activeWeaponsMarkers.getLayers()[0].angleType);
         this.calcMarker1.setContent(html1);
         clipboard = clipboard1;
 
         if (this.map.activeWeaponsMarkers.getLayers().length === 2) {
-            this.firingSolution2 = new SquadFiringSolution(this.map.activeWeaponsMarkers.getLayers()[1].getLatLng(), this.getLatLng(), this.map, this.map.activeWeaponsMarkers.getLayers()[1].heightPadding);
+            this.firingSolution2 = new SquadFiringSolution(this.map.activeWeaponsMarkers.getLayers()[1].getLatLng(), this.getLatLng(), this.map, this.map.activeWeaponsMarkers.getLayers()[1].heightPadding, this.getLatLng(), this.getTargetHeight());
             const [html2, clipboard2] = this.getContent(this.firingSolution2, this.map.activeWeaponsMarkers.getLayers()[1].angleType);
             this.calcMarker1.setContent(`1. ${html1}`);
             this.calcMarker2.setContent(`2. ${html2}`).openOn(this.map);
@@ -475,6 +859,7 @@ export const squadTargetMarker = squadMarker.extend({
         this.updateSpread();
         this.updateDamageRadius();
         if (copy && App.userSettings.copyTarget) navigator.clipboard.writeText(clipboard);
+        notifyBridgeChange();
     },
 
 
@@ -487,12 +872,12 @@ export const squadTargetMarker = squadMarker.extend({
         const angleType = weapons[0].angleType;
         const elevationKey = angleType === "high" ? "high" : "low";
     
-        const elevation = this.firingSolution1.elevation[elevationKey]?.rad;
-        const elevation2 = weapons.length === 2 ? this.firingSolution2.elevation[elevationKey]?.rad : null;
-    
+        // Weapons laid by holding a key (AGS-17) also reach targets in direct fire (low trajectory)
+        const reaches = (firingSolution) => !isNaN(firingSolution.elevation[elevationKey]?.rad) ||
+            (Boolean(App.activeWeapon.elevationRate) && !isNaN(firingSolution.elevation.low.rad));
+
         const isSingleWeapon = weapons.length === 1;
-        const bothElevationsInvalid = isNaN(elevation) && isNaN(elevation2);
-        const isDisabled = (isSingleWeapon && isNaN(elevation)) || (!isSingleWeapon && bothElevationsInvalid);
+        const isDisabled = isSingleWeapon ? !reaches(this.firingSolution1) : !reaches(this.firingSolution1) && !reaches(this.firingSolution2);
 
         let iconURL;
         let iconClassName;
@@ -556,35 +941,126 @@ export const squadTargetMarker = squadMarker.extend({
 
     _handleClick: function() {
         const DIALOG = document.getElementById("calcInformation");
-        let simulation2;
-        let weaponPos2;
 
         $("#sim1").addClass("active");
         $("#sim2").removeClass("active");
+
+        // Weapons aimed by holding the elevation key (AGS-17) show a hold time where others show an angle
+        const elevationLabelKey = App.activeWeapon.elevationRate ? "common:holdTime" : "common:elevation";
+        $("#calcInformation td[data-i18n='common:elevation'], #calcInformation td[data-i18n='common:holdTime']")
+            .attr("data-i18n", elevationLabelKey).text(i18next.t(elevationLabelKey));
         $("#canvasControls > .active").first().removeClass("active");
         $("#canvasControls > button").first().addClass("active");
 
-        const weaponPos1 = this.map.activeWeaponsMarkers.getLayers()[0].getLatLng();
-        const { path: heightPath1, weaponIndex: weaponIndex1, targetIndex: targetIndex1 } = this._map.heightmap.getHeightPath(weaponPos1, this.getLatLng());
-        const simulation1 = new SquadSimulation("#sim1", this.firingSolution1, heightPath1, this.map.activeWeaponsMarkers.getLayers()[0].angleType, App.activeWeapon.unit, 0, weaponIndex1, targetIndex1);
-        $("#canvasControls").css("display", "none");
-
-        if (this.map.activeWeaponsMarkers.getLayers().length === 2){
-            $("#canvasControls").css("display", "block");
-            weaponPos2 = this.map.activeWeaponsMarkers.getLayers()[1].getLatLng();
-            const { path: heightPath2, weaponIndex: weaponIndex2, targetIndex: targetIndex2 } = this._map.heightmap.getHeightPath(weaponPos2, this.getLatLng());
-            simulation2 = new SquadSimulation("#sim2", this.firingSolution2, heightPath2, this.map.activeWeaponsMarkers.getLayers()[1].angleType, App.activeWeapon.unit, 0, weaponIndex2, targetIndex2);
-        }
+        this.drawSimulations();
+        dialogTarget = this;
+        this.showTargetOptions();
 
         // If the user close the modal, stop the animation
         // ...or it does crazy stuff if he reopen it before the animation runs out
-        DIALOG.addEventListener("close", function(){
-            cancelAnimationFrame(simulation1.animationFrame);
-            if (simulation2){ cancelAnimationFrame(simulation2.animationFrame);}
-        });
+        DIALOG.addEventListener("close", () => {
+            this.simulations.forEach((simulation) => cancelAnimationFrame(simulation.animationFrame));
+            dialogTarget = null;
+        }, { once: true });
 
         DIALOG.showModal();
     },
+
+
+    /**
+     * Draw the trajectory simulation of each weapon in the information dialog
+     */
+    drawSimulations: function() {
+        this.simulations?.forEach((simulation) => cancelAnimationFrame(simulation.animationFrame));
+
+        const weapons = this.map.activeWeaponsMarkers.getLayers();
+        const { path: heightPath1, weaponIndex: weaponIndex1, targetIndex: targetIndex1 } = this._map.heightmap.getHeightPath(weapons[0].getLatLng(), this.getLatLng());
+        this.simulations = [new SquadSimulation("#sim1", this.firingSolution1, heightPath1, weapons[0].angleType, App.activeWeapon.unit, 0, weaponIndex1, targetIndex1)];
+        $("#canvasControls").css("display", "none");
+
+        if (weapons.length === 2){
+            $("#canvasControls").css("display", "block");
+            const { path: heightPath2, weaponIndex: weaponIndex2, targetIndex: targetIndex2 } = this._map.heightmap.getHeightPath(weapons[1].getLatLng(), this.getLatLng());
+            this.simulations.push(new SquadSimulation("#sim2", this.firingSolution2, heightPath2, weapons[1].angleType, App.activeWeapon.unit, 0, weaponIndex2, targetIndex2));
+        }
+    },
+
+
+    /**
+     * Fill the target options of the information dialog: the structure under the target (a deployable marker
+     * within STRUCTURE_RADIUS) and the shells that destroy it, and, when the volume layer is on and has a
+     * file for the map, the heights the target can have at this point. A row without content stays hidden.
+     */
+    showTargetOptions: async function() {
+        const structureRow = document.getElementById("structureRow");
+        const heightRow = document.getElementById("targetHeightRow");
+        const select = document.getElementById("targetHeightSelect");
+        heightRow.hidden = true;
+        this.showPositionHeatOption();
+
+        const nearby = findNearbyStructure(this.map, this.getLatLng());
+        const line = nearby && describeStructure(nearby.icon, App.activeWeapon, nearby.distance);
+        structureRow.hidden = !line;
+        if (line) structureRow.querySelector(".infStructure").textContent = line;
+
+        const found = await this.map.volume.heightsAt(this.getLatLng());
+        if (dialogTarget !== this || !found) return;
+
+        // The heightmap fuses buildings with the landscape: where it stands above it, the default "ground" is the top
+        // of the building and the landscape under it is a choice of its own
+        const meters = i18next.t("common:m");
+        const label = (kind, above) => `${i18next.t(`common:targetHeight_${kind}`)}${above === 0 ? "" : ` ${above > 0 ? "+" : ""}${above.toFixed(1)}${meters}`}`;
+        const choices = [...found.choices];
+        const mapAbove = this.map.heightmap.getHeight(this.getLatLng()) - found.landscape;
+        if (choices.length && Math.abs(mapAbove) >= MIN_OPENING) choices.push({ kind: "landscape", height: found.landscape, above: 0 });
+
+        // A height the list no longer shows (the choice was made on another map, weapon or setting) must not keep applying
+        // while the list reads "ground"
+        if (this.getTargetHeight() !== null && !keptHeightChoice(this.heightChoice, choices)) {
+            this.heightChoice = null;
+            this.updateCalc();
+            this.drawSimulations();
+            this.map.positionHeatmap?.update();
+        }
+        if (!choices.length) return;
+        const options = [{ text: label("ground", Math.abs(mapAbove) >= MIN_OPENING ? mapAbove : 0), choice: null }];
+        choices.forEach((choice) => options.push({ text: label(choice.kind, choice.above), choice }));
+        select.replaceChildren(...options.map(({ text }, index) => new Option(text, String(index))));
+        const current = this.getTargetHeight() === null ? -1 : options.findIndex(({ choice }) => choice?.kind === this.heightChoice.kind && Math.abs(choice.height - this.heightChoice.height) < 1e-6);
+        select.selectedIndex = Math.max(current, 0);
+        select.onchange = () => {
+            this.heightChoice = options[select.selectedIndex].choice;
+            this.updateCalc();
+            this.drawSimulations();
+            this.map.positionHeatmap?.update();
+        };
+        heightRow.hidden = false;
+    },
+
+    /**
+     * The button of the information dialog that shows, or hides, the heatmap of the positions from where the active
+     * weapon has a clear line of fire to this target (squadPositionHeatmap.js). Offered for direct-fire weapons while
+     * the volume layer can answer; the heatmap module is loaded when the button is first pressed.
+     */
+    showPositionHeatOption: function() {
+        const row = document.getElementById("positionHeatRow");
+        const button = document.getElementById("positionHeatButton");
+        row.hidden = !(App.activeWeapon.type === "directFire" && this.map.volume.ready);
+        const label = () => {
+            button.textContent = i18next.t(this.map.positionHeatmap?.isShownFor(this) ? "common:heatHide" : "common:heatShow");
+        };
+        label();
+        button.onclick = async () => {
+            if (!this.map.positionHeatmap) {
+                const { default: SquadPositionHeatmap } = await import("./squadPositionHeatmap.js");
+                this.map.positionHeatmap ??= new SquadPositionHeatmap(this.map);
+            }
+            const shown = this.map.positionHeatmap.toggle(this);
+            label();
+            if (shown) document.getElementById("calcInformation").close();
+        };
+    },
+
 
     // Keep the marker on map & update calc while dragging
     _handleDrag: function (event) {
@@ -602,6 +1078,7 @@ export const squadTargetMarker = squadMarker.extend({
         this.miniCircle.setLatLng(event.latlng);
         this.hundredDamageRadius.setLatLng(event.latlng);
         this.twentyFiveDamageRadius.setLatLng(event.latlng);
+        this.impacts.forEach((impact) => impact.line.setLatLngs([impact.latlng, event.latlng]));
         this.grid.clear();
 
         // Update Position PopUp Content
@@ -612,13 +1089,19 @@ export const squadTargetMarker = squadMarker.extend({
         // On mobile save performance
         if (!App.hasMouse) return;
 
-        // Update bearing/elevation/spread marker
-        this.updateCalc();  
+        // Update bearing/elevation/spread marker: once per animation frame, however many drag events came
+        if (this.calcFrame === null) this.calcFrame = requestAnimationFrame(() => {
+            this.calcFrame = null;
+            if (this.isDragging) this.updateCalc();
+        });
     },
 
     
     _handleDragStart: function () {
         this.isDragging = true;
+        // The heights offered belong to the point where the target was, and so does the heatmap of its firing positions
+        this.heightChoice = null;
+        if (this.map.positionHeatmap?.isShownFor(this)) this.map.positionHeatmap.hide();
         this.map.mouseLocationPopup.close();
         this.map.off("pointermove", this.map._handleMouseMove);
 
@@ -657,6 +1140,10 @@ export const squadTargetMarker = squadMarker.extend({
 
         if (App.userSettings.keypadUnderCursor) this.map.on("pointermove", this.map._handleMouseMove);
 
+        // The calculation of the last drag event is made below, with the drop position
+        cancelAnimationFrame(this.calcFrame);
+        this.calcFrame = null;
+
         // Hide PositionPopUp & MiniCircle
         this.isDragging = false;
         this.posPopUp.close();
@@ -666,8 +1153,8 @@ export const squadTargetMarker = squadMarker.extend({
         this.updateCalc(true);
         this.updateIcon();
 
-        // Report target to squadcalc API
-        sendTargetData({
+        // Report target to squadcalc API (only weapons it collects data for)
+        if (App.activeWeapon.heatmap) sendTargetData({
             lat: event.target.getLatLng().lat,
             lng: event.target.getLatLng().lng,
             weapon: App.activeWeapon.name,
@@ -705,7 +1192,8 @@ export const squadTargetMarker = squadMarker.extend({
     // On Hovering for more than 500ms hide other targets
     _handleMouseOver: function() {
         this.mouseOverTimeout = setTimeout(() => {
-            if (!this.isDragging) this.map.fadeOtherTargets(this); // Hide other targets
+            // A target removed while the timer ran (the map was cleared) must not fade the others
+            if (!this.isDragging && this.map.activeTargetsMarkers.hasLayer(this)) this.map.fadeOtherTargets(this); // Hide other targets
         }, 500);
     },
 
@@ -855,9 +1343,8 @@ export const squadTargetMarker = squadMarker.extend({
         const dlng = end.lng - start.lng;
         const totalDist = Math.hypot(dlat, dlng);
         if (totalDist === 0) return [];
-        const latDelta = dlat * -this.map.mapToGameScale;
-        const lngDelta = dlng * this.map.mapToGameScale;
-        let dragBearing = Math.atan2(latDelta, lngDelta) * 180 / Math.PI + 90;
+        const { east, north } = this.map.toMeters(start, end);
+        let dragBearing = Math.atan2(east, north) * 180 / Math.PI;
         if (dragBearing < 0) dragBearing += 360;
         const step = this._getStepAtBearing(dragBearing);
         if (step <= 0 || totalDist < step) return [];

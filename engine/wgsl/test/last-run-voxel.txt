@@ -1,0 +1,65 @@
+== rust parity jensen
+jensen: 100000 segments, 723221 voxels in 113863 columns, 3594819 triangles
+DDA 0.19 s (518684 segments/s), BVH with its build 4.38 s (22836 segments/s)
+DDA vs python voxel model (sampled every 0.0833 m):
+  both clear 66007, both blocked 33916 (first sample within 0.0833 m of the entry for all but 162)
+  DDA blocked / model clear 77 (all with a chord in the voxel under one step), DDA clear / model blocked 0
+DDA vs exact triangles (30071 segments blocked, 69929 clear):
+  both blocked 30071, both clear 66007
+  false CLEAR   0 (0 grazing, 0 not grazing, 0 of those within 0.5 m of the ground)
+  false BLOCKED 3922 (2607 grazing, 1315 not grazing, 31 of those within 0.5 m of the ground)
+  wrong 3922 = 3.92 %, without grazing 1315 = 1.31 %
+  not grazing, explained: false blocked in a voxel that holds a triangle, false clear where the voxel under the hit is empty in the file (0 of 0); not explained: 0 []
+
+== rust parity kokan
+kokan: 100000 segments, 2198643 voxels in 536181 columns, 8085424 triangles
+DDA 0.18 s (570542 segments/s), BVH with its build 8.03 s (12448 segments/s)
+DDA vs python voxel model (sampled every 0.0833 m):
+  both clear 78287, both blocked 21534 (first sample within 0.0833 m of the entry for all but 180)
+  DDA blocked / model clear 179 (all with a chord in the voxel under one step), DDA clear / model blocked 0
+DDA vs exact triangles (13214 segments blocked, 86786 clear):
+  both blocked 13214, both clear 78287
+  false CLEAR   0 (0 grazing, 0 not grazing, 0 of those within 0.5 m of the ground)
+  false BLOCKED 8499 (4055 grazing, 4444 not grazing, 156 of those within 0.5 m of the ground)
+  wrong 8499 = 8.50 %, without grazing 4444 = 4.44 %
+  not grazing, explained: false blocked in a voxel that holds a triangle, false clear where the voxel under the hit is empty in the file (0 of 0); not explained: 0 []
+
+== rust parity fallujah (ENGINE_EXACT_SLICE_TRIANGLES=5000000; the WGSL kernel was not run on it)
+fallujah: 100000 segments, 26207218 voxels in 4293607 columns, 45283224 triangles
+DDA 0.43 s (235183 segments/s), BVH with its build 98.14 s (1019 segments/s)
+DDA vs python voxel model (sampled every 0.0833 m):
+  both clear 48612, both blocked 51273 (first sample within 0.0833 m of the entry for all but 267)
+  DDA blocked / model clear 115 (all with a chord in the voxel under one step), DDA clear / model blocked 0
+DDA vs exact triangles (45706 segments blocked, 54294 clear):
+  both blocked 45706, both clear 48612
+  false CLEAR   0 (0 grazing, 0 not grazing, 0 of those within 0.5 m of the ground)
+  false BLOCKED 5682 (3389 grazing, 2293 not grazing, 67 of those within 0.5 m of the ground)
+  wrong 5682 = 5.68 %, without grazing 2293 = 2.29 %
+  not grazing, explained: false blocked in a voxel that holds a triangle, false clear where the voxel under the hit is empty in the file (0 of 0); not explained: 0 []
+
+== wgsl run_voxel.mjs
+WebGPU device: {"vendor":"google","architecture":"swiftshader","description":""}
+
+== jensen
+PASS  tint compiles voxel.wgsl with 0 messages
+GPU kernel: 100000 segments in 13858 ms (7216 segments/s on SwiftShader, a CPU)
+PASS  wasm DDA equals the native DDA on all 100000 segments (0 differ)
+GPU f32 vs native f64 DDA: both clear 66007, both blocked 33993 (same voxel: largest entry difference 7.50e-3 m); blocked/clear flips 0 (0 are the native answer for the f32-rounded segment or vanish under a 1 mm move), different first voxel 9 (9 likewise)
+PASS  every GPU/native difference is f32 rounding at a voxel face (unexplained: [])
+GPU vs exact triangles (30071 blocked, 69929 clear): both blocked 30071, both clear 66007
+  false CLEAR   0 (0 grazing, 0 not grazing)
+  false BLOCKED 3922 (2607 grazing, 1315 not grazing)
+  wrong 3922 = 3.92 %, without grazing 1315 = 1.31 %
+
+== kokan
+PASS  tint compiles voxel.wgsl with 0 messages
+GPU kernel: 100000 segments in 8749 ms (11430 segments/s on SwiftShader, a CPU)
+PASS  wasm DDA equals the native DDA on all 100000 segments (0 differ)
+GPU f32 vs native f64 DDA: both clear 78287, both blocked 21713 (same voxel: largest entry difference 2.60e-3 m); blocked/clear flips 0 (0 are the native answer for the f32-rounded segment or vanish under a 1 mm move), different first voxel 0 (0 likewise)
+PASS  every GPU/native difference is f32 rounding at a voxel face (unexplained: [])
+GPU vs exact triangles (13214 blocked, 86786 clear): both blocked 13214, both clear 78287
+  false CLEAR   0 (0 grazing, 0 not grazing)
+  false BLOCKED 8499 (4055 grazing, 4444 not grazing)
+  wrong 8499 = 8.50 %, without grazing 4444 = 4.44 %
+
+all checks passed

@@ -101,6 +101,29 @@
             .bearingUiCalc {
                 font-size: 0.7em;
             }
+            // A trajectory that hits the terrain or a building before the target
+            .calcBlocked {
+                color: #e74c3c;
+                text-decoration: line-through;
+            }
+            .calcObstacle {
+                font-size: 0.7em;
+                color: #e74c3c;
+            }
+            // The heightmap failed to load: the solution assumes flat ground
+            .calcNoHeight {
+                font-size: 0.7em;
+                color: #f39c12;
+            }
+            // Rounds to kill / wound a soldier on the target, with the spread and the cover
+            .calcRounds {
+                font-size: 0.7em;
+            }
+            // Fire corrected by the marked bursts: their count, then how far the aim moved
+            .calcCorrection {
+                font-size: 0.7em;
+                color: #f39c12;
+            }
             .leaflet-popup-tip,
             .leaflet-popup-content-wrapper {
                 pointer-events: none;

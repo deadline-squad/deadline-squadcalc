@@ -1,3 +1,403 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.33.0** *(2026-11-05)*
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- **A target's calculation popup is no longer closed by a target that is gone.** Hovering a target for half a second fades the other targets and closes their popups; the timer of a target that had been removed in the meantime (the map was cleared, for example by a map change or a session) still ran and closed the popup of the new target, so the line of the chosen height (`⌖ Floor +3.3 m`) and the rest of the popup disappeared after the next pointer move over the old spot. The timer now does nothing for a target that is no longer on the map (deadline-squad/deadline-squadcalc#28). The choice of a height, the ammunition, the weapon, a drag and the settings all re-render the popup through the same path; each was checked in a browser against a freshly computed content and none left a field stale.
+
+</br><img src="https://img.shields.io/badge/-%20dev%20-lightgrey">  
+- The content of the calculation popup moved from `squadTargetMarker.js` to the pure `targetPopup.js` (`popupContent`, `formatHeightChoice`) and has unit tests (`tests/targetPopup.test.mjs`: the chosen height's line, the elevation following the height, ammunition and weapon, the order of the lines).
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.32.0** *(2026-11-05)*
+
+</br><img src="https://img.shields.io/badge/-new%20features-green">  
+- **Object volumes in the line of fire for all 25 maps.** Until now 11 maps had volume files, built with the earlier lattice method; all 25 now have the exact conservative builds (a voxel is occupied when any collision triangle of the game touches it, so a thin opening may close but a wall never opens). `volume.vcol` is 0.1 to 48.6 MB per map and `terrain.bin` 0.4 to 13.0 MB, 1.3 to 61.6 MB together (table in `engine/README.md`, "Files served for each map"). The biggest (Yehorivka, Harju, Gorodok, Chora) are ready 2.7 to 4.4 s after the setting is turned on in headless Chromium on a fast local link and make the browser use 0.9 to 1.8 GB more memory; nothing failed.
+- The setting's label states the download: *Object volumes in the line of fire (downloads 1 to 62 MB of map data)* (all six languages).
+
+</br><img src="https://img.shields.io/badge/-%20dev%20-lightgrey">  
+- Documentation: the sizes, voxel and column counts of the 25 files, the heatmap time per map re-measured with them (`engine/README.md`, "Time"), the file sizes in `README.md`.
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.31.0** *(2026-11-05)*
+
+</br><img src="https://img.shields.io/badge/-fixes-orange">  
+- **Direct-fire weapons use the lifespan of their projectile.** The game destroys a projectile `InitialLifeSpan` seconds after it is fired (RPG-7, M3 MAAWS, Carl Gustav and SMAW 4 s; RPG-29 and RPG-28 5 s; autocannons 5 s; SPG-9, Grom, tank AP and machine guns 8 s; NLAW 12 s; 40 mm grenades and tank HEAT/HE 20 s), but the 108 generated direct-fire weapons carried the default 100 s, so the firing solution offered an elevation for targets no round reaches: an RPG-7 at 1500 m is in the air 6.6 s and its rocket is gone after 4 s, about 900 m. Such a target now has no solution, like the UB-32's 20 s and the AGS-17's 40 s did already. The values come from Squad Ballistics' `weapons.json` (`lifespan`, read from the game by `tools/game_weapons.py`) through `gen_squadcalc_weapons.py` and, for the autocannons and machine guns only SquadCalc has, from the Blueprints of `tools/game_ballistics` (`provenance.py` compares every weapon of this file with the game). The maximum range circle is still the geometric range of the flight and ignores the lifespan.
+- Squad Ballistics 1.6.1 has the same `lifespan` and the two apps still give the same solutions (`tools/direct_fire/compare.py`: 104 weapons, 20 178 cases, 0 mismatches).
+
+</br><img src="https://img.shields.io/badge/-%20dev%20-lightgrey">  
+- Tests: `tests/weapons.test.mjs` (every direct-fire weapon states a lifespan of the game, spot values), `tests/squadBallistics.test.mjs` (an RPG-7 target beyond 4 s has no elevation).
+- Documentation: `tools/volumetric/docs/data-provenance.md` (deployment repository) lists every input of the firing solution per weapon with its source and label.
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.30.0** *(2026-11-05)*
+
+</br><img src="https://img.shields.io/badge/-fixes-orange">  
+- The grid starts where the game's grid starts. Audit of the map constants against the Squad dedicated server package (build 26005357): the game anchors A1 at the north-west corner of the minimap (`MapTextureCorner0/1` of each gameplay layer's `SQWorldSettings`) and splits 300 m keypads into 3 x 3 sub-keypads (`UI/Widgets/Map/Grids/W_SQMapGridLines`, scale factors 1, 3, 9), which the grid already did; what was wrong is its origin. Skorpo's image corners (`-3611 / 3238`, fitted to the image) lie 9.5 m / 10.5 m from the game's (`-3601.5 / 3248.5`), so every Skorpo grid line was 9.5 m west of the game's; the other 24 maps are within 1 m (rounded or truncated corners). Layers that ship a smaller minimap of their own (Skirmish and Seed layers of Chora, Mutaha, Tallil, Skorpo, GooseBay, Manicouagan and Black Coast) start their grid at that layer's corner, up to 1.2 km from the map's (Chora Skirmish v1: 1007 m east, 1222 m south), and a few regular layers differ by 0.5 to 1.5 m (Manicouagan RAAS v1/v2). The grid now starts at the game's corner of the loaded layer (the layer's `mapTextureCorners`), or the map's `SDK_data.minimap.game` corners without a layer; nothing is drawn north or west of it, and lines and letters are counted instead of tested for multiples. The map image, the heightmap and the markers keep the image corners.
+- `SDK_data.minimap.game` holds the game's corners of all 25 maps (metres, from the layers' `SQWorldSettings`); `corner0` / `corner1` remain the image and heightmap extent.
+
+</br><img src="https://img.shields.io/badge/-%20dev%20-lightgrey">  
+- Tests: `tests/squadGrid.test.mjs` (grid origin, rows and columns, game corners of all 25 maps within 1 m of the image except Skorpo, the layer offset of a Skirmish layer); `tests/loader.mjs` lets `squadGrid.js` use the real Leaflet.
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.29.0** *(2026-11-05)*
+
+</br><img src="https://img.shields.io/badge/-new%20features-green">  
+- Belaya Pass was removed from the map list (25 maps again): its level is not in the Squad dedicated server package, so its terrain could only come from community data that nothing here can check, and the owner decided to leave the map out. The terrain-only notice, the selector tooltip, the load toast, their translations in six languages and the special cases that skipped the layer API and the Detailed tiles for it are gone. A map is picked by its name (`?map=`), never by its position, so no saved link or selection moves; a link to the removed map opens a random map as for any unknown name.
+
+</br><img src="https://img.shields.io/badge/-%20dev%20-lightgrey">  
+- Tests: `tests/maps.test.mjs` now checks the 25 maps, each named once and in six languages; the terrain-only tests were removed, the "no `volume` entry starts no worker" test stays with a neutral map.
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.28.0** *(2026-11-05)*
+
+</br><img src="https://img.shields.io/badge/-new%20features-green">  
+- Belaya Pass is back in the map list (26 maps), **terrain only, from community data**: its level is not in the Squad dedicated server package, so nothing of it is derived from the game files. Its heightmap is SquadHeight 1.3.0's (a Squad Mod SDK export, June 2026, 1 m grid, x -1954..1950, y -2080..1825), its relief archive and topographic metrics are computed from it, and its map images are the upstream ones. `meta.json` carries `"provenance": "SquadHeight 1.3.0 (Mod SDK export), terrain only, not validated against server data"`. Choosing the map shows a warning that its terrain is community data, unverified, and its entry in the selector has the same note as a tooltip (six languages). The API has no game layers for it, so the layer selector stays empty without asking (no error toast), and it has no Detailed tiles, so that layer shows the upstream topographic map without a request or a warning; the Relief layer is offered. There are no building or object heights and no volume layer for it: with *Object volumes in the line of fire* on, the map falls back to the heightmap, as every map without a `volume` entry does. The accuracy figures of the other 25 maps (server-derived) do not apply to it.
+
+</br><img src="https://img.shields.io/badge/-%20dev%20-lightgrey">  
+- `tools/heightmaps`: `heightmaps.sh belaya` / `py/build_squadheight_only.py` build a heightmap from SquadHeight alone (tests: `py/test_build_squadheight_only.py`); `SquadExtract texture` writes the top mip of a Texture2D (the server package keeps no pixels of the Belaya minimap).
+- Tests: `tests/maps.test.mjs` (26 maps, Belaya's size and flag, locale names and notices in six languages), a map without a `volume` entry starts no worker (`tests/squadVolume.test.mjs`), the notice on load (`tests/squadHeightmaps.test.mjs`).
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.27.0** *(2026-11-05)*
+
+</br><img src="https://img.shields.io/badge/-fixes-orange">  
+Findings of the independent review of 45.22 to 45.26 (deadline-squad/deadline-squadcalc#22):
+- A target at the *Landscape* height was reported as behind an obstacle about half the time: the trajectory solver lands the shell a hair (up to 2e-6 m) under the ground at the target, and the line-of-fire check counted that as meeting the landscape. A point is now under the landscape only when it is more than 0.1 mm below it.
+- Turning *Object volumes in the line of fire* off and on while the map's `meta.json` was being fetched started two workers and left one running (and fired `volume:ready` twice). A load now stops when another one started after it or the layer was turned off.
+- A voxel buried under the ground hid the ground in front of it: of a voxel and the landscape on the same segment the one reached first is reported, the landscape where the segment crosses it.
+- Structure damage beyond the explosion's outer radius stays zero in the app although the engine returns the minimum damage (`Lerp(Min, Damage, 0)`) for a structure that is inside the burst by its box and outside it by the ray's hit point. Documented as a known deviation (`tools/volumetric/docs/structure-damage.md`, `.ru.md`), in the structure tooltip (six languages) and in `structureDamage.js`.
+- The engine accepted malformed volume and region files: run lengths and column ids that wrap around in 64-bit arithmetic, an infinite or NaN cell size, origin or margin. Sums are checked, empty runs and non-finite header values are rejected (`engine/src/voxel.rs`, `precision.rs`); the WebAssembly engine is rebuilt.
+- The volume files' sha256 check was skipped without `crypto.subtle` (a plain-HTTP page) and failed for an upper-case hash in `meta.json`. The digest is now always checked, with SubtleCrypto when there is one and with a plain-JavaScript SHA-256 (`src/js/sha256.js`) otherwise, and compared in either case.
+- The position heatmap was not recomputed when only the weapon's range, its elevation limits or the gravity scale changed: they are part of its signature now.
+- README: the volume layer paragraph said both that a shot passes through an open window or doorway and that windows and doors let nothing through. Open windows and doorways (a door is open or absent) pass, closed windows, walls and trees stop it; the same correction in `engine/README.md` and `.ru.md`.
+- Accessibility: the position heatmap's status line is a live region (`role="status"`); an open structure popup of a deployable marker is refreshed when the weapon or the shell changes.
+- A target height that the list no longer offers (another weapon, map or setting) went on applying while the select read *Ground*: it is reset to the ground.
+- `npm test` failed on Node 22 (`ERR_UNSUPPORTED_DIR_IMPORT`: from Node 22 a directory argument is not searched). The script names the files by glob (`tests/*.test.mjs`), as does the engine workflow (`js/test/*.test.mjs`). `leaflet.test.mjs` and `structureInfo.test.mjs` stop with `ERR_MODULE_NOT_FOUND` on a checkout without `node_modules`: `npm ci` first (`tests/README.md`).
+
+</br><img src="https://img.shields.io/badge/-%20dev%20-lightgrey">  
+- Tests that fail without the fixes: `tests/volumeLayer.test.mjs` (a point a hair under the ground; the Mortar, M1064M121 and HellCannon on flat ground at the landscape height over 1100 m of terrain; a buried voxel; checksum mismatch, upper-case hash and no SubtleCrypto; a 100 m tower against a lob), `tests/squadVolume.test.mjs` (the doubled load), `tests/sha256.test.mjs`, `tests/positionHeatmap.test.mjs` (signature), `tests/targetHeights.test.mjs` (the height reset), `tests/targetHeight.test.mjs` (the samples stop 0.5 m before an elevated target: `ELEVATED_TARGET_SAMPLE_END` mutated to 3 was green), Rust unit tests of `voxel.rs` and `precision.rs`. `tests/loader.mjs` serves `package.json` imports of the sources to Node. `targets_check.mjs` and `heatmap_check.mjs` of the deployment repository check the popup refresh and the live region.
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.26.0** *(2026-11-04)*
+
+</br><img src="https://img.shields.io/badge/-new%20features-green">  
+- Firing positions (needs *Object volumes in the line of fire*, off by default; direct-fire weapons only): the target dialog has a *Firing positions* button that draws, from the volume layer's worker, the ground positions up to the weapon's range (at most 2000 m) from where the weapon has a clear line of fire to the target at the height chosen for it. Green is a close position with room around the line of fire, amber a far one or one where the line passes close to an obstacle, faint red a blocked one; the score counts distance (a far position stays viable) and the clearance around obstacles, as wide as the weapon's spread. Open windows and doorways let the line through, closed ones and walls stop it, no penetration is computed. The module is loaded only when the button is pressed. Where the target lies 50 m or more inside the square of a precision region (the exact collision triangles of 150 m around a target; one is published, on Jensen) the lines that pass close to geometry there are decided by the exact triangles and the legend says how far they reach; otherwise it says *Voxels only*. Against the exact triangle tracer on a Jensen building: no false clear and no false blocked position with the region, 1 and 275 (1 and 1 337 at a second height) of 31 560 without it. Times per map: `engine/README.md`.
+- The damage zone around a target (kill, wound, covered) uses the voxels as cover when the volume layer is on: a soldier behind a wall is covered, one in line with an open doorway or window is not, and the round lands at the height chosen for the target (a floor, a window, a roof). The heightmap is used as before otherwise.
+
+</br><img src="https://img.shields.io/badge/-%20dev%20-lightgrey">  
+- `src/js/positionHeatmap.js` (the pure classifier: score, rays, polylines, image, choice of the precision region), `src/js/squadPositionHeatmap.js` (the layer, a chunk loaded on demand), the `heatInit`/`heatRays`/`heatFinish` and `cover` messages of `volumeWorker.js`, `squadDamage.damageField(..., objects)`; `meta.json` `volume.regions` lists the precision regions of a map (`tools/volumetric/py/publish_regions.py` of the deployment repository). `tests/positionHeatmap.test.mjs` and the new cases of `tests/volumeLayer.test.mjs` and `tests/squadDamage.test.mjs`; `engine/tools/js/heatmap_validate.mjs` compares the heatmap with the exact triangles of a window; the browser checks are `heatmap_check.mjs` and `heatmap_timing.mjs` of the deployment repository.
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.25.0** *(2026-11-04)*
+
+</br><img src="https://img.shields.io/badge/-fixes-orange">  
+- Structure damage follows the rules read from the game server (`ASQDeployable::TakeDamage`, build 26005357; `tools/volumetric/docs/native-rules.md`) instead of the earlier guess: the radial part of a direct hit uses the direct-hit multiplier, not the direct-radial one (which only vehicles read, so ammunition crates take the full explosion); the impact has no hit multiplier; `ExplosiveMinimumDamage` is a floor that the modifier does not scale (ten projectiles, 125 mm HEAT 35); a type that passes damage only on a direct hit does nothing to a near miss; the burst is measured from the impact point moved along the impact normal (1 m for the mortar round, 0.15 m for tank HEAT). Damage types are matched by exact class, health is clamped to 0..max. The impact damage of a direct hit and the mortars' secondary explosion stay inferred (Blueprint code, not in the binary); the help text says so and nothing else.
+- Shells to destroy, old guess / game rules (full health, one shell each; direct hit, burst 3, 5, 10 m away): mortar against the FOB radio 2/2, 8/8, 22/22, 65/65; mortar against a HAB 18/18, 81/85, 342/350, 1071/1083; mortar against a HESCO barrier 4/4, 17/17, 126/129, 429/434; 125 mm HEAT against the FOB radio 3/3, 30/30, 39/20, 131/11; against a HAB 8/8, 80/80, 103/40, 344/18; against a HESCO barrier 10/10, 100/100, 130/22, 435/8. The 12 x 14 direct-hit table of the docs changes in 3 cells (mortar on sandbags 9 to 10, BM-21 on the observation tower 51 to 50 and on the mortar emplacement 10 to 11).
+
+</br><img src="https://img.shields.io/badge/-%20dev%20-lightgrey">  
+- `src/data/structureDamage.js` is regenerated by `tools/volumetric/semantics/structure_damage.py export` (adds `minimum`, `onlyDirect`; drops `directRadial`, 44 structure entries instead of 45); `tests/structureDamage.test.mjs` encodes the native-rules cases (direct-hit multiplier, floor, near miss with `onlyDirect`, exact class, burst distance, ammunition crate), all failing against the previous implementation.
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.24.0** *(2026-11-04)*
+
+</br><img src="https://img.shields.io/badge/-new%20features-green">  
+- Target heights (needs *Object volumes in the line of fire*, off by default): the target dialog (click a target) has a *Target height* list when the setting is on and the map has volume files. It holds the heights a vertical ray through the voxel column at the target finds: the floors a soldier can stand on, the ceilings, the roof, and the windows and doorways in walls (open ones are holes, closed windows are solid, a door is open or absent; they are recognised from the shape of the walls, not from the game's building data). Where the heightmap, which fuses a building with the landscape, stands above the landscape, *Ground* is the top of the building and *Landscape* the ground under it. The chosen height replaces the target's ground height in the elevation, the height difference and the line-of-fire check (checked up to the target point itself instead of stopping 3 m short), and shows in the target's popup. Dragging a target or turning the setting off puts it back on the ground. With the setting off, or a map without volume files, nothing changes
+- Structure damage: clicking a deployable marker (FOB radio, HAB, mortar, HMG, GMG, AA gun, ammo crate, repair station) opens a popup with the shells of the selected ammunition needed to destroy it from full health, and the target dialog shows the same for a target within 5 m of such a marker. Health and the damage-type multipliers are the game's; how the game combines them into damage is inferred from the field names and was not verified in game, which the tooltip says. Armour-piercing and machine-gun rounds do no structure damage, and nothing is shown for weapons the game data does not cover (howitzers, rocket artillery, modded weapons). One shell per count, each landing where aimed: the spread is not included
+
+</br><img src="https://img.shields.io/badge/-%20dev%20-lightgrey">  
+- `tests/targetHeights.test.mjs` (classification of a column), `tests/volumeLayer.test.mjs` (the worker's column through the real engine on a house with a storey, a window and a doorway), `tests/targetHeight.test.mjs` (the firing solution and the line of fire of a target with a height), `tests/structureInfo.test.mjs` and `tests/structureDamage.test.mjs` (the links between `weapons.js` shells and the game's projectiles, `src/data/structureLinks.js`)
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.23.0** *(2026-11-04)*
+
+</br><img src="https://img.shields.io/badge/-new%20feature-green">  
+- Object volumes in the line of fire (settings, off by default): the obstacle check of a shot to a target and the fire coverage test the shell against the voxel columns of the game's buildings, walls, bridges and trees (about 0.5 m wide, 0.25 m high) instead of the heightmap, which has one height per cell and so shows an open doorway or window as solid wall and has no trees. A shot passes through an open window or doorway and is stopped by a closed window, a wall or a tree; no penetration is computed. The landscape comes from its own file (the heights without the buildings, landscape holes such as rivers do not stop a shot). Voxel columns exist for Fallujah, Fool's Road, Goose Bay, Jensen, Kamdesh, Kohat, Kokan, Logar, Mestia, Pacific and Sumari; the other maps keep the heightmap. Nothing is downloaded until the setting is on and the map has them (0.1 to 15 MB of voxels, 0.4 to 6.5 MB of landscape heights, and the 0.4 MB WebAssembly engine, all in a background worker); when anything fails to load the heightmap answers as before. Against the exact triangle tracer on 100 000 random segments the voxel walk is wrong for 4.1 % (Jensen) and 8.4 % (Kokan) of them, almost all of it blocked-instead-of-clear within a voxel of the geometry (engine/README.md). The fire coverage with the layer takes 2 to 3 times longer than with the heightmap (about 5 s on a dense map)
+
+</br><img src="https://img.shields.io/badge/-%20dev%20-lightgrey">  
+- `npm run build:engine` builds the WebAssembly engine (`engine/`) into `public/engine/` (not committed); the site builds and runs without it. `tests/volumeLayer.test.mjs` runs the volume worker through the real engine on a wall with a doorway (skipped without the engine), `tests/volumeTerrain.test.mjs` the landscape file
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.22.0** *(2026-11-04)*
+
+</br><img src="https://img.shields.io/badge/-new%20feature-green">  
+- A Relief layer in the layers menu: the terrain of the map shaded from its precise heightmap alone, without colours, roads or labels, so cliffs, ridges, ditches and the outline of every building and wall stand out. Four lights (north, north-west, west, south-west) are blended by the slope's direction, so no slope is lost in its own shadow, and an anisotropic sky-view factor darkens hollows and the foot of walls. Each map is one PMTiles file read with range requests, and nothing is downloaded until the layer is selected: the layer's code is a separate 7.5 KB (gzip) script loaded at that moment, and the page's own scripts grow by 0.5 KB. Available for all 25 maps; a map without a relief file keeps showing the detailed map
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.21.0** *(2026-11-04)*
+
+</br><img src="https://img.shields.io/badge/-%20improv%20-orange">  
+- The hit probability of a direct-fire weapon launched from a muzzle above the ground (the vehicle MK19 and AGS-17 mounts, 2 to 3 m up) takes its spread from the shell's own trajectory instead of the closed-form parabola from the pivot: the shell comes down at a grazing angle, and the closed form overstated the range spread (78 m along the line of fire for the PARS III at 300 m). PARS III MK19 at 300 m: kill chance 0.090 to 0.117 (a simulation of the game's cone gives 0.112), wound 0.347 to 0.415 (0.419), rounds for 90 % 25/6 to 19/5. Weapons without a muzzle offset are unchanged
+- Accessibility: map buttons, dialog close buttons and header selects have localised names (six locales), toggles report `aria-pressed`, the select widgets take the name of their select, weapon and target markers take focus and open their dialog with Enter or Space, and the layer menu opens on keyboard focus
+- Locales: 15 unused keys removed, and the live "Air Assault" unit type added to the English file (checked against all 93 API layers of the 25 maps)
+
+</br><img src="https://img.shields.io/badge/-%20dev%20-lightgrey">  
+- `npm test` runs a `node --test` suite over the pure modules (firing solution, damage, heightmap triangle rule, weapons data, Leaflet 2 event names) with no new dependency, and a GitHub workflow runs it on pushes to dev and on pull requests
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.20.0** *(2026-10-31)*
+
+</br><img src="https://img.shields.io/badge/-%20improv%20-orange">  
+- Chora and Kokan Valley have their heights at the game's own 0.5 m: their landscapes have a vertex every 0.5 m, and the 1 m heightmap dropped every other one. Against the landscape's vertices (22 million on Chora, 24 million on Kokan, Squad build 26005357) the error of the 1 m heightmap was 8.9 cm RMS and 9.4 cm at the 99th percentile on Chora (31 m at the worst vertex, on a cliff) and 0.9 cm RMS, 3.1 cm 99th percentile on Kokan; the 0.5 m heightmap reads the vertices back to within its 0.8 to 1 cm height step (0.2 to 0.3 cm RMS). Around buildings, walls and rocks (the densest square kilometre of each map, against a 0.25 m reference) the heightmap is closer to the game too: within 2 m of an object the RMS error falls from 0.35 m to 0.18 m on Chora and from 0.41 m to 0.23 m on Kokan, and the share of points more than 25 cm off from 13.2 % to 4.9 % and from 14.6 % to 6.1 %. Direct-fire line of sight in that window disagrees with the 0.25 m reference in 1.8 % of the pairs instead of 5.6 % on Chora, 0.2 % instead of 0.6 % on Kokan; the mortar's lob is unchanged. The price is the download of these two maps only, and only when you open them: heightmap.webp grows from 4.9 to 14.2 MB (Chora) and from 2.6 to 6.4 MB (Kokan), and their decoding in the background worker from 0.6 to 1.8 s and from 0.2 to 0.7 s; every other map keeps its 1 m heightmap. The page reads the sample spacing from `resolution_m` in meta.json and scales its grid from the image size, as before
+- The check for obstacles in the line of fire (the hill, wall or building between weapon and target) steps along the line every 0.5 m on these two maps instead of every metre, so a 0.5 m wall between two samples is not skipped. The fire coverage keeps its coarser ray sampling (at least 1.25 m, for speed), which was never tied to the heightmap's samples
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.19.0** *(2026-10-31)*
+
+</br><img src="https://img.shields.io/badge/-new%20feature-green">  
+- The Squad Ballistics group has the AGS-17, MK19 and SPG-9 of every vehicle that carries them, 24 weapons more: the AGS-17 on the Technical, Tigr, Safir, M1151 and BTR-D; the MK19 on the AAVP-7A1, M113 (with and without its sights), M1151, MATV and RHIB; the SPG-9 on the Technical and the INS armoured technical (HEAT and FRAG, with and without the ×4 scope). Each starts its shell where the game does: the barrel pivots at the game's height above the ground (1.80 m on the Safir to 3.22 m on the AAVP-7A1) and the muzzle sits along and above the barrel, so the firing solution, the line-of-sight angle and the fire coverage use that point. The PARS III, TAPV C16, M113 and M1151 MK19 get their launch point too. Also the C90-CR, the DZJ-08, the RPG-28 and the PG-7VR tandem round of the RPG-7V1 (65 m/s) and RPG-7V2 (117 m/s; the older RPG-7 keeps 63 m/s). All from the game files (Squad build 26005357); `compare.py` finds no difference with Squad Ballistics over the 104 weapons. The M1117 and RHIB MK19 and the Kozak-2M1 and RHIB AGS-17 are not in the files with a launch height (Squad Ballistics #12).
+
+</br><img src="https://img.shields.io/badge/-%20improv%20-orange">  
+- "MK19 · M1151 / RHIB open turret" is now "MK19 · M1151 open turret" (the RHIB has its own entry); the old name still selects it from an older Squad Ballistics.
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.18.0** *(2026-10-31)*
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- Heights between two heightmap samples follow the game's own collision surface. The game splits every quad of its landscape into two triangles along one diagonal (found with 1,300 positions the game server logged: the diagonal from a quad's (row, col) corner to its (row + 1, col + 1) corner is the closer to the logged ground in 79 of 89 decisive points), and SquadCalc interpolated bilinearly, which differs from it by up to a quarter of the quad's twist at its centre. On maps whose heightmap sits on the game's vertices the old read was off by 0.3-2.2 cm RMS and up to 0.2-1.1 m on the steepest quads (Al Basrah 1.1 m); the new one is exact there (0.0-0.1 cm RMS). Against the logged positions the read is within 2 cm for 92 % of the Fallujah points (bilinear 90 %, nearest sample 79 %) with a 95th percentile of 5.5 cm instead of 10.1 cm. On building cells the triangle read is 2 % worse than the bilinear one (the buildings are mesh heights, not triangles of the landscape): RMS 0.95 m instead of 0.93 m in the densest square kilometre of Fallujah
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.17.0** *(2026-10-31)*
+
+</br><img src="https://img.shields.io/badge/-%20improv%20-orange">  
+- The page opens and works without a network after one visit: the service worker keeps the last page, the translations, the Google fonts and the precise heightmap of the maps seen (the 8 latest, 30 days; meta.json comes from the network first, the heavy file is saved under its `?v=` URL), so a reload offline shows the app in your language with the real heights instead of a browser error page. Online nothing is served stale: the page, the translations and meta.json always come from the network first
+- An older Squad Ballistics that still selects a weapon by a name SquadCalc renamed in the game-data update (`MK19 / AGS-17 / AGS-30`, `BTR-4 AGS`, `Carl Gustav / M3 MAAWS · HEAT` and `· Tandem`, `Tank AP · 2A46 / ZPT98 / 2A20 / M68A2`, `Tank AP · L30A1 (Challenger 2)`, `M203 / M320 / GP-25 / HK79 / MKE MGL`) gets the weapon again instead of `false`, as it does for the RMB sights
+- The fonts (Montserrat, Oswald, Roboto) are served from the site itself instead of fonts.googleapis.com / fonts.gstatic.com: the render-blocking stylesheet and the two font requests to another host are gone (no request leaves for Google), and the page looks the same in all six languages (screenshots byte-identical). The files are the OFL woff2 subsets latin, latin-ext, cyrillic and cyrillic-ext (12 files, the same unicode-range split as Google's, so only the subsets a page uses are downloaded; Chinese falls back to the system font as before). The two latin files are preloaded. The service worker precaches the three latin files (72 kB) and keeps the other subsets for a year once used, so the fonts also work offline
+- Keyboard focus is visible: tabbing through the map buttons, the settings sliders and checkboxes draws an outline (a mouse click looks as before). Screen readers now get a name for the layer and tools buttons, the simple-mode button (it was announced as "Download map") and every settings checkbox and slider
+- The strings that German, French, Russian, Ukrainian and Chinese lacked are translated: "Move to" in the weapon dialog, the km and min units, the Squad unit types (mountain, recon, air-mobile and wheeled mechanized units, MLRS support), the CRF, MEI and GFI factions in German and the "show only the last three digits" tooltip in Ukrainian. Before, the English key or nothing was shown. `npm run locales` now fails when a language lacks a key that English has
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- Hovering a placed mortar or Hell Cannon marker shows its range circle again (1237 m and 923 m) and hides it when the pointer leaves: the marker listened for mouse events that Leaflet 2 no longer fires. Dragging such a marker also pauses the keypad popup under the cursor again, as it does for weapons and targets
+</br><img src="https://img.shields.io/badge/-new%20feature-green">  
+- Direct-fire weapons (the Squad Ballistics overlay mark) show a damage zone, kill / wound chance per round and the rounds needed for 90 %, like the mortar. Their explosion comes from the game files (Squad build 26005357): grenade launchers 115 damage within 1 to 15 m (rifle grenade: HE 250 / HEAT 130), the MK19 and AGS-30 the same, M72 / RPG-26 100 within 1.5 to 7.5 m, AT-4 115 within 1.5 to 7.5 m, SMAW, RPG-29, NLAW, Carl Gustav and the MAAWS 130 to 250 within 2 to 16 m, tank HEAT / HESH 200 within 3.5 to 20 m, tank HE and the 2A70 300 within 4 to 35 m (the table is in tools/direct_fire/gen_squadcalc_weapons.py). A weapon with several ammunitions (RPG-7 HEAT / HE, SMAW HEAT / Tandem, ZiS-3, tank HEAT / HE) gets a shell for each. The SMAW tandem warhead deals 80 damage: it wounds but never kills, and its kill zone is empty (it was a radius of infinity). A shell that hits an obstacle before the target shows no rounds line
+- The 19 autocannons and machine guns only SquadCalc has (M242, 2A42, 2A72, RARDEN, CTAS40, ZPT99, KPVT, M2A1, NSV, Kord, DShK) get the MOA of their game weapon (1.35 to 7 MOA; the machine guns the value of a rested gun, a sustained burst spreads wider) and, for their HE rounds, the explosion; the AP, APFSDS and machine-gun rounds do not explode and show no damage zone. The Blueprint each number comes from is in tools/direct_fire/gen_squadcalc_weapons.py, which regenerates weapons.js and checks it against the game files (`--verify`)
+- The hit chance of a rocket or a capped shell (SPG-9 400 m: spread 16.9 m with the closed form, 8.1 m in the game) is computed from its trajectory and agrees within 0.01 with a simulation of the game's cone flown in the game's 20 ms steps for the RPG-7, SPG-9, tank, 2A70, CTAS40, MK19 and the M203 at three distances each; weapons without an explosion in the game files keep their popup and spread as they were
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.15.0** *(2026-10-31)*
+
+</br><img src="https://img.shields.io/badge/-new%20feature-green">  
+- A new map layer, "Detailed map · game colours", for Al Basrah, Gorodok and Fallujah: the same data as the Detailed layer (hillshade, contours, roads, building footprints with heights, trees, water, 0.24 m per pixel at the finest zoom) painted in the colours of the game's own map, so the sand, the dark river water and green ponds, the brown roads and the dark roofs look as in the game. Its button appears next to Detailed on those maps only (other maps have no such tiles; with the layer selected, another map shows Detailed and the layer has to be picked again on the next of the three), it is off by default and the default layer is unchanged; the `M` shortcut includes it where it exists. The colours are fitted to the upstream basemap of each map (tools/maptiles, style `colour`): the mean colour distance (CIEDE2000, 64 m cells) to the basemap falls from 33.5, 38.9 and 26.2 for the Detailed layer to 1.1, 0.9 and 1.5. The tiles are in `/maptiles/<map>-colour/` next to the Detailed ones (46-70 MB per map)
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.14.0** *(2026-10-30)*
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- The Squad Ballistics weapons with an RMB optic are named by their view. "QLZ87" was the entry for the ×3 optic, and fired from the normal view (no RMB) its mark put the shot hundreds of metres past the target (FOV 120: a target at 300 m, a shot at ~830 m). Now "QLZ87 · optic (RMB ×3)" and "QLZ87 · no optic" say which view they are for, and so do the QLZ87 on the Lynx / CSK131, the AGS-17 ("AGS-17 · optic (RMB ×2.5)", "AGS-17 · emplacement · no optic"), the SPG-9 scope and the ZiS-3. The entries keep their place in the list and their saved selection; only the names change. Squad Ballistics 1.6.0 shows the same names and says in the weapon header, the overlay and the how-to steps whether to hold RMB; an older Squad Ballistics still selects the weapons by their old names (`legacyBallistics`)
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.13.0** *(2026-10-30)*
+
+</br><img src="https://img.shields.io/badge/-%20improv%20-orange">  
+- Switching to a map downloads and decodes the precise heightmap faster: it is a lossless WebP the browser decodes itself (Yehorivka 30.7 MB to 20.5 MB, Al Basrah 14.1 MB to 6.6 MB; 326 MB to 171 MB for the 25 maps), with the heights rounded to 1 cm (5 mm from the old ones at most; Chora and Skorpo are unchanged). A heightmap is requested only once its `meta.json` was found, so a site without precise heightmaps no longer downloads the PNG for nothing, and with a `generated` date in `meta.json` the file is requested as `?v=<date>` and can stay in the browser's cache. The PNG of older deployments is decoded with the browser's own inflate instead of JavaScript's, and is used when the WebP cannot be
+- The first visit downloads about 19 MB less (the service worker's precache falls from 20.8 MB to 1.9 MB on the wire): the 220 vehicle images (15.7 MB) and the README screenshots are no longer precached; a vehicle image is saved the first time it is shown, then served from the cache for 30 days
+- The detailed map layer keeps one tile beyond the screen instead of two, so a zoom step or a pan requests fewer tiles
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.12.0** *(2026-10-30)*
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- The rounds-to-kill and rounds-to-wound line used a spread the game does not have: impacts were spread evenly over the area of the spread ellipse, but the game's cone (`FMath::VRandCone`, `Phi = fmodf(acosf(2v - 1), h)`, build 26005357) puts the miss *radius* evenly, so rounds crowd at the centre and a kill is `kill radius / spread radius` likely, not its square. The count was too high by up to 10 times: AGS-17 at 300 m asked for 184 rounds to kill (now 19, wound 8 now 4), the mortar at 300 m 16 (now 5). Kill / wound per round, mortar 300 m 0.135 / 0.507 now 0.370 / 0.710, 1000 m 0.253 / 0.835 now 0.492 / 0.905, AGS-17 300 m 0.013 / 0.263 now 0.115 / 0.510 (a 400,000-shot simulation of the game's cone on exact flat-ground physics gives 0.369 / 0.711, 0.494 / 0.910 and 0.115 / 0.510). The drawn spread ellipse is unchanged (it matches the cone within 0.1 %)
+- Direct-fire weapons had no spread (MOA 0), so no spread ellipse was drawn for them. They now have the MOA of their game weapon: grenade launchers 30-40, RPG-7 20 (RPG-7V1 15), RPG-26 / M72 15, AT-4 and RPG-29 10, SMAW, PF98, Carl Gustav and M3 MAAWS 7, SPG-9, Grom and ZiS-3 3, 2A70 1.6, tank guns 1.5 (Leopard 1.2), NLAW 1, MK19 on the M1117, AAV-7 and PARS III 50, AGS-30 15. The tripod and open-turret MK19 and the QLZ87 spread by a curve (15 MOA for the first shot of a rested gun, up to 50 in a sustained burst) whose input the game files do not give: they show the 15 MOA of the first shot, a burst spreads wider. The AGS-17 keeps its 50 MOA (a burst). Their hit probability is not shown yet: their explosion is not in the data
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.11.0** *(2026-10-30)*
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- The page no longer freezes while the fire coverage, the damage zones or a dragged target are computed. Fire coverage: the highest trajectories are searched once instead of in every chunk, each root starts from the previous cell's, the terrain along a ray is cleared with a sparse range-maximum table instead of sample by sample, and the cells are classified in two workers while the page only samples the terrain (in chunks of 8 ms, started by a `MessageChannel`; the PNG is encoded by `toBlob`). Without workers the same chunks run on the page. Every cell is the same as before (111 weapons on a real heightmap, three positions). A weapon now takes 0.5-0.8 s to draw (UB-32 2.9 s, SPG-9 2.4 s, Tank HE 2.0 s before) and the longest task of the page went from 83-144 ms to 10-46 ms
+- Damage zones: cover is read from a horizon sweep of the impact (a pass along 2π·radius/0.5 directions instead of a line walked for every cell; 0-0.2 % of the cells change class), zones are drawn one 8 ms task at a time and kept per map, position and shell, and the hit probability is cached. Dragging a target updates once per frame and leaves the rounds line out until it is dropped
+- The firing solution solves once and traces on one trajectory (2-8x faster, same elevations, times, spreads and obstacles); `getMaxDistance()` is cached; the 4096 px map image is decoded off the main thread (230-710 ms before on every map switch)
+- A solution is for flat ground until the precise heightmap has loaded: the popups show "no height data" and the bridge sends `heightDiff: null`, then both follow `heightmap:loaded`. A target on the weapon, or at an unknown height, shows as out of range
+- Squad Ballistics bridge, version 5: `window.squadBallistics.lastTarget()` (the newest target alone, shaped like one element of `targets()`, or `null`) and `window.squadBallistics.revision()` (a number that changes when a target, the weapon or the heights change; `console.info("sb:changed")` is logged at the same moment). The profile of a target is computed once per solution. `targets()`, `weapon()` and `selectWeapon()` are unchanged
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.10.0** *(2026-10-30)*
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- The Technical's mortar and UB-32, the BM-21 and the M1064 M121 start their shell where the game does: the barrel socket `Attach_Muzzle`, at the hinge height and reach read from the game files (build 26005357), instead of a guessed 2.5-3 m above the ground. The elevation for a target moves by 0.01-0.2° at 450-2000 m; it now matches Squad Ballistics (whose old values were up to 3° off) to 1e-6°
+- Their elevation limits are the game's: Technical mortar 40°-83.8° (its HUD's table), M1064 50°-85°, BM-21 14.2°-55° (nothing nearer than about 985 m), Technical UB-32 0°-50°; targets past them show as out of range
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.9.0** *(2026-10-30)*
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- Direct fire flies like the game's server: 20 ms steps, the projectile's top speed (MaxSpeed) applied from the first step, and a rocket motor that pushes along the path. Tank HEAT/HE (1100 m/s, held at 850 or 800 m/s) and SPG-9 / Grom HEAT and FRAG now land where aimed instead of 70-330 m short at 200-800 m; the RPG-7, M3 MAAWS, Carl Gustav, PF98, SMAW and RPG-29 now land on the target too (the RPG-7 passed 1.6-9 m under it at 200-800 m). Same model as Squad Ballistics (deadline-squad/squad-ballistics#4)
+- The direct-fire weapons on mounts and turrets have the elevation limits of the game files (SPG-9 tripod +-10°, MK19 tripod -35..20°, AGS-17 -12..86°); targets past them show as out of range
+- New Squad Ballistics weapons: "MK19 · emplacement / C16 / L134A1 · no sights" (fired without RMB) and "AGS-30 (BMP-1TS)"; "AGS-30 / BTR-4 AGS" now has the BTR-4's own 1.6° sight
+- The UB-32's S-5 keeps its 300 m/s cap and its motor along the pod's axis
+- The machine guns and autocannons that only SquadCalc has get their projectile's top speed too: the .50 cal, NSV, Kord and DShK (850-890 m/s) fly at 800 m/s from the first step, the KPVT at 900, the CTAS40 at 1385 / 1000 and the RARDEN and 2A72 HE at 1000
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.8.3** *(2026-10-30)*
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- 26 more Squad Ballistics weapons, so an embedded map selects them instead of keeping the previous weapon: each tank's own AP and HEAT/HE entry (T-62, T-64BM2, ZTZ-99, Leopard 2A6, M60T, M1128 MGS, M1A1 / M1A2), the MK19 mounts (PARS III and TAPV C16 RWS, M113 and M1151 / RHIB open turrets), SPG-9 · HEAT / FRAG · scope, QLZ87 · Lynx / CSK131, AGS-30 (BMP-2M), 2A28 Grom (BMD-1M) · HEAT / FRAG, 2A70 100mm (ZBD-04A, BMD-4M) · FRAG and AGS-17 · iron sights emplacement
+- "AGS-17 · emplacement · no optic" and the new "AGS-17 · iron sights emplacement" work like the AGS-17: hold time on the high arc, direct fire on the low arc, its grenade's spread and damage, listed with it under Deployables (the no-optic one was direct fire only). The iron-sights gun lobs from 33 m (its barrel sits 4.5° higher)
+- The saved weapon selection is unchanged
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.8.2** *(2026-10-30)*
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- A precise heightmap download the network drops (connection lost, a server error) is tried again, up to four times over about 7 s, instead of silently keeping the coarse 8-bit heightmap for the whole visit. If it still fails, a warning says the heights are coarse. A site without precise heightmaps (404) still uses the 8-bit one at once
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.8.1** *(2026-10-30)*
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- Squad Ballistics' "· no optic" weapons (QLZ87, QLZ87 · Lynx / CSK131, AGS-17 · emplacement, SPG-9 · HEAT / FRAG · scope, ZiS-3), for aiming from the normal view without the optic, are in the "Direct fire (Squad Ballistics)" group, so an embedded map selects them instead of keeping the previous weapon. They fly like their optic entries; the AGS-17 one is direct fire (low arc) only. The saved weapon selection is unchanged
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.8.0** *(2026-10-29)*
+
+</br><img src="https://img.shields.io/badge/-removed-b22">  
+- The device link is removed: the "Link a timer overlay" setting with its session code, the `#link=<code>` pairing link and the relay connection (`/relay/<code>`). Targets no longer go to a second device or monitor; the browser forgets the saved link and code. Squad Ballistics still reads the targets and the weapon of an embedded map through `window.squadBallistics`, and the SquadMortarOverlay connection is unchanged
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.7.0** *(2026-10-29)*
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- Skorpo (6849 x 6869 m) and the other non-square maps: distances, bearings, heights, keypads, the coverage and the map assets use the scale of each map axis; the north-south one was 0.3 % off (up to 6 m on a 2 km shot, 19 m off in the heightmap at the south edge)
+- Heights are read at the exact point of the heightmap grid (the last sample is on the map edge, the far corner read 0 m) and interpolated between its four neighbours instead of taken from the nearest one
+- Rockets (UB-32, RPG-7, M3 MAAWS) follow their exact trajectory: a UB-32 fired at the old elevation landed 2 / 6 / 13 m short at 800 / 1200 / 1600 m; under 500 m its velocity was also wrong (wrong sign in the deceleration)
+- World gravity 9.80 m/s² from the game files, and the mortar, Hell Cannon and UB-32 fire from their real muzzle, which moves with the elevation: the solutions land within a millimetre in a simulation with the game's values (the UB-32 missed by up to 22 m at short range)
+- AGS-17 spread drawn from the game's MOA curve: 50 MOA in a burst (was 1.5 MOA, a 1.6 m wide spread at 1 km instead of 54 m)
+- The overlay relay sends the distance and the height to 0.1 m (were rounded to the metre)
+- A heightmap that fails to load is announced (error message) and the targets say "no height data" instead of silently using flat ground; Squad Ballistics gets an unknown height
+- In a session, a weapon's height set by another member is a number again (its precise range ring was broken)
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.6.0** *(2026-10-29)*
+
+</br><img src="https://img.shields.io/badge/-new%20features-green">
+- Pairing with Squad Ballistics without a code: its Settings show a link and a QR code (`https://<this site>/#link=<code>`). Opening it here takes over the app's session code, turns the overlay link on and shows a confirmation; the browser remembers both, so later visits reconnect by themselves. The code travels in the URL fragment, which is never sent to the server, and is removed from the address bar at once. Pasting the link into an open tab works too
+- The overlay link accepts session codes of 6 to 16 characters (Squad Ballistics makes 12-character codes) and shows them in groups of four
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.5.1** *(2026-10-29)*
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- Weapons and targets placed while the map's heightmap was still loading kept a solution computed on flat ground (wrong elevation, no damage zone) until moved; they are now solved again as soon as the heights arrive. Sessions and imported maps also wait for these heights
+- Turning the damage radius off now also removes the rounds-to-kill line from the popups
+- Bursts marked for fire correction are cleared when the weapon, its shell or the first weapon marker changes, instead of correcting a weapon that never fired them
+- The damage zone and the fire coverage no longer disappear under the map after switching the map layer with standard-quality images
+- No more missing marker-icon.png / marker-shadow.png requests (404) when placing weapons and targets
+
+</br><img src="https://img.shields.io/badge/-%20improv%20-orange"> 
+- Switching maps no longer freezes the page while the heightmap is decoded (up to 3.5 s on Yehorivka, now done in the background) and the heights take half the memory
+- Hovering a target no longer recomputes the damage zones of all the others when the mouse leaves it
+- The old 8-bit heightmap.json (2.2 MB per map) is no longer downloaded
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.5.0** *(2026-10-29)*
+
+</br><img src="https://img.shields.io/badge/-new%20features-green">
+- Damage zone with cover: inside the damage circles the map colors where a round on the target kills (red), wounds (orange), or would wound a soldier hidden behind a wall, a building or a ridge (blue). Unreal only damages what the explosion can see, so the cover is the line from the explosion to the soldier's body passing under the game heightmap (terrain and buildings)
+- Rounds to kill: the target popup shows `☠ 6 · 🩸 2`, the rounds to fire so that one kills, or at least wounds, a soldier standing on the target with 90 % confidence, from the weapon's spread (the ellipse on the map), its explosion and the cover around the target
+- Fire correction: Ctrl + double-click where a round burst marks it for the nearest target; the weapon's aim moves against the mean error of the marked bursts (in range and bearing, so it holds when the target moves), the popup shows `↻2 −12m +0.4°` and Squad Ballistics gets the corrected solution. Right-click a burst to remove it
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.4.2** *(2026-10-29)*
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- Spread and damage circles checked against the game files for every artillery weapon: AGS-17 spreads 1.5 MOA (was 15, the circle was ten times too wide) and its grenade hurts 1.5-18 m around the impact (was 1-15 m); AGS-30 / BTR-4 AGS and Technical Mortar use the game's explosion height; BM-21 Grad rockets expire after 20 s like in the game
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.4.1** *(2026-10-29)*
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- The obstacle check starts the trajectory at the real muzzle (the weapon's height, or the shoulder for direct-fire weapons), so the slope under a weapon is no longer reported as an obstacle a few meters away
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.4.0** *(2026-10-29)*
+
+</br><img src="https://img.shields.io/badge/-new%20features-green">
+- Precise heightmaps built from the game itself (Squad build 26005357): the terrain is the landscape collision read from the game files (0.3 mm steps, every landscape tile) and the buildings, rocks, walls, bridges and road embankments are the collision of every static mesh placed on the map, fused with SquadHeight's trace of the Squad SDK. Heights are 16-bit (about 1.6 cm) instead of 8-bit (up to 2.1 m), and the villages the SDK lacks on some maps are there
+- The target popup strikes through a trajectory that hits the terrain or a building before the target, and shows where (`⛔ 230m (+8m)`): fire the other trajectory or move
+- Weapon ballistics read from the game files: velocity, gravity scale, rocket boost and lifespan of every weapon. AGS-17 185 m/s with gravity ×1.8 (its hold rate refitted on 67 in-game measurements), Challenger 2 HESH 670 m/s, M3 MAAWS 63 m/s boosted to 230 m/s, RPG-7 boosts; weapons that shared an entry but fly differently are split (MGL/M32, AK-40GL, Carl Gustav M2 rounds, ZTD-05, BMD-4M / BMP-3M 30 mm, ZPT99 variants, emplaced M2 / Kord)
+- Squad Ballistics gets the terrain and building profile to each target (bridge version 4) and warns in its overlay when the shot is blocked
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.3.1** *(2026-10-28)*
+
+</br><img src="https://img.shields.io/badge/-new%20features-green">
+- Squad Ballistics can select the weapon picked there (`window.squadBallistics.selectWeapon(name)`, bridge version 3), so the fire coverage and popups follow the weapon chosen in the app
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.3.0** *(2026-10-28)*
+
+</br><img src="https://img.shields.io/badge/-new%20features-green">
+- Fire coverage (new map button): colors where the selected weapon can hit from the first weapon marker. The heightmap includes the buildings, so every cell is checked for a trajectory that clears the terrain and the buildings on the way: green for the low trajectory (direct fire), yellow when only the high one (lob, the AGS-17 hold range) gets there, red when it is in range but blocked. It follows the weapon, its position and height, and the map
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.2.1** *(2026-10-28)*
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- Direct-fire weapons (and the direct-fire angle of the AGS-17) show the elevation above the line of sight to the target, the angle you aim with, instead of the elevation to the horizon, which counted the height difference twice uphill and downhill
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.2.0** *(2026-10-28)*
+
+</br><img src="https://img.shields.io/badge/-new%20features-green">
+- Added a "Direct fire (Squad Ballistics)" weapon group: the 43 weapons aimed with the Squad Ballistics overlay mark (grenade launchers, AGLs, launchers including boosted rockets and the NLAW, recoilless and tank guns, autocannons, HMGs). Their physics come from Squad Ballistics' weapons.json, so the elevation shown (with the terrain height of both markers) is the one its overlay aims at
+- AGS-17: the target popup shows the hold time of the lob and the elevation for direct fire through the sight (`2.31s / 3.2°`), and targets reachable only in direct fire (under 280 m) are no longer shown as out of range
+- Squad Ballistics follows the weapon selected here: `window.squadBallistics.weapon()` (embedded map, bridge version 2) and a `weapon: <name>` line after the targets on the overlay link give its name in Squad Ballistics
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- The time of flight of direct-fire shots at a target above the weapon is the time to reach it on the way up (the projectile was counted until it came back down)
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.1.0** *(2026-10-28)*
+
+</br><img src="https://img.shields.io/badge/-new%20features-green">
+- Added the AGS-17 emplacement. It is aimed by holding the elevation key (the mount starts at its highest elevation and the key lowers it), so SquadCalc tells you how long to hold it (in seconds) instead of an angle, for the exact weapon and target heights. The ballistic model was fitted on 67 in-game measurements (280 m at 0 s to 1930 m at 4.1 s, 6.4 m RMS error)
+- The weapon card shows the hold time range and the elevation speed of such weapons
+- The heatmap is not available for the AGS-17 yet
+- Squad Ballistics integration: its embedded map reads the targets (distance, height difference, bearing) through `window.squadBallistics.targets()` and solves them for the weapon picked there; overlay link messages also carry the signed height difference (`... | 1000m | +12m`)
+- Added an overlay link: a session code (Settings > Weapons) lets a timer overlay running on another device or network receive your targets through a relay server (`/relay/<code>`), so the AGS-17 hold time can be shown over the game
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- Targets whose projectile would expire mid-air are now consistently out of range in every elevation display (previously only the map markers noticed)
+- The SquadMortarOverlay bridge, the copied/saved results and the legacy calculator tooltip use the hold time for the AGS-17; the bridge now sends `---` (instead of `NaN`) for targets out of range
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.0.2** *(2026-07-12)*
 
 </br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  

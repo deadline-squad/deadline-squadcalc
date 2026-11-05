@@ -31,7 +31,8 @@ export default class Simulation {
                 App.activeWeapon.name !== "Mortar" &&
                 App.activeWeapon.name !== "UB-32" &&
                 App.activeWeapon.name !== "M1064M121" &&
-                App.activeWeapon.name !== "Mk19") {
+                App.activeWeapon.name !== "Mk19" &&
+                !App.activeWeapon.elevationRate) {
         
                 if (this.angleType === "low") {
                     this.angleType = "high";
@@ -57,7 +58,7 @@ export default class Simulation {
         this.div.find(".infDistance").first().text(this.firingSolution.distance.toFixed(1)+i18next.t("common:m"));
         this.div.find(".infWHeight").first().text(this.firingSolution.weaponHeight.toFixed(1)+i18next.t("common:m"));
         this.div.find(".infTHeight").first().text(this.firingSolution.targetHeight.toFixed(1)+i18next.t("common:m"));
-        this.div.find(".infDHeight").first().text(this.firingSolution.heightDiff.toFixed(1)+i18next.t("common:m"));
+        this.div.find(".infDHeight").first().text(Number.isFinite(this.firingSolution.heightDiff) ? this.firingSolution.heightDiff.toFixed(1)+i18next.t("common:m") : "---");
 
 
         if (isNaN(this.firingSolution.elevation.high.rad) && isNaN(this.firingSolution.elevation.low.rad)) {
@@ -71,7 +72,8 @@ export default class Simulation {
                  App.activeWeapon.name != "UB-32" &&
                   App.activeWeapon.name != "M1064M121" &&
                    App.activeWeapon.name != "Mk19" &&
-                    App.activeWeapon.name != "BTR4-AGS"
+                    !App.activeWeapon.elevationRate &&
+                     App.activeWeapon.name != "BTR4-AGS"
             ) {
 
                 let elevationlow = this.firingSolution.elevation.low;
@@ -118,6 +120,9 @@ export default class Simulation {
                     this.div.find(".infTimeOfFlight").first().text(this.firingSolution.timeOfFlight.high.toFixed(1)+i18next.t("common:s"));
                     this.div.find(".infSpread").first().text(`H:${this.firingSolution.spreadParameters.high.semiMajorAxis.toFixed(1) + i18next.t("common:m")} V:${this.firingSolution.spreadParameters.high.semiMinorAxis.toFixed(1) + i18next.t("common:m")}`);
                     switch (App.activeWeapon.unit) {
+                    case "sec":
+                        this.div.find(".infElevation").first().text(`${this.firingSolution.holdTime.high.toFixed(App.activeWeapon.elevationPrecision)}${i18next.t("common:s")}`);
+                        break;
                     case "mil":
                         this.div.find(".infElevation").first().text(`${this.firingSolution.elevation.high.mil.toFixed(1)}mil`);
                         break;
@@ -140,6 +145,9 @@ export default class Simulation {
                     this.div.find(".infSpread").first().text(`H:${this.firingSolution.spreadParameters.low.semiMajorAxis.toFixed(1) + i18next.t("common:m")} V:${this.firingSolution.spreadParameters.low.semiMinorAxis.toFixed(1) + i18next.t("common:m")}`);
                     
                     switch (App.activeWeapon.unit) {
+                    case "sec":
+                        this.div.find(".infElevation").first().text(`${this.firingSolution.holdTime.low.toFixed(App.activeWeapon.elevationPrecision)}${i18next.t("common:s")}`);
+                        break;
                     case "mil":
                         this.div.find(".infElevation").first().text(`${this.firingSolution.elevation.low.mil.toFixed(1)}mil`);
                         break;

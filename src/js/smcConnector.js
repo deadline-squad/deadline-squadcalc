@@ -119,6 +119,22 @@ function handleDisconnect() {
  * @param {WebSocket} socketCoordinates - WebSocket connection for sending coordinates
  */
 function checkCoordinates(socketCoordinates) {
+    const coorArray = getTargetLines();
+    if (coorArray != prevCoorArray) {
+        prevCoorArray = coorArray;
+        if (socketCoordinates && socketCoordinates.readyState === WebSocket.OPEN) {
+            socketCoordinates.send(coorArray);
+        }
+    }
+}
+
+/**
+ * Builds the text describing every target for an external overlay, one line per target:
+ * "<elevation> | <bearing>°[ | <distance>m]" (the elevation is a hold time like "1.20s" for AGS-17,
+ * "---" when the target is out of range; the distance only with the "show distance" setting).
+ * @returns {string} The lines joined by "\n", empty if there are no targets
+ */
+function getTargetLines() {
     let coorArray = "";
     if (App.minimap.activeTargetsMarkers) {
         App.minimap.activeTargetsMarkers.eachLayer(function (target) {
@@ -132,10 +148,12 @@ function checkCoordinates(socketCoordinates) {
                 elevation = target.firingSolution1.elevation.low;
             }
 
-            if (isNaN(elevation)) {
+            if (isNaN(elevation.rad)) {
                 elevation = "---";
             } else {
-                if (App.activeWeapon.unit === "mil") {
+                if (App.activeWeapon.unit === "sec") {
+                    elevation = `${App.activeWeapon.getHoldTime(elevation.deg).toFixed(App.activeWeapon.elevationPrecision)}s`;
+                } else if (App.activeWeapon.unit === "mil") {
                     elevation = elevation.mil.toFixed(0);
                 } else {
                     elevation = elevation.deg.toFixed(1);
@@ -151,12 +169,142 @@ function checkCoordinates(socketCoordinates) {
             }
         });
     }
-    if (coorArray != prevCoorArray) {
-        prevCoorArray = coorArray;
-        if (socketCoordinates && socketCoordinates.readyState === WebSocket.OPEN) {
-            socketCoordinates.send(coorArray);
-        }
+    return coorArray;
+}
+
+// Distance between two heights of a target's profile, in meters (heightmap pixel size)
+const PROFILE_STEP = 1;
+
+// The profile of each firing solution: a solution is never changed, a new one replaces it whenever the
+// target, the weapon or the heights change, so the profile is computed once per solution however often
+// Squad Ballistics polls
+const profiles = new WeakMap();
+
+/**
+ * Heights of the heightmap (terrain and buildings) along the line from the weapon to the target, so
+ * Squad Ballistics can check its own trajectory against them.
+ * @param {SquadFiringSolution} solution - solution of the first weapon marker
+ * @returns {{step: number, heights: number[]}|null} - heights every `step` meters from the weapon
+ *     (index 0) to the target, relative to the weapon like heightDiff, rounded to the centimeter;
+ *     null before the heightmap is loaded
+ */
+function getProfile(solution) {
+    const heightmap = App.minimap.heightmap;
+    if (!heightmap?.jsonPng?.length || !(solution.distance > 0)) return null;
+    if (profiles.has(solution)) return profiles.get(solution);
+
+    const samples = Math.floor(solution.distance / PROFILE_STEP);
+    const latStep = (solution.targetLatLng.lat - solution.weaponLatLng.lat) / solution.distance * PROFILE_STEP;
+    const lngStep = (solution.targetLatLng.lng - solution.weaponLatLng.lng) / solution.distance * PROFILE_STEP;
+    const heights = [];
+
+    for (let i = 0; i <= samples; i++) {
+        const ground = heightmap.getHeight({ lat: solution.weaponLatLng.lat + latStep * i, lng: solution.weaponLatLng.lng + lngStep * i });
+        heights.push(Math.round((ground - solution.weaponHeight) * 100) / 100);
     }
+    const profile = { step: PROFILE_STEP, heights };
+    profiles.set(solution, profile);
+    return profile;
+}
+
+/**
+ * The bridge's description of one target
+ * @param {SquadFiringSolution} solution - solution of the first weapon marker for the target
+ * @returns {{distance: number, heightDiff: number|null, bearing: number, profile: Object|null}}
+ */
+function describeTarget(solution) {
+    return {
+        distance: solution.distance,
+        heightDiff: solution.hasHeightData && Number.isFinite(solution.heightDiff) ? solution.heightDiff : null,
+        bearing: solution.bearing,
+        profile: getProfile(solution),
+    };
+}
+
+/**
+ * The firing solutions of the targets of the first weapon marker, in the order the targets were placed
+ * @returns {SquadFiringSolution[]} - empty without a weapon marker
+ */
+function getSolutions() {
+    const solutions = [];
+    if (!App.minimap.activeTargetsMarkers || !App.minimap.activeWeaponsMarkers.getLayers().length) return solutions;
+
+    App.minimap.activeTargetsMarkers.eachLayer(function (target) {
+        if (target.firingSolution1) solutions.push(target.firingSolution1);
+    });
+    return solutions;
+}
+
+/**
+ * Geometry of every target relative to the first weapon marker, for Squad Ballistics: its embedded
+ * map polls `window.squadBallistics.targets()` and solves the shot for its own weapon.
+ * @returns {{distance: number, heightDiff: number|null, bearing: number, profile: Object|null}[]} In the
+ *     order the targets were placed; distance in meters (horizontal), heightDiff = target ground minus
+ *     weapon (with its height padding) in meters, null while the heightmap loads or when it failed to
+ *     load (unknown height), bearing in degrees, profile from getProfile.
+ *     Empty without a weapon marker.
+ */
+export function getTargetData() {
+    return getSolutions().map(describeTarget);
+}
+
+/**
+ * The newest target alone (the one Squad Ballistics solves), without describing the others
+ * @returns {{distance: number, heightDiff: number|null, bearing: number, profile: Object|null}|null} -
+ *     the last entry of getTargetData(); null without a target or a weapon marker
+ */
+export function getLastTarget() {
+    const solutions = getSolutions();
+    return solutions.length ? describeTarget(solutions[solutions.length - 1]) : null;
+}
+
+// The state `getRevision` last saw, and the number it gave for it
+let revisionState = "";
+let revision = 0;
+
+// Identifier of each firing solution, for the revision's state
+const solutionIds = new WeakMap();
+let nextSolutionId = 1;
+
+// A notification is already waiting for the end of the current task
+let notifying = false;
+
+/**
+ * Tell Squad Ballistics that the bridge's data may have changed: once the current task ends, if
+ * `revision()` moved, `console.info("sb:changed")` is logged, which the embedding window reads
+ * (javaScriptConsoleMessage) to ask for the new target at once instead of at its next poll.
+ * Cheap enough to call after every recalculation: the calls of one task make one check.
+ */
+export function notifyBridgeChange() {
+    if (notifying) return;
+    notifying = true;
+    queueMicrotask(() => {
+        notifying = false;
+        const before = revision;
+        if (getRevision() !== before) console.info("sb:changed");
+    });
+}
+
+/**
+ * Counter that changes whenever what the bridge reports changes: a target added, moved or removed, the
+ * first weapon marker moved, raised or removed, the weapon or its shell switched, the heights loaded.
+ * Every one of those makes the page solve the targets again into new firing solutions, so the state is
+ * the weapon's name and the identity of the solutions; the counter goes up when it differs from the last
+ * call's. Squad Ballistics polls it and asks for `lastTarget()` only when it changed.
+ * @returns {number} - increases by at least one per change; the same between two calls without change
+ */
+export function getRevision() {
+    const weapon = App.activeWeapon?.ballistics ?? "";
+    const ids = getSolutions().map((solution) => {
+        if (!solutionIds.has(solution)) solutionIds.set(solution, nextSolutionId++);
+        return solutionIds.get(solution);
+    });
+    const state = `${weapon}|${ids.join(",")}`;
+    if (state !== revisionState) {
+        revisionState = state;
+        revision++;
+    }
+    return revision;
 }
 
 /**

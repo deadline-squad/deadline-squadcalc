@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Squad ballistics GPU benchmark</title>
+<style>
+    body { font: 14px/1.4 system-ui, sans-serif; margin: 1.5em auto; max-width: 70em; padding: 0 1em; }
+    label { margin-right: 1em; white-space: nowrap; }
+    input[type=text] { width: 16em; }
+    input[type=number] { width: 5em; }
+    button { font-size: 1em; padding: .4em 1.2em; margin: .6em .4em .6em 0; }
+    pre, textarea { width: 100%; box-sizing: border-box; font: 12px/1.35 ui-monospace, monospace; background: #f4f4f4; padding: .6em; overflow: auto; }
+    pre { min-height: 8em; max-height: 28em; white-space: pre-wrap; }
+    textarea { height: 12em; }
+    h2 { margin-top: 1.4em; font-size: 1.1em; }
+</style>
+</head>
+<body>
+<h1>Squad ballistics GPU benchmark</h1>
+<p>Runs <code>trace_segments</code>, <code>trace_trajectories</code>, <code>heatmap</code> and <code>voxel_segments</code> on this
+machine's WebGPU adapter, checks a sample of every run against the float64 CPU mirrors and prints a JSON and a markdown
+table to paste back. Needs Chrome or Edge with WebGPU; see <code>README.md</code>.</p>
+<p>
+    <label>Segments (trace, trajectories, voxel) <input id="sizes" type="text" value="10000,100000,1000000"></label>
+    <label>Heatmap candidates <input id="heatSizes" type="text" value="1000,10000,100000"></label><br>
+    <label>Timed runs <input id="runs" type="number" value="5" min="1" max="21"></label>
+    <label>Time budget per size, s <input id="budget" type="number" value="120" min="1"></label>
+    <label><input id="highPerformance" type="checkbox" checked> prefer the high-performance GPU</label>
+</p>
+<button id="run">Run</button><button id="copyJson" disabled>Copy JSON</button><button id="copyTable" disabled>Copy markdown table</button>
+<h2>Log</h2>
+<pre id="log">Press Run.</pre>
+<h2>Markdown table</h2>
+<pre id="table"></pre>
+<h2>JSON (paste this back)</h2>
+<textarea id="json" readonly></textarea>
+<script type="module">
+import { runBenchmark } from './bench.mjs';
+
+const $ = (id) => document.getElementById(id);
+const numbers = (text) => text.split(/[\s,;]+/).filter(Boolean).map(Number);
+const log = (line) => { $('log').textContent += `${line}\n`; $('log').scrollTop = $('log').scrollHeight; };
+
+$('run').addEventListener('click', async () => {
+    $('run').disabled = true;
+    $('copyJson').disabled = $('copyTable').disabled = true;
+    $('log').textContent = '';
+    $('table').textContent = $('json').value = '';
+    try {
+        const result = await runBenchmark({
+            sizes: numbers($('sizes').value),
+            heatmapSizes: numbers($('heatSizes').value),
+            runs: Number($('runs').value),
+            budgetSeconds: Number($('budget').value),
+            highPerformance: $('highPerformance').checked,
+        }, log);
+        $('table').textContent = result.markdown;
+        $('json').value = JSON.stringify(result.report, null, 2);
+        $('copyJson').disabled = $('copyTable').disabled = false;
+        window.benchmarkReport = result.report;
+    } catch (error) {
+        log(`FAILED: ${error.stack || error}`);
+    }
+    $('run').disabled = false;
+});
+$('copyJson').addEventListener('click', () => navigator.clipboard.writeText($('json').value));
+$('copyTable').addEventListener('click', () => navigator.clipboard.writeText($('table').textContent));
+</script>
+</body>
+</html>

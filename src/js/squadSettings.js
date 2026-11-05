@@ -26,6 +26,7 @@ export default class SquadSettings {
      * Initialize all settings - call after DOM is ready
      */
     init() {
+        this.removeObsoleteStorage();
         this.loadCheckboxes();
         this.loadSliders();
         this.bindCheckboxes();
@@ -36,6 +37,14 @@ export default class SquadSettings {
         this.bindMenuButtons();
         this.applyInitialState();
         $("#appVersion").text(`SquadCalc v${packageInfo.version}`);
+    }
+
+
+    /**
+     * Drops what the removed device link left in the browser's localStorage (its setting and its session code)
+     */
+    removeObsoleteStorage() {
+        ["settings-overlay-link", "overlay-session-code"].forEach((key) => localStorage.removeItem(key));
     }
 
 
@@ -91,7 +100,8 @@ export default class SquadSettings {
                 key: "settings-damage-radius",
                 default: true,
                 selector: "#damageRadiusSetting",
-                onChange: () => this.app.minimap.updateTargetsSpreads()
+                // The popups show the rounds to kill only with the damage radius: rebuild them too
+                onChange: () => this.app.minimap.updateTargets()
             },
             targetGrid: {
                 key: "settings-target-grid",
@@ -121,6 +131,12 @@ export default class SquadSettings {
                 default: false,
                 selector: "#realMaxRangeSettings",
                 onChange: () => this.app.minimap.updateWeapons()
+            },
+            volumeLayer: {
+                key: "settings-volume-layer",
+                default: false,
+                selector: "#volumeLayerSettings",
+                onChange: () => this.app.minimap.volume.applySetting()
             },
             experimentalWeapons: {
                 key: "settings-experimental-weapons",
@@ -672,10 +688,11 @@ export default class SquadSettings {
 
     getButtonToggleDefinitions() {
         return [
-            { key: "settings-btn-layers",  sharedContainer: "#mapBtnLayers",  buttons: ".btn-topomap, .btn-terrainmap, .btn-basemap", default: true },
+            { key: "settings-btn-layers",  sharedContainer: "#mapBtnLayers",  buttons: ".btn-detailed, .btn-detailed-colour, .btn-relief, .btn-topomap, .btn-terrainmap, .btn-basemap", default: true },
             { key: "settings-btn-hd",      sharedContainer: null,             buttons: ".btn-hd",                                   default: true },
             { key: "settings-btn-legacy",  sharedContainer: "#mapBtnMain",    buttons: ".btn-legacy",                                default: false },
             { key: "settings-btn-helpmap", sharedContainer: "#mapBtnMain",    buttons: ".btn-helpmap",                               default: false },
+            { key: "settings-btn-coverage", sharedContainer: "#mapBtnMain",   buttons: ".btn-coverage",                              default: true },
             { key: "settings-btn-focus",   sharedContainer: "#mapBtnMain",    buttons: ".btn-focus",                                 default: false },
             { key: "settings-btn-servers", sharedContainer: "#mapBtnServers", buttons: "#servers",                                  default: true },
             { key: "settings-btn-session", sharedContainer: "#mapBtnServers", buttons: ".btn-session",                              default: true },

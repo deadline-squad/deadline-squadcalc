@@ -58,8 +58,8 @@ export class SquadVehicleSpawner {
         }
 
         const bounds = [
-            [this.latlng[0] - halfHeight * this.layer.map.gameToMapScale, this.latlng[1] - halfWidth * this.layer.map.gameToMapScale],
-            [this.latlng[0] + halfHeight * this.layer.map.gameToMapScale, this.latlng[1] + halfWidth * this.layer.map.gameToMapScale]
+            [this.latlng[0] - halfHeight * this.layer.map.gameToMapScaleY, this.latlng[1] - halfWidth * this.layer.map.gameToMapScale],
+            [this.latlng[0] + halfHeight * this.layer.map.gameToMapScaleY, this.latlng[1] + halfWidth * this.layer.map.gameToMapScale]
         ];
 
 

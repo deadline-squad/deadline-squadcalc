@@ -199,9 +199,8 @@ export const squadSpawnGroup = Marker.extend({
         // Looking for Ammocrates near the spawn
         this.layer.mainZones.ammocrates.forEach(asset => {
             const assetPoint = asset.getLatLng();
-            const latDelta = (assetPoint.lat - spawnLatLng.lat) * -this.layer.map.mapToGameScale;
-            const lngDelta = (assetPoint.lng - spawnLatLng.lng) * this.layer.map.mapToGameScale;
-            const dist = Math.hypot(latDelta, lngDelta);
+            const { east, north } = this.layer.map.toMeters(spawnLatLng, assetPoint);
+            const dist = Math.hypot(east, north);
             if (dist < searchDistance) { nearbyAssets.push(asset); }
         });
 

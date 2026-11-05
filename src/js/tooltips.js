@@ -264,6 +264,39 @@ tippy(".btn-terrainmap", {
         );
     },
 });
+tippy(".btn-detailed", {
+    ...commonMapMenuToolipsSettings,
+    onShow(tip) {
+        tip.setContent(
+            `
+            <div>${i18next.t("tooltips:detailedmode")}</div>
+            <div class="tooltipsubtext">${App.formatShortcutHTML(App.shortcuts.toggleMap)}</div>
+            `
+        );
+    },
+});
+tippy(".btn-detailed-colour", {
+    ...commonMapMenuToolipsSettings,
+    onShow(tip) {
+        tip.setContent(
+            `
+            <div>${i18next.t("tooltips:detailedcolourmode")}</div>
+            <div class="tooltipsubtext">${App.formatShortcutHTML(App.shortcuts.toggleMap)}</div>
+            `
+        );
+    },
+});
+tippy(".btn-relief", {
+    ...commonMapMenuToolipsSettings,
+    onShow(tip) {
+        tip.setContent(
+            `
+            <div>${i18next.t("tooltips:reliefmode")}</div>
+            <div class="tooltipsubtext">${App.formatShortcutHTML(App.shortcuts.toggleMap)}</div>
+            `
+        );
+    },
+});
 tippy(".btn-topomap", {
     ...commonMapMenuToolipsSettings,
     onShow(tip) {
@@ -326,6 +359,12 @@ tippy(".btn-helpmap", {
     ...commonMapMenuToolipsSettings,
     onShow(tip) {
         tip.setContent(i18next.t("tooltips:helpmode"));
+    },
+});
+tippy(".btn-coverage", {
+    ...commonMapMenuToolipsSettings,
+    onShow(tip) {
+        tip.setContent(i18next.t("tooltips:coverage"));
     },
 });
 tippy(".btn-focus", {
@@ -441,7 +480,8 @@ tippy("#elevationNum", {
     touch: false,
     theme: "results",
     onShow(tip) {
-        tip.setContent(`${i18next.t("tooltips:elevation")}</br><span class=tooltipsubtext>${i18next.t("tooltips:howFar")}</span>`);
+        const label = App.activeWeapon.unit === "sec" ? i18next.t("common:holdTime") : i18next.t("tooltips:elevation");
+        tip.setContent(`${label}</br><span class=tooltipsubtext>${i18next.t("tooltips:howFar")}</span>`);
     },
 });
 
@@ -469,6 +509,42 @@ tippy(".infSpreadTooltip", {
     delay: [500, 0],
     onShow(tip) {
         tip.setContent(i18next.t("tooltips:spreadDesc"));
+    },
+});
+
+tippy(".infTargetHeightTooltip", {
+    animation: "fade",
+    placement: "top",
+    touch: false,
+    appendTo: targetDialog,
+    theme: "infTooltips",
+    delay: [500, 0],
+    onShow(tip) {
+        tip.setContent(i18next.t("tooltips:targetHeightDesc"));
+    },
+});
+
+tippy(".infPositionHeatTooltip", {
+    animation: "fade",
+    placement: "top",
+    touch: false,
+    appendTo: targetDialog,
+    theme: "infTooltips",
+    delay: [500, 0],
+    onShow(tip) {
+        tip.setContent(i18next.t("tooltips:positionHeatDesc"));
+    },
+});
+
+tippy(".infStructureTooltip", {
+    animation: "fade",
+    placement: "top",
+    touch: false,
+    appendTo: targetDialog,
+    theme: "infTooltips",
+    delay: [500, 0],
+    onShow(tip) {
+        tip.setContent(i18next.t("tooltips:structureDamageDesc"));
     },
 });
 
