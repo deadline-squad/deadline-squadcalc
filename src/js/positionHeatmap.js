@@ -66,6 +66,24 @@ const pointsFor = (range) => Math.ceil(range / LONGEST_PIECE) + 3;
 
 
 /**
+ * Everything the heatmap of a target depends on, as one string: the heatmap is computed again when it changes
+ * @param {string} mapName
+ * @param {{name: string, velocity: number, moa: number, gravityScale: number, minElevation: number[], getMaxDistance: function(): number}} weapon
+ *   the active weapon with its selected shell
+ * @param {number} gravity - the world's gravity, m/s^2
+ * @param {{lat: number, lng: number}} latlng - the target
+ * @param {number|null} targetHeight - the height chosen for the target (squadTargetMarker.getTargetHeight)
+ * @returns {string}
+ */
+export function heatmapSignature(mapName, weapon, gravity, latlng, targetHeight) {
+    return [
+        mapName, weapon.name, weapon.velocity, weapon.moa, weapon.gravityScale, gravity, weapon.getMaxDistance(),
+        weapon.minElevation.join(","), latlng.lat, latlng.lng, targetHeight,
+    ].join("|");
+}
+
+
+/**
  * The precision region to trace a target's lines of fire with: of the regions of the map's `volume.regions`
  * (engine/README.md, "Precision pass") the one whose square holds the target farthest from its edge
  * @param {Array<{centre: number[], radius: number}>} regions - meta.json entries: the centre (x, y, the frame of the

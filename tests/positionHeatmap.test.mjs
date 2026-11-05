@@ -7,7 +7,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
     CLEARANCE_FLOOR, DISTANCE_FLOOR, HEAT, MIN_REGION_MARGIN, createPositionClassifier, heatColor, heatmapGrid, pickRegion,
-    positionScore, rasterizeHeatmap, scoreToValue,
+    heatmapSignature, positionScore, rasterizeHeatmap, scoreToValue,
 } from "../src/js/positionHeatmap.js";
 
 // A rifle round: flies straight, shouldered at 1.5 m
@@ -162,4 +162,19 @@ test("pickRegion: the square that holds the target farthest from its edge, none 
     assert.equal(pickRegion(regions, 125, 0), null, `closer than ${MIN_REGION_MARGIN} m to both edges`);
     assert.equal(pickRegion(regions, 500, 0), null);
     assert.equal(pickRegion([], 0, 0), null);
+});
+
+test("the heatmap is computed again when the weapon's range, elevation limits or gravity scale change", () => {
+    const weapon = { name: "M2A1", velocity: 800, moa: 2, gravityScale: 1, minElevation: [-10, 30], getMaxDistance: () => 1500 };
+    const latlng = { lat: -20, lng: 30 };
+    const signature = (changes = {}, gravity = 9.8, height = null) => heatmapSignature("Jensen", { ...weapon, ...changes }, gravity, latlng, height);
+    const reference = signature();
+    assert.equal(signature(), reference, "same inputs, same signature");
+    assert.notEqual(signature({ getMaxDistance: () => 1800 }), reference, "range");
+    assert.notEqual(signature({ minElevation: [-10, 45] }), reference, "upper elevation limit");
+    assert.notEqual(signature({ minElevation: [-20, 30] }), reference, "lower elevation limit");
+    assert.notEqual(signature({ gravityScale: 0.5 }), reference, "gravity scale");
+    assert.notEqual(signature({}, 4.9), reference, "gravity");
+    assert.notEqual(signature({ velocity: 700 }), reference, "velocity");
+    assert.notEqual(signature({}, 9.8, 12), reference, "target height");
 });

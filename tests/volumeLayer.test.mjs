@@ -114,12 +114,12 @@ let imported = false;
 let terrainFile = TERRAIN_FILE;
 
 /** Starts volumeWorker.js (once) with a fetch that serves the synthetic files, loads them, and returns `send` */
-async function startWorker(terrainBytes = TERRAIN_FILE) {
+async function startWorker(terrainBytes = TERRAIN_FILE, { changeEntry = (volume) => volume, servedVolume = VOLUME_FILE } = {}) {
     terrainFile = terrainBytes;
     globalThis.postMessage = (message) => messages.push(message);
     globalThis.fetch = async (url) => {
         const path = String(url).split("?")[0];
-        if (path.endsWith("volume.vcol")) return new Response(VOLUME_FILE);
+        if (path.endsWith("volume.vcol")) return new Response(servedVolume);
         if (path.endsWith("terrain.bin")) return new Response(terrainFile);
         return new Response(readFileSync(fileURLToPath(path)), { headers: { "content-type": "application/wasm" } });
     };
@@ -135,7 +135,7 @@ async function startWorker(terrainBytes = TERRAIN_FILE) {
         for (let i = 0; i < 200 && !messages.length; i++) await new Promise((resolve) => setTimeout(resolve, 5));
         return messages.slice();
     };
-    const volume = { ...META.volume, terrain: { ...entry(terrainBytes), file: "terrain.bin" } };
+    const volume = changeEntry({ ...META.volume, terrain: { ...entry(terrainBytes), file: "terrain.bin" } });
     const loaded = await send({ load: {
         base: "http://localhost/heightmaps/test/",
         volume,
@@ -143,12 +143,13 @@ async function startWorker(terrainBytes = TERRAIN_FILE) {
         engineUrl: new URL("../engine/js/index.mjs", import.meta.url).href,
         wasmUrl: new URL("../engine/js/pkg/squad_engine_bg.wasm", import.meta.url).href,
     } });
-    assert.deepEqual(loaded, [{ loaded: true }]);
+    send.loadAnswer = loaded;
     return send;
 }
 
 test("trace: a wall stops the path, a doorway lets it through, the ground stops it from above", { skip: !engineBuilt }, async () => {
     const send = await startWorker();
+    assert.deepEqual(send.loadAnswer, [{ loaded: true }]);
     const path = (x, z) => Float64Array.from([x, -34, z, x, -45, z]);
     const [{ traced, hits }] = await send({ trace: 1, paths: [path(105, 1), path(110, 1), path(105, 4), path(110, 2.2), path(110, -1), Float64Array.from([105, -34, 1])] });
     assert.equal(traced, 1);
@@ -160,6 +161,48 @@ test("trace: a wall stops the path, a doorway lets it through, the ground stops 
     assert.equal(hits[3].index, 1, "at 2.2 m the lintel (2 to 2.5 m) stops it");
     assert.deepEqual(hits[4], { index: 0, t: 1, z: 0 }, "under the ground");
     assert.equal(hits[5], null, "a single point above the ground");
+});
+
+/** Runs `body` on a page without SubtleCrypto (a plain-HTTP origin) */
+async function withoutSubtleCrypto(body) {
+    const saved = Object.getOwnPropertyDescriptor(globalThis, "crypto");
+    Object.defineProperty(globalThis, "crypto", { value: {}, configurable: true });
+    try {
+        await body();
+    } finally {
+        Object.defineProperty(globalThis, "crypto", saved);
+    }
+}
+
+const tampered = Buffer.from(VOLUME_FILE);
+tampered[tampered.length - 1] ^= 0xFF;
+const wrongHash = (volume) => ({ ...volume, sha256: "0".repeat(64) });
+const upperCase = (volume) => ({ ...volume, sha256: volume.sha256.toUpperCase(), terrain: { ...volume.terrain, sha256: volume.terrain.sha256.toUpperCase() } });
+
+test("load: a file that does not match the sha256 of meta.json is refused", { skip: !engineBuilt }, async () => {
+    const wrongTerrainHash = (volume) => ({ ...volume, terrain: { ...volume.terrain, sha256: "f".repeat(64) } });
+    for (const [name, options] of [
+        ["a wrong hash of the voxel file", { changeEntry: wrongHash }],
+        ["a wrong hash of the landscape file", { changeEntry: wrongTerrainHash }],
+        ["a voxel file of the right size with a changed byte", { servedVolume: tampered }],
+    ]) {
+        const send = await startWorker(TERRAIN_FILE, options);
+        assert.match(send.loadAnswer[0].error ?? "", /checksum mismatch/, name);
+    }
+});
+
+test("load: the hash of meta.json is compared in either case", { skip: !engineBuilt }, async () => {
+    const send = await startWorker(TERRAIN_FILE, { changeEntry: upperCase });
+    assert.deepEqual(send.loadAnswer, [{ loaded: true }]);
+});
+
+test("load: without SubtleCrypto the check is still made, in plain JavaScript", { skip: !engineBuilt }, async () => {
+    await withoutSubtleCrypto(async () => {
+        const good = await startWorker(TERRAIN_FILE, { changeEntry: upperCase });
+        assert.deepEqual(good.loadAnswer, [{ loaded: true }]);
+        const bad = await startWorker(TERRAIN_FILE, { servedVolume: tampered });
+        assert.match(bad.loadAnswer[0].error ?? "", /checksum mismatch/);
+    });
 });
 
 test("trace: a point a hair under the landscape (the target of a shell solved to land on it) is not a hit, one that is really under it is", { skip: !engineBuilt }, async () => {

@@ -59,6 +59,9 @@ export function findStructure(className) {
 function radialLoss(type, explosion, directHit, distance) {
     if (!directHit && type.onlyDirect) return 0;
     const reach = directHit ? explosion.distanceFromImpact : Math.hypot(distance, explosion.distanceFromImpact);
+    // Known deviation (tools/volumetric/docs/structure-damage.md section 4): the engine returns Lerp(Min, Damage, 0) = Min at or
+    // beyond the outer radius for a structure that is in the burst, which the game decides on the box distance while
+    // `reach` is the distance to the ground point; the model counts nothing there
     if (reach >= explosion.outer) return 0;
     const scale = damageAtDistance({ ...explosion, damage: 1 }, reach);
     const modified = explosion.damage * type.modifier * (directHit ? type.direct : type.indirect);

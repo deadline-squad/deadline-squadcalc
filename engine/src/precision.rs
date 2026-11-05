@@ -156,6 +156,16 @@ impl RegionFile {
         let origin = [28, 32, 36].map(|offset| reader.f32_at(offset));
         let (vertex_count, triangle_count) =
             (reader.u32_at(40) as usize, reader.u32_at(44) as usize);
+        if !(bounds
+            .iter()
+            .chain([&margin])
+            .chain(&origin)
+            .all(|v| v.is_finite()))
+        {
+            return Err(RegionError::Invalid(
+                "square, margin and origin must be finite",
+            ));
+        }
         if !(bounds[0] <= bounds[2] && bounds[1] <= bounds[3] && margin >= 0.0) {
             return Err(RegionError::Invalid("square or margin"));
         }
@@ -169,7 +179,9 @@ impl RegionFile {
         for _ in 0..vertex_count {
             let mut vertex = [0.0f32; 3];
             for axis in 0..3 {
-                previous[axis] += reader.signed()?;
+                previous[axis] = previous[axis]
+                    .checked_add(reader.signed()?)
+                    .ok_or(RegionError::Invalid("vertex coordinate out of range"))?;
                 vertex[axis] = (origin[axis] + previous[axis] as f64 * QUANT) as f32;
             }
             vertices.push(vertex);
@@ -179,7 +191,9 @@ impl RegionFile {
         for _ in 0..triangle_count {
             let mut triangle = [[0.0f32; 3]; 3];
             for corner in &mut triangle {
-                index += reader.signed()?;
+                index = index
+                    .checked_add(reader.signed()?)
+                    .ok_or(RegionError::Invalid("vertex index out of range"))?;
                 *corner = *usize::try_from(index)
                     .ok()
                     .and_then(|i| vertices.get(i))
@@ -711,5 +725,76 @@ mod tests {
             RegionFile::from_bytes(&good[..good.len() / 2]),
             Err(RegionError::Gzip(_) | RegionError::Truncated)
         ));
+    }
+
+    /// An uncompressed region file of one triangle, with header floats `[min_x, min_y, max_x, max_y, margin, ox, oy, oz]`.
+    fn raw_region(floats: [f32; 8], body: &[u8]) -> Vec<u8> {
+        let mut bytes = MAGIC.to_vec();
+        for value in floats {
+            bytes.extend(value.to_le_bytes());
+        }
+        for value in [3u32, 1] {
+            bytes.extend(value.to_le_bytes());
+        }
+        bytes.extend(body);
+        bytes
+    }
+
+    const GOOD: [f32; 8] = [40.0, 40.0, 60.0, 60.0, 3.0, 50.0, 50.0, 0.0];
+
+    /// Three vertices (0,0,0), (1,0,0), (0,1,0) in units of 0.1 mm as zigzag varint deltas, then the indices 0, 1, 2.
+    fn one_triangle() -> Vec<u8> {
+        vec![0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 2, 2]
+    }
+
+    fn invalid(bytes: &[u8]) -> &'static str {
+        match RegionFile::from_bytes(bytes) {
+            Err(RegionError::Invalid(message)) => message,
+            other => panic!("expected an invalid file, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_well_formed_raw_file_decodes() {
+        let file = RegionFile::from_bytes(&raw_region(GOOD, &one_triangle())).unwrap();
+        assert_eq!(file.triangles.len(), 1);
+        assert_eq!(file.margin, 3.0);
+    }
+
+    #[test]
+    fn a_header_value_that_is_not_finite_is_rejected() {
+        for index in 0..8 {
+            for bad in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+                let mut floats = GOOD;
+                floats[index] = bad;
+                let message = invalid(&raw_region(floats, &one_triangle()));
+                assert!(
+                    message.contains("finite"),
+                    "header value {index} = {bad}: {message}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn a_coordinate_or_index_step_that_overflows_is_rejected() {
+        // The first vertex is i64::MAX, the second adds one more (zigzag 2): the sum would wrap
+        let mut body = vec![
+            0xFE, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01, 0, 0,
+        ];
+        body.extend([2, 0, 0]);
+        body.extend([0, 0, 0]);
+        assert_eq!(
+            invalid(&raw_region(GOOD, &body)),
+            "vertex coordinate out of range"
+        );
+        // Vertex indices: i64::MAX, then one more
+        let mut body = vec![0u8; 9];
+        body.extend([0xFE, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01]);
+        body.extend([2]);
+        assert_eq!(
+            invalid(&raw_region(GOOD, &body)),
+            "vertex index out of range"
+        );
     }
 }

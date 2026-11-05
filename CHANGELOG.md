@@ -1,3 +1,24 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.27.0** *(2026-11-05)*
+
+</br><img src="https://img.shields.io/badge/-fixes-orange">  
+Findings of the independent review of 45.22 to 45.26 (deadline-squad/deadline-squadcalc#22):
+- A target at the *Landscape* height was reported as behind an obstacle about half the time: the trajectory solver lands the shell a hair (up to 2e-6 m) under the ground at the target, and the line-of-fire check counted that as meeting the landscape. A point is now under the landscape only when it is more than 0.1 mm below it.
+- Turning *Object volumes in the line of fire* off and on while the map's `meta.json` was being fetched started two workers and left one running (and fired `volume:ready` twice). A load now stops when another one started after it or the layer was turned off.
+- A voxel buried under the ground hid the ground in front of it: of a voxel and the landscape on the same segment the one reached first is reported, the landscape where the segment crosses it.
+- Structure damage beyond the explosion's outer radius stays zero in the app although the engine returns the minimum damage (`Lerp(Min, Damage, 0)`) for a structure that is inside the burst by its box and outside it by the ray's hit point. Documented as a known deviation (`tools/volumetric/docs/structure-damage.md`, `.ru.md`), in the structure tooltip (six languages) and in `structureDamage.js`.
+- The engine accepted malformed volume and region files: run lengths and column ids that wrap around in 64-bit arithmetic, an infinite or NaN cell size, origin or margin. Sums are checked, empty runs and non-finite header values are rejected (`engine/src/voxel.rs`, `precision.rs`); the WebAssembly engine is rebuilt.
+- The volume files' sha256 check was skipped without `crypto.subtle` (a plain-HTTP page) and failed for an upper-case hash in `meta.json`. The digest is now always checked, with SubtleCrypto when there is one and with a plain-JavaScript SHA-256 (`src/js/sha256.js`) otherwise, and compared in either case.
+- The position heatmap was not recomputed when only the weapon's range, its elevation limits or the gravity scale changed: they are part of its signature now.
+- README: the volume layer paragraph said both that a shot passes through an open window or doorway and that windows and doors let nothing through. Open windows and doorways (a door is open or absent) pass, closed windows, walls and trees stop it; the same correction in `engine/README.md` and `.ru.md`.
+- Accessibility: the position heatmap's status line is a live region (`role="status"`); an open structure popup of a deployable marker is refreshed when the weapon or the shell changes.
+- A target height that the list no longer offers (another weapon, map or setting) went on applying while the select read *Ground*: it is reset to the ground.
+- `npm test` failed on Node 22 (`ERR_UNSUPPORTED_DIR_IMPORT`: from Node 22 a directory argument is not searched). The script names the files by glob (`tests/*.test.mjs`), as does the engine workflow (`js/test/*.test.mjs`). `leaflet.test.mjs` and `structureInfo.test.mjs` stop with `ERR_MODULE_NOT_FOUND` on a checkout without `node_modules`: `npm ci` first (`tests/README.md`).
+
+</br><img src="https://img.shields.io/badge/-%20dev%20-lightgrey">  
+- Tests that fail without the fixes: `tests/volumeLayer.test.mjs` (a point a hair under the ground; the Mortar, M1064M121 and HellCannon on flat ground at the landscape height over 1100 m of terrain; a buried voxel; checksum mismatch, upper-case hash and no SubtleCrypto; a 100 m tower against a lob), `tests/squadVolume.test.mjs` (the doubled load), `tests/sha256.test.mjs`, `tests/positionHeatmap.test.mjs` (signature), `tests/targetHeights.test.mjs` (the height reset), `tests/targetHeight.test.mjs` (the samples stop 0.5 m before an elevated target: `ELEVATED_TARGET_SAMPLE_END` mutated to 3 was green), Rust unit tests of `voxel.rs` and `precision.rs`. `tests/loader.mjs` serves `package.json` imports of the sources to Node. `targets_check.mjs` and `heatmap_check.mjs` of the deployment repository check the popup refresh and the live region.
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.26.0** *(2026-11-04)*
 
 </br><img src="https://img.shields.io/badge/-new%20features-green">  

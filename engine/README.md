@@ -233,7 +233,7 @@ The page's heights count from the heightmap's lowest level (`meta.json` `z_min_m
 
 * Line of fire (`SquadFiringSolution.getObstacle`): the trajectory is sampled every metre like the heightmap check
   (3 m at both ends skipped), each segment is tested with `voxelFirstBlock`, each point against the landscape. A hole
-  of a building passes, a closed window or door is solid. Until the worker answers the heightmap's result stands.
+  of a building (an open window, a doorway: a door is open or absent) passes, a closed window or a wall is solid. Until the worker answers the heightmap's result stands.
 * Fire coverage (`SquadCoverage` through `SquadVolume.coverage`): per ray the worker samples the landscape and the top of
   the voxels under every sample (a vertical `voxelFirstBlock`), classifies with the landscape as the profile, and tests a
   trajectory that is under a structure's top segment by segment (`squadCoverageRays.clearsStructures`). Targets in a
@@ -594,7 +594,7 @@ Full output: [`tests/last-run-precision.txt`](tests/last-run-precision.txt).
 ```sh
 cargo install wasm-bindgen-cli --version 0.2.130 --locked    # once
 sh js/build.sh        # js/pkg (plain) and js/pkg-simd (SIMD128 triangle test)
-node --test js/test/  # loads the wasm in Node
+node --test "js/test/*.test.mjs"  # loads the wasm in Node
 ```
 
 `js/index.mjs` is the ES-module wrapper (`loadEngine`, `Engine.solve`, `loadBvh`, `loadHeightmap`, `loadVcol`,

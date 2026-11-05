@@ -727,12 +727,33 @@ export const squadStratMarker = squadMarker.extend({
             this.structurePopup.close();
             return;
         }
-        const line = describeStructure(this.icontype, App.activeWeapon);
-        if (!line) return;
+        const content = this.formatStructurePopup();
+        if (!content) return;
         this.structurePopup = new Popup({ autoClose: false, offset: [0, -10], className: "structurePopup" })
             .setLatLng(this.getLatLng())
-            .setContent(`<span title="${i18next.t("tooltips:structureDamageDesc")}"><b>${i18next.t("common:structureShells")}</b><br>${line}</span>`)
+            .setContent(content)
             .openOn(this.map);
+    },
+
+    /**
+     * Content of the structure popup for the active weapon and shell
+     * @returns {string} - HTML, empty when the game data does not cover this marker for the weapon
+     */
+    formatStructurePopup: function(){
+        const line = describeStructure(this.icontype, App.activeWeapon);
+        if (!line) return "";
+        return `<span title="${i18next.t("tooltips:structureDamageDesc")}"><b>${i18next.t("common:structureShells")}</b><br>${line}</span>`;
+    },
+
+    /**
+     * Bring an open structure popup up to date after the weapon or the shell changed: new content, or closed when
+     * the active weapon has no figures for this structure
+     */
+    refreshStructurePopup: function(){
+        if (!this.structurePopup?.isOpen()) return;
+        const content = this.formatStructurePopup();
+        if (content) this.structurePopup.setContent(content);
+        else this.structurePopup.close();
     },
     _handleDblclick: function(){},
 

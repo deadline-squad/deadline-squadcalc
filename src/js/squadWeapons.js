@@ -272,6 +272,7 @@ export class Weapon {
         // Update Existsing Targets on Minimap
         App.minimap.updateTargets();
         App.minimap.updateWeapons();
+        App.minimap.activeMarkers.eachLayer((marker) => marker.refreshStructurePopup?.());
     }
 
 }
