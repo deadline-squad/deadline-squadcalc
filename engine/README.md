@@ -262,6 +262,53 @@ The page's heights count from the heightmap's lowest level (`meta.json` `z_min_m
 No penetration is computed (owner decision 2026-11-04). Tests: `tests/volumeLayer.test.mjs`; in a browser
 `tools/browser_check/volume_check.mjs` (deployment repository) on the Jensen and Kokan parity segments.
 
+#### Files served for each map
+
+All 25 maps have a `volume.vcol` and a `terrain.bin` under `/heightmaps/<slug>/` (published 2026-11-05 with
+`tools/volumetric/py/publish_volume.py`; `meta.json` `volume` holds their size, sha256, `cell` 0.5, `dz` 0.25 (Skorpo 0.5),
+`z_min_m` and column count, and the page checks every download against it). The voxel files are the exact conservative
+builds (a voxel is occupied when any collision triangle touches it); `terrain.bin` is the landscape alone on the served
+heightmap's grid. Sizes are the gzip files as served (`Content-Length`), MB = 10^6 bytes:
+
+| map | voxels | columns | volume.vcol MB | terrain.bin MB | total MB |
+|---|---:|---:|---:|---:|---:|
+| Al Basrah | 30 451 611 | 6 651 616 | 6.7 | 4.0 | 10.6 |
+| Anvil | 10 967 659 | 3 799 365 | 3.8 | 3.3 | 7.1 |
+| Black Coast | 56 465 424 | 11 436 477 | 29.8 | 5.0 | 34.9 |
+| Chora | 91 931 376 | 46 320 086 | 36.9 | 5.1 | 42.0 |
+| Fallujah | 26 207 218 | 4 293 607 | 3.7 | 2.2 | 5.9 |
+| Fool's Road | 11 313 484 | 1 954 982 | 6.2 | 1.0 | 7.1 |
+| Goose Bay | 31 546 317 | 8 328 396 | 15.0 | 3.6 | 18.6 |
+| Gorodok | 84 623 955 | 16 190 947 | 39.3 | 5.8 | 45.1 |
+| Harju | 83 968 689 | 14 156 430 | 41.2 | 3.9 | 45.1 |
+| Jensen | 723 221 | 113 863 | 0.1 | 3.6 | 3.7 |
+| Kamdesh | 26 351 783 | 5 611 970 | 14.4 | 5.4 | 19.7 |
+| Kohat | 5 294 803 | 2 140 481 | 2.0 | 6.5 | 8.5 |
+| Kokan | 2 198 643 | 536 181 | 0.7 | 4.0 | 4.7 |
+| Lashkar | 32 899 158 | 12 971 740 | 13.3 | 9.9 | 23.2 |
+| Logar | 3 044 202 | 789 524 | 1.3 | 1.1 | 2.4 |
+| Manicouagan | 63 760 981 | 9 631 372 | 17.6 | 5.2 | 22.7 |
+| Mestia | 13 341 383 | 3 114 491 | 7.6 | 1.2 | 8.8 |
+| Mutaha | 4 367 244 | 755 369 | 1.0 | 1.7 | 2.7 |
+| Narva | 22 401 380 | 4 478 752 | 6.0 | 1.8 | 7.8 |
+| Pacific | 6 432 244 | 1 597 851 | 2.8 | 5.2 | 8.0 |
+| Sanxian | 53 268 036 | 7 028 913 | 16.4 | 3.8 | 20.2 |
+| Skorpo | 35 144 900 | 10 512 339 | 24.8 | 8.9 | 33.7 |
+| Sumari | 5 052 864 | 1 903 765 | 1.0 | 0.4 | 1.3 |
+| Tallil | 25 877 723 | 16 031 048 | 5.2 | 4.6 | 9.8 |
+| Yehorivka | 122 097 455 | 18 617 851 | 48.6 | 13.0 | 61.6 |
+
+Range: `volume.vcol` 0.1 to 48.6 MB (median 6.7 MB), `terrain.bin` 0.4 to 13.0 MB, both together 1.3 to 61.6 MB, 455 MB for
+all 25 maps. Yehorivka, Harju, Gorodok and Chora are over 36 MB for the voxel file alone.
+
+Loading the biggest ones in headless Chromium 153 (`tools/browser_check/volume_check.mjs`, tk104, nothing else running): from
+turning the setting on to "ready" (download from the local Caddy, sha256, wasm engine start, decompression of both files)
+Skorpo 2.3 s, Black Coast 2.2 s, Gorodok 2.8 s, Harju 2.7 s, Yehorivka 3.3 to 3.7 s, Chora 4.2 to 4.4 s; the browser's whole
+process tree (summed resident memory) grew from 1.4 GB (page alone) to 2.1 GB (Skorpo, Black Coast), 2.2 to 2.3 GB (Harju, Gorodok), 2.8 GB (Yehorivka) and
+3.3 GB (Chora: 46 million columns and a 66-million-vertex landscape) and stays there; a fire coverage over the loaded map takes
+2 to 3 s on all of them. Nothing failed or ran out of memory on a 15 GB host. Over a real network the download dominates
+(62 MB for Yehorivka), which the setting's label states ("downloads 1 to 62 MB of map data").
+
 ### Position heatmap (reverse positions)
 
 `src/js/positionHeatmap.js` answers the question the fire coverage asks the other way round: for a chosen target (at the
@@ -375,47 +422,75 @@ How to read it:
 
 #### Time
 
-Measured in headless Chromium (153, the real WebAssembly engine in the volume worker, `tools/browser_check/heatmap_timing.mjs` of the
-deployment repository) on tk104 (8 logical CPUs, Intel i5-9300HF) **while the host was loaded: the load average was 22**, from the
-map builds that run there, so read the numbers as an order of magnitude, not as a benchmark. Per map: a target inside a building
-nearest the centre of the map (a floor, a window or a doorway found by the vertical ray), DF_M2A1_50, the voxel walk alone, at the
-ranges 600 m and 2000 m (80 480 positions each, cell 3.7 m and 12.5 m). *trace* is the worker's own time for all the rays,
-*wall* the time from the request to the values in the page (it adds the messages between the batches); a position outside the
-map or the landscape counts as out, so the big maps' 2000 m rows have fewer traced positions. The files are the sample-lattice
-voxel files served on 2026-11-04; the table was not repeated with the exact-voxeliser files because they are not served yet
-(their sizes are in the thesis report, section 4).
+Measured on 2026-11-05 in headless Chromium (153, the real WebAssembly engine in the volume worker, `tools/browser_check/heatmap_timing.mjs` of the
+deployment repository) on tk104 (8 logical CPUs, Intel i5-9300HF) with the volume files of all 25 maps (the exact conservative builds) and
+the host nearly idle (load average 1.8 at the start, no map build running). Per map: a target inside a building nearest the centre of the map
+(a floor, a window or a doorway found by the vertical ray; the voxel files changed, so the targets are not those of the earlier table), DF_M2A1_50, the voxel
+walk alone, at the ranges 600 m and 2000 m (80 480 positions each, cell 3.7 m and 12.5 m). *trace* is the worker's own time for all
+the rays, *wall* the time from the request to the values in the page (it adds the messages between the batches); a position outside the
+map or the landscape counts as out, so the big maps' 2000 m rows have fewer traced positions. Raw output: deadline-squad/deadline-squadcalc#22.
 
 | map (side, volume file) | range | positions | trace, ms | per position, us | wall, ms | clear / blocked / out |
 |---|---|---|---|---|---|---|
-| Jensen (4.0 km, 0.1 MB) | 600 m | 80480 | 12827 | 159.4 | 13152 | 0 / 78065 / 2415 |
-|  | 2000 m | 80480 | 10881 | 135.2 | 10987 | 0 / 79051 / 1429 |
-| Kokan (2.5 km, 0.8 MB) | 600 m | 80480 | 1745 | 21.7 | 1830 | 770 / 78669 / 1041 |
-|  | 2000 m | 80480 | 13720 | 170.5 | 14113 | 486 / 53627 / 26367 |
-| Logar (1.8 km, 1.4 MB) | 600 m | 80480 | 13090 | 162.6 | 13258 | 371 / 76940 / 3169 |
-|  | 2000 m | 80480 | 6413 | 79.7 | 6591 | 10 / 38534 / 41936 |
-| Sumari (1.3 km, 1.0 MB) | 600 m | 80480 | 11719 | 145.6 | 11866 | 422 / 73659 / 6399 |
-|  | 2000 m | 80480 | 2521 | 31.3 | 2646 | 39 / 24821 / 55620 |
-| Kohat (4.6 km, 2.3 MB) | 600 m | 80480 | 5834 | 72.5 | 5913 | 1087 / 77912 / 1481 |
-|  | 2000 m | 80480 | 26312 | 326.9 | 26406 | 188 / 79361 / 931 |
-| Pacific (4.0 km, 2.9 MB) | 600 m | 80480 | 5157 | 64.1 | 5407 | 83 / 77450 / 2947 |
-|  | 2000 m | 80480 | 11941 | 148.4 | 12163 | 15 / 78753 / 1712 |
-| FoolsRoad (1.8 km, 6.1 MB) | 600 m | 80480 | 7108 | 88.3 | 7310 | 1263 / 77986 / 1231 |
-|  | 2000 m | 80480 | 7028 | 87.3 | 7174 | 466 / 38787 / 41227 |
-| Mestia (2.4 km, 7.4 MB) | 600 m | 80480 | 10239 | 127.2 | 10461 | 4693 / 72010 / 3777 |
-|  | 2000 m | 80480 | 20032 | 248.9 | 20149 | 2639 / 45071 / 32770 |
-| Fallujah (3.0 km, 5.1 MB) | 600 m | 80480 | 3878 | 48.2 | 3999 | 254 / 73052 / 7174 |
-|  | 2000 m | 80480 | 20805 | 258.5 | 20903 | 8 / 64653 / 15819 |
-| Kamdesh (4.0 km, 14.3 MB) | 600 m | 80480 | 5891 | 73.2 | 6085 | 3564 / 75165 / 1751 |
-|  | 2000 m | 80480 | 5781 | 71.8 | 5853 | 1033 / 77907 / 1540 |
-| GooseBay (4.0 km, 15.4 MB) | 600 m | 80480 | 2371 | 29.5 | 2446 | 0 / 78552 / 1928 |
-|  | 2000 m | 80480 | 9722 | 120.8 | 9812 | 0 / 78100 / 2380 |
+| Al Basrah (4.0 km, 6.7 MB) | 600 m | 80480 | 1769 | 22 | 1783 | 0 / 76095 / 4385 |
+|  | 2000 m | 80480 | 5606 | 69.7 | 5618 | 0 / 77312 / 3168 |
+| Anvil (3.1 km, 3.8 MB) | 600 m | 80480 | 1045 | 13 | 1056 | 369 / 76382 / 3729 |
+|  | 2000 m | 80480 | 768 | 9.5 | 777 | 47 / 66740 / 13693 |
+| Black Coast (4.6 km, 29.8 MB) | 600 m | 80480 | 2340 | 29.1 | 2351 | 84 / 77406 / 2990 |
+|  | 2000 m | 80480 | 1749 | 21.7 | 1759 | 0 / 75823 / 4657 |
+| Chora (4.1 km, 36.9 MB) | 600 m | 80480 | 3904 | 48.5 | 3917 | 28 / 77189 / 3263 |
+|  | 2000 m | 80480 | 3586 | 44.6 | 3596 | 0 / 47081 / 33399 |
+| Fallujah (3.0 km, 3.7 MB) | 600 m | 80480 | 1245 | 15.5 | 1258 | 167 / 72595 / 7718 |
+|  | 2000 m | 80480 | 2875 | 35.7 | 2885 | 0 / 64440 / 16040 |
+| Fool's Road (1.8 km, 6.2 MB) | 600 m | 80480 | 1111 | 13.8 | 1122 | 1234 / 77996 / 1250 |
+|  | 2000 m | 80480 | 665 | 8.3 | 674 | 450 / 38795 / 41235 |
+| Goose Bay (4.0 km, 15.0 MB) | 600 m | 80480 | 1009 | 12.5 | 1020 | 791 / 76971 / 2718 |
+|  | 2000 m | 80480 | 2546 | 31.6 | 2555 | 122 / 77634 / 2724 |
+| Gorodok (4.1 km, 39.3 MB) | 600 m | 80480 | 4207 | 52.3 | 4220 | 5302 / 71060 / 4118 |
+|  | 2000 m | 80480 | 4738 | 58.9 | 4748 | 2755 / 74260 / 3465 |
+| Harju (4.0 km, 41.2 MB) | 600 m | 80480 | 3868 | 48.1 | 3881 | 10189 / 66846 / 3445 |
+|  | 2000 m | 80480 | 3228 | 40.1 | 3240 | 3211 / 72818 / 4451 |
+| Jensen (4.0 km, 0.1 MB) | 600 m | 80480 | 1919 | 23.8 | 1933 | 0 / 77996 / 2484 |
+|  | 2000 m | 80480 | 2850 | 35.4 | 2861 | 0 / 79033 / 1447 |
+| Kamdesh (4.0 km, 14.4 MB) | 600 m | 80480 | 1627 | 20.2 | 1639 | 3263 / 75271 / 1946 |
+|  | 2000 m | 80480 | 1507 | 18.7 | 1517 | 937 / 77845 / 1698 |
+| Kohat (4.6 km, 2.0 MB) | 600 m | 80480 | 1334 | 16.6 | 1346 | 464 / 78310 / 1706 |
+|  | 2000 m | 80480 | 3161 | 39.3 | 3170 | 0 / 79586 / 894 |
+| Kokan (2.5 km, 0.7 MB) | 600 m | 80480 | 664 | 8.2 | 675 | 717 / 78626 / 1137 |
+|  | 2000 m | 80480 | 1888 | 23.5 | 1898 | 475 / 53613 / 26392 |
+| Lashkar (4.3 km, 13.3 MB) | 600 m | 80480 | 4268 | 53 | 4281 | 6889 / 71647 / 1944 |
+|  | 2000 m | 80480 | 3364 | 41.8 | 3375 | 2457 / 76525 / 1498 |
+| Logar (1.8 km, 1.3 MB) | 600 m | 80480 | 2551 | 31.7 | 2566 | 424 / 76662 / 3394 |
+|  | 2000 m | 80480 | 936 | 11.6 | 945 | 37 / 38426 / 42017 |
+| Manicouagan (4.0 km, 17.6 MB) | 600 m | 80480 | 1015 | 12.6 | 1030 | 67 / 76326 / 4087 |
+|  | 2000 m | 80480 | 2224 | 27.6 | 2234 | 0 / 76960 / 3520 |
+| Mestia (2.4 km, 7.6 MB) | 600 m | 80480 | 1521 | 18.9 | 1533 | 4587 / 71306 / 4587 |
+|  | 2000 m | 80480 | 2751 | 34.2 | 2761 | 2571 / 44663 / 33246 |
+| Mutaha (2.8 km, 1.0 MB) | 600 m | 80480 | 1416 | 17.6 | 1428 | 154 / 77519 / 2807 |
+|  | 2000 m | 80480 | 2767 | 34.4 | 2779 | 0 / 60850 / 19630 |
+| Narva (2.8 km, 6.0 MB) | 600 m | 80480 | 1275 | 15.8 | 1288 | 0 / 75762 / 4718 |
+|  | 2000 m | 80480 | 2115 | 26.3 | 2137 | 0 / 61058 / 19422 |
+| Pacific (4.0 km, 2.8 MB) | 600 m | 80480 | 684 | 8.5 | 695 | 6 / 76872 / 3602 |
+|  | 2000 m | 80480 | 3162 | 39.3 | 3172 | 0 / 78250 / 2230 |
+| Sanxian (4.6 km, 16.4 MB) | 600 m | 80480 | 1522 | 18.9 | 1532 | 149 / 76083 / 4248 |
+|  | 2000 m | 80480 | 1099 | 13.6 | 1107 | 0 / 76634 / 3846 |
+| Skorpo (6.8 km, 24.8 MB) | 600 m | 80480 | 1830 | 22.7 | 1842 | 4 / 77728 / 2748 |
+|  | 2000 m | 80480 | 6164 | 76.6 | 6174 | 0 / 78505 / 1975 |
+| Sumari (1.3 km, 1.0 MB) | 600 m | 80480 | 2805 | 34.9 | 2818 | 407 / 73444 / 6629 |
+|  | 2000 m | 80480 | 871 | 10.8 | 881 | 39 / 24753 / 55688 |
+| Tallil (4.7 km, 5.2 MB) | 600 m | 80480 | 1279 | 15.9 | 1293 | 450 / 78784 / 1246 |
+|  | 2000 m | 80480 | 8665 | 107.7 | 8677 | 69 / 79686 / 725 |
+| Yehorivka (6.3 km, 48.6 MB) | 600 m | 80480 | 2216 | 27.5 | 2229 | 1245 / 75452 / 3783 |
+|  | 2000 m | 80480 | 3288 | 40.9 | 3299 | 367 / 76809 / 3304 |
 
-* **Typically 5 to 20 s for 80 000 positions on this loaded host (2 to 26 s over all rows; about 20 to 330 us per position, median about 105)**; the
-  differences between rows are mostly the load of the moment and how many positions are traced (out and blocked-at-once positions
-  are cheap), not the size of the map or of its voxel file: the voxel walk costs the cells it crosses, so a position whose line
-  of fire meets a wall at once is cheap and one that runs 600 m through foliage is not. The page stays responsive (the worker
-  does the work in batches of 8 rays and the status shows the share done); other questions to the volume worker (a line of
-  fire) wait for the batch they come between.
+* **0.7 to 8.7 s for 80 480 positions (median 2.0 s; 8 to 108 us per position, median 25 us)**, with the host idle. The earlier table
+  of 11 maps (0.1 to 15 MB files built with the lattice method, host load average 22) read 2 to 26 s; most of that was load. The
+  differences between rows are mostly how many positions are really traced (out and blocked-at-once positions are cheap), not the size
+  of the map or of its voxel file: the biggest files (Yehorivka 48.6 MB, Harju 41.2 MB, Gorodok 39.3 MB, Chora 36.9 MB) take 2.2 to
+  4.7 s, the slowest rows are Tallil at 2000 m (8.7 s) and Skorpo at 2000 m (6.2 s), where lines of fire run far through open
+  voxels. The voxel walk costs the cells it crosses, so a position whose line of fire meets a wall at once is cheap and one that runs
+  600 m through foliage is not. The page stays responsive (the worker does the work in batches of 8 rays and the status shows the
+  share done); other questions to the volume worker (a line of fire) wait for the batch they come between.
 * **With a precision region** the same Jensen target (the validation's, 36 000 positions at 200 m) took in Node's wasm, at a
   quieter moment, 1.0 to 1.5 s with the voxel walk and 1.9 to 2.2 s with the region, plus the region load, 7.1 to 7.7 s (1.93 MB;
   at the loaded moments 4 to 11 s, 6 to 13 s and 23 to 47 s; the 5.04 MB region with 2.78 M triangles: 31 s); in Chromium (`heatmap_check.mjs`, 80 480 positions at 589 m) 8.4 to 12.4 s voxel only,
