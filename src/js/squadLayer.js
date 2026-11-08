@@ -27,6 +27,7 @@ export default class SquadLayer {
         if (this.layerData.mapTextureCorners) {
             this.map.grid?.setOrigin(layerGridOffset(this.map.activeMap.SDK_data.minimap, this.layerData.mapTextureCorners));
         }
+        this.map.setLayerMinimap(this.layerData);
         this.isVisible = true;
         this.currentPosition = 0;
 
@@ -1361,6 +1362,7 @@ export default class SquadLayer {
         this.vehicleSpawners = [];
         this.hexs = [];
         this.map.grid?.setOrigin(this.map.activeMap.gridOffset);
+        this.map.clearLayerMinimap();
     }
 
 }
