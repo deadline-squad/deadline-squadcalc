@@ -20,6 +20,7 @@ import "./libs/leaflet-spin.js";
 import "./libs/leaflet-imageoverlay-rotated.js";
 import { notifyBridgeChange } from "./smcConnector.js";
 import { createReliefLayer } from "./squadReliefLayer.js";
+import { layerMinimapBounds, LAYER_MINIMAPS_MANIFEST } from "./layerMinimap.js";
 
 
 // Ctrl + double-click marks a burst for the nearest target within this distance, in meters
@@ -109,6 +110,12 @@ export const squadMinimap = Map.extend({
         // Requests for the detailed tiles' meta.json by tile folder, and the number of the latest layer change
         this.detailedTiles = {};
         this.layerRequest = 0;
+        // The minimap of the loaded gameplay layer when it has one of its own (layerMinimap.js): its source, the
+        // image on the map, the manifest request and the number of the latest update
+        this.layerMinimapSource = null;
+        this.layerMinimapImage = null;
+        this.layerMinimapManifestRequest = null;
+        this.layerMinimapUpdate = 0;
         this.markersGroup = new LayerGroup().addTo(this);
         this.history = [];
         this.mouseLocationPopup = new Popup({
@@ -173,6 +180,7 @@ export const squadMinimap = Map.extend({
         // remove existing grid and replace it
         if (this.grid) this.grid.remove();
         if (this.layer) this.layer = "";
+        this.clearLayerMinimap();
 
         this.grid = new squadGrid(this, {opacity: App.userSettings.gridOpacity}).addTo(this.layerGroup);
         this.grid.setOrigin(this.activeMap.gridOffset);
@@ -205,6 +213,7 @@ export const squadMinimap = Map.extend({
             this.setMaxZoom(DEFAULT_MAX_ZOOM);
             this.showMapImage(this.upstreamLayer(LAYERMODE), OLDLAYER);
         }
+        this.updateLayerMinimap();
 
         // Show grid and heatmap
         if (changemap) {
@@ -340,6 +349,67 @@ export const squadMinimap = Map.extend({
         const mapName = this.activeMap.mapURL.split("/").filter(Boolean).pop();
         const available = COLOUR_MAPS.includes(mapName);
         $(`.btn-${COLOUR_LAYER}`).toggle(available).data("unavailable", !available);
+    },
+
+
+    /**
+     * Manifest of the layer minimaps this deployment serves (layerMinimap.js), requested once
+     * @returns {Promise<object|null>} - the parsed manifest, null when there is none
+     */
+    layerMinimapManifest: function() {
+        if (!this.layerMinimapManifestRequest) {
+            this.layerMinimapManifestRequest = fetch(LAYER_MINIMAPS_MANIFEST, { cache: "no-cache" })
+                .then((response) => response.ok ? response.json() : null)
+                .catch(() => null);
+        }
+        return this.layerMinimapManifestRequest;
+    },
+
+
+    /**
+     * A gameplay layer was loaded: show its own minimap when it has one
+     * @param {object} layerData - layer data of the API ({mapTexture, mapTextureCorners})
+     */
+    setLayerMinimap: function(layerData) {
+        const { mapTexture, mapTextureCorners } = layerData;
+        this.layerMinimapSource = mapTexture && mapTextureCorners ? { texture: mapTexture, corners: mapTextureCorners } : null;
+        this.updateLayerMinimap();
+    },
+
+
+    /**
+     * The layer was cleared or the map changed: back to the image of the whole map
+     */
+    clearLayerMinimap: function() {
+        this.layerMinimapSource = null;
+        this.updateLayerMinimap();
+    },
+
+
+    /**
+     * Put the own minimap of the loaded layer above the map image: the game draws that texture, 4096 px over a part of
+     * the map, so it is finer than the image of the whole map. Only above the upstream basemap, the other layers are
+     * other drawings of the whole map. A texture the manifest does not list (most layers use the map's own) shows nothing.
+     */
+    updateLayerMinimap: function() {
+        const source = this.layerMinimapSource;
+        const update = ++this.layerMinimapUpdate;
+        this.layerMinimapImage?.remove();
+        this.layerMinimapImage = null;
+        if (!source || $("#mapLayerMenu .active").attr("value") !== "basemap") return;
+
+        this.layerMinimapManifest().then((manifest) => {
+            const entry = manifest?.textures?.[source.texture];
+            if (!entry || update !== this.layerMinimapUpdate) return;
+            const bounds = layerMinimapBounds(this.activeMap.SDK_data.minimap, source.corners, this.gameToMapScale, this.gameToMapScaleY);
+            const image = new ImageOverlay(`/maptiles/${entry.folder}/0/0_0.webp?v=${encodeURIComponent(manifest.generated)}`, bounds, {
+                decoding: "async",
+                zIndex: 2,
+            }).addTo(this.layerGroup);
+            this.layerMinimapImage = image;
+            $(image.getElement()).css("opacity", 0);
+            image.once("load", () => $(image.getElement()).fadeTo(400, 1));
+        });
     },
 
 

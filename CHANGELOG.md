@@ -1,3 +1,13 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.34.0** *(2026-11-06)*
+
+</br><img src="https://img.shields.io/badge/-new%20features-green">  
+- **Seed and Skirmish layers show the game's own map of the layer.** A layer such as Mutaha Seed v1 has a minimap texture of its own, 4096 px over the 1300 m the layer covers (0.32 m per pixel), where the image of the whole map has 0.67 m per pixel on Mutaha; the in-game map (M) draws that texture, which is why it looked sharper than SquadCalc. SquadCalc now draws it above the map image where the layer's `MapTextureCorner` actors put it (the same corners the grid starts from), on the default map image only (the topographic, terrain, detailed, game-colour and relief layers are drawings of the whole map) and for the 15 textures of 10 maps that differ from the map's own (Mutaha, Tallil, Chora, Fallujah, Goose Bay, Gorodok, Manicouagan, Skorpo, Al Basrah, Black Coast); the other layers are unchanged. The images come from the game client's files (build 26234431), 4096 px each, served by this deployment (`/maptiles/<texture>/0/0_0.webp`, listed in `/maptiles/layer-minimaps.json`; `tools/maptiles`, step `layer-minimaps`). The place of Mutaha Seed v1's texture was checked against the whole-map texture by matching their edges (633.6 m east and 581.1 m south of the image corner, within one pixel of 0.67 m).
+
+</br><img src="https://img.shields.io/badge/-%20dev%20-lightgrey">  
+- `src/js/layerMinimap.js` (`layerMinimapBounds`: the rectangle of the layer's corners in map units) with `tests/layerMinimap.test.mjs`; `tools/browser_check/layer_minimap_check.mjs` in the deployment repository checks the overlay in Chromium (place, topographic layer, clearing the layer, a layer without a texture of its own, a map change).
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.33.0** *(2026-11-05)*
 
 </br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
