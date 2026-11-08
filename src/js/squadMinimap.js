@@ -21,6 +21,7 @@ import "./libs/leaflet-imageoverlay-rotated.js";
 import { notifyBridgeChange } from "./smcConnector.js";
 import { createReliefLayer } from "./squadReliefLayer.js";
 import { layerMinimapBounds, LAYER_MINIMAPS_MANIFEST } from "./layerMinimap.js";
+import { TILE_FOLDER_SUFFIX } from "./mapLayers.js";
 
 
 // Ctrl + double-click marks a burst for the nearest target within this distance, in meters
@@ -31,9 +32,8 @@ const DEFAULT_MAX_ZOOM = 8;
 
 // Zoom levels the detailed layer allows beyond its finest tiles (Leaflet scales those up)
 const DETAILED_EXTRA_ZOOM = 2;
-// Layer value and tile folder suffix of the detailed layer in the game's colours (tools/maptiles, style "colour")
+// Layer value of the detailed layer in the game's colours (tools/maptiles, style "colour")
 const COLOUR_LAYER = "detailed-colour";
-const COLOUR_SUFFIX = "-colour";
 // Maps that have those tiles (a map without them is not asked for a meta.json that does not exist)
 const COLOUR_MAPS = ["albasrah", "fallujah", "gorodok"];
 // Layer value of the shaded relief (tools/maptiles/py/relief.py), one PMTiles archive per map in /maptiles/relief/
@@ -205,8 +205,8 @@ export const squadMinimap = Map.extend({
         // Show spinner
         this.spin(true, this.spinOptions);
 
-        if (LAYERMODE === "detailed" || LAYERMODE === COLOUR_LAYER) {
-            this.showDetailedLayer(OLDLAYER, request, LAYERMODE === COLOUR_LAYER ? COLOUR_SUFFIX : "");
+        if (LAYERMODE in TILE_FOLDER_SUFFIX) {
+            this.showDetailedLayer(OLDLAYER, request, TILE_FOLDER_SUFFIX[LAYERMODE]);
         } else if (LAYERMODE === RELIEF_LAYER) {
             this.showReliefLayer(OLDLAYER, request);
         } else {
@@ -249,22 +249,22 @@ export const squadMinimap = Map.extend({
 
 
     /**
-     * Show the detailed tactical map of the active map: 256 px webp tiles generated from the game files
-     * (terrain cover, hillshade, contours, foliage, buildings; tools/maptiles in the deployment repository),
-     * served by this deployment in /maptiles/<map>/ with their meta.json ({maxNativeZoom, generated, ...}).
-     * The map may then zoom DETAILED_EXTRA_ZOOM levels past the finest tiles. A map without tiles shows the
-     * upstream topographic map instead; a map without tiles in the game's colours shows the detailed map.
+     * Show a tile layer of this deployment for the active map: 256 px webp tiles generated from the game files, in
+     * /maptiles/<map><suffix>/ with their meta.json ({maxNativeZoom, generated, ...}). Without a suffix it is the
+     * detailed tactical map (tools/maptiles in the deployment repository); see TILE_FOLDER_SUFFIX for the others.
+     * The map may then zoom DETAILED_EXTRA_ZOOM levels past the finest tiles. A map without the tiles of a suffix
+     * shows the detailed map; a map without detailed tiles shows the upstream topographic map.
      * @param {TileLayer|ImageOverlay} [oldLayer] - layer to remove once the new one loaded
      * @param {number} request - number of this layer change; a later change or map switch wins
-     * @param {string} [suffix] - COLOUR_SUFFIX for the tiles in the game's colours (/maptiles/<map>-colour/)
+     * @param {string} [suffix] - tile folder suffix of the layer (TILE_FOLDER_SUFFIX)
      */
     showDetailedLayer: function(oldLayer, request, suffix = "") {
         const mapName = this.activeMap.mapURL.split("/").filter(Boolean).pop();
-        const available = !suffix || COLOUR_MAPS.includes(mapName);
+        const available = suffix !== TILE_FOLDER_SUFFIX[COLOUR_LAYER] || COLOUR_MAPS.includes(mapName);
         (available ? this.detailedMeta(mapName + suffix) : Promise.resolve(null)).then((meta) => {
             if (request !== this.layerRequest) return;
             if (!meta && suffix) {
-                console.warn(`[MAP] No tiles in the game's colours for ${mapName}, showing the detailed map`);
+                console.warn(`[MAP] No ${mapName}${suffix} tiles, showing the detailed map`);
                 $("#mapLayerMenu").find(".layers").removeClass("active");
                 $(".btn-detailed").addClass("active");
                 this.showDetailedLayer(oldLayer, request);
@@ -329,7 +329,7 @@ export const squadMinimap = Map.extend({
 
     /**
      * meta.json of a folder of detailed tiles, requested once per folder
-     * @param {string} folder - folder in /maptiles/ (the map name, or the map name with COLOUR_SUFFIX)
+     * @param {string} folder - folder in /maptiles/ (the map name with its layer's TILE_FOLDER_SUFFIX)
      * @returns {Promise<object|null>} - the parsed meta.json, null when the folder does not exist
      */
     detailedMeta: function(folder) {

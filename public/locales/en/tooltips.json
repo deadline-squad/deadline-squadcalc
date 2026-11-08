@@ -2,6 +2,7 @@
     "basemode": "Base Map",
     "terrainmode": "Terrain Map",
     "topographicmode": "Topographic Map",
+    "standardhdmode": "HD Map · rendered from the game",
     "detailedmode": "Detailed Map",
     "detailedcolourmode": "Detailed Map · game colours",
     "reliefmode": "Relief Map",

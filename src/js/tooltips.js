@@ -275,6 +275,17 @@ tippy(".btn-detailed", {
         );
     },
 });
+tippy(".btn-standard-hd", {
+    ...commonMapMenuToolipsSettings,
+    onShow(tip) {
+        tip.setContent(
+            `
+            <div>${i18next.t("tooltips:standardhdmode")}</div>
+            <div class="tooltipsubtext">${App.formatShortcutHTML(App.shortcuts.toggleMap)}</div>
+            `
+        );
+    },
+});
 tippy(".btn-detailed-colour", {
     ...commonMapMenuToolipsSettings,
     onShow(tip) {

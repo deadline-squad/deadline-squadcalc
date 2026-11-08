@@ -1,6 +1,7 @@
 import { animateCSS } from "./animations.js";
 import SquadFactions from "./squadFactions.js";
 import packageInfo from "../../package.json";
+import { DEFAULT_LAYER } from "./mapLayers.js";
 
 
 /**
@@ -649,8 +650,7 @@ export default class SquadSettings {
         if ($(".btn-" + mapMode).length) {
             $(".btn-" + mapMode).addClass("active");
         } else {
-            // Default to basemap button
-            $(".btn-basemap").addClass("active");
+            $(`.btn-${DEFAULT_LAYER}`).addClass("active");
             this.app.updateUrlParams({type: null});
         }
 
@@ -688,7 +688,7 @@ export default class SquadSettings {
 
     getButtonToggleDefinitions() {
         return [
-            { key: "settings-btn-layers",  sharedContainer: "#mapBtnLayers",  buttons: ".btn-detailed, .btn-detailed-colour, .btn-relief, .btn-topomap, .btn-terrainmap, .btn-basemap", default: true },
+            { key: "settings-btn-layers",  sharedContainer: "#mapBtnLayers",  buttons: ".btn-standard-hd, .btn-detailed, .btn-detailed-colour, .btn-relief, .btn-topomap, .btn-terrainmap, .btn-basemap", default: true },
             { key: "settings-btn-hd",      sharedContainer: null,             buttons: ".btn-hd",                                   default: true },
             { key: "settings-btn-legacy",  sharedContainer: "#mapBtnMain",    buttons: ".btn-legacy",                                default: false },
             { key: "settings-btn-helpmap", sharedContainer: "#mapBtnMain",    buttons: ".btn-helpmap",                               default: false },
