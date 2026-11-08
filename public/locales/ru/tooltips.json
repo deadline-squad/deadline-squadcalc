@@ -2,6 +2,7 @@
     "basemode": "Базовая карта",
     "terrainmode": "Рельефная карта",
     "topographicmode": "Топографическая карта",
+    "standardhdmode": "HD-карта · рендер из файлов игры",
     "detailedmode": "Детальная карта",
     "detailedcolourmode": "Детальная карта · цвета игры",
     "reliefmode": "Карта рельефа",

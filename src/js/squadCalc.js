@@ -25,6 +25,7 @@ import i18next from "i18next";
 import SquadLayer from "./squadLayer.js";
 import { serverBrowserTooltips, settingsTooltips } from "./tooltips.js";
 import { MapDrawing, MapArrow, MapCircle, MapRectangle } from "./squadShapes.js";
+import { DEFAULT_LAYER, LAYER_ORDER, urlTypeOf } from "./mapLayers.js";
 
 
 
@@ -921,7 +922,7 @@ export default class SquadCalc {
 
             $("#mapLayerMenu").find(".layers").removeClass("active");
             $(".btn-"+VAL).addClass("active");
-            this.updateUrlParams({ type: VAL === "basemap" ? null : VAL });
+            this.updateUrlParams({ type: urlTypeOf(VAL) });
             localStorage.setItem("settings-map-mode", VAL);
             this.userSettings.layerMode = VAL;
             this.minimap.changeLayer();
@@ -1267,14 +1268,14 @@ export default class SquadCalc {
         }
 
         if (this.matchesShortcut(event, "toggleMap")) {
-            const layers = ["detailed", "detailed-colour", "relief", "topomap", "terrainmap", "basemap"]
+            const layers = LAYER_ORDER
                 .filter((layer) => !$(`.btn-${layer}`).data("unavailable"));
-            const currentLayer = $("#mapLayerMenu .layers.active").attr("value") || "basemap";
+            const currentLayer = $("#mapLayerMenu .layers.active").attr("value") || DEFAULT_LAYER;
             const nextIndex = (layers.indexOf(currentLayer) + 1) % layers.length;
             const nextLayer = layers[nextIndex];
             $("#mapLayerMenu").find(".layers").removeClass("active");
             $(".btn-" + nextLayer).addClass("active");
-            this.updateUrlParams({ type: nextLayer === "basemap" ? null : nextLayer });
+            this.updateUrlParams({ type: urlTypeOf(nextLayer) });
             localStorage.setItem("settings-map-mode", nextLayer);
             this.userSettings.layerMode = nextLayer;
             this.minimap.changeLayer();

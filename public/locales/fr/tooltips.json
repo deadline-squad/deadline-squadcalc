@@ -2,6 +2,7 @@
     "basemode": "Carte de base",
     "terrainmode": "Carte de reliefs",
     "topographicmode": "Carte topographique",
+    "standardhdmode": "Carte HD · rendu depuis le jeu",
     "detailedmode": "Carte détaillée",
     "detailedcolourmode": "Carte détaillée · couleurs du jeu",
     "reliefmode": "Carte en relief",

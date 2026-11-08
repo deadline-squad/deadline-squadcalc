@@ -1,3 +1,13 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.35.0** *(2026-11-08)*
+
+</br><img src="https://img.shields.io/badge/-new%20features-green">  
+- **HD map, rendered from the game, is the default layer.** A new layer button (*HD Map · rendered from the game*) shows a top-down render of the game client's own meshes, materials, landscape layers and placements (`tools/maprender` in the deployment repository), with colours fitted to each map's whole-map texture: 25 maps, 0.17 to 0.32 m per pixel at the finest zoom, 1.4 GB of 256 px WebP tiles in `/maptiles/<map>-hd/`. It is shown when the address names no layer (a plain link stays plain); the layer chosen before is remembered as until now, and the toggle shortcut cycles through the HD map first. A map without HD tiles shows the detailed map.
+
+</br><img src="https://img.shields.io/badge/-%20dev%20-lightgrey">  
+- `src/js/mapLayers.js` (`DEFAULT_LAYER`, `LAYER_ORDER`, `TILE_FOLDER_SUFFIX`, `urlTypeOf`) with `tests/mapLayers.test.mjs`; the detailed, game-colour and HD layers load through one path (`showDetailedLayer` with the layer's tile folder suffix). `tools/browser_check/standard_hd_check.mjs` in the deployment repository checks the layer in Chromium on every map.
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.34.0** *(2026-11-06)*
 
 </br><img src="https://img.shields.io/badge/-new%20features-green">  
