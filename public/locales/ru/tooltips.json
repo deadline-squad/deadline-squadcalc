@@ -15,6 +15,7 @@
     "error": "Ошибка!",
     "apiError": "API не подключен..",
     "apiError_layers": "Ошибка получения layers карт из API SquadCalc",
+    "layerError": "Не удалось нарисовать слой",
     "deleteTargets": "Удалить все цели и маркеры",
     "bearing": "Пеленг (азимут)",
     "whereToAim": "(куда целиться)",
