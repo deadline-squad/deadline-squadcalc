@@ -85,7 +85,7 @@ The selected map is stored by its index in `MAPS` (`src/data/maps.js`): the map 
 ### Locales
 - Namespaces: `tooltips`, `settings`, `maps`, `weapons`, `common`, `factions`, `units`, `vehicles`
 - Languages: `en`, `fr`, `de`, `ru`, `uk`, `zh`
-- `npm run locales` fails when a language lacks a key that `en` has (there is no fallback language), and on a Ukrainian text that is Russian left untranslated
+- `npm run locales` fails when a language lacks a key that `en` has (there is no fallback language), and on a Ukrainian text with a letter only Russian has (ы, э, ъ, ё) or one of three or more words identical to the Russian text (a Russian text left in Ukrainian otherwise passes)
 - Files: `public/locales/{{lng}}/{{ns}}.json`, cache-busted with `?v=${version}` from `package.json`
 - Weapon display names: key = `weapon.name` value — **spaces in weapon names break i18next keys**, use underscores (e.g. `type_63` not `Type 63`)
 

@@ -5,9 +5,11 @@
 - **Changing the map stops a layer still loading.** A layer picked just before the map changed was drawn on the new map when its answer arrived, and FOB circles took its radius.
 - **A list of layers that arrives after the map changed again is dropped.** The selector could list the layers of a map no longer shown, for example on a page opened with `?server=` whose own map's list came after the server's.
 - **Server mode retries a layer that failed to load.** When the server's layer or its map's list of layers could not be loaded, the page went on following the server without its layer and never asked again. The next read of the feed now starts the switch again, and the page compares the server's layer with the layer drawn, not with the selector's choice.
+- **Ukrainian: four more texts were in Russian:** the messages that the map was saved and imported, the save button's hint, and the classic cursor setting.
 
 </br><img src="https://img.shields.io/badge/-%20dev%20-lightgrey">  
 - `App.layerRequest` is the `AbortController` of the layer under way; the map selector aborts it. A failed load fires `layer:failed` (the layer) or `layers:failed` (the list, also when empty); `SquadServersBrowser.switchLayer` ends its switch on either.
+- `npm run locales` catches a Russian text left in Ukrainian only by its two signs (a letter only Russian has, or three or more words identical to the Russian text); `CLAUDE.md` and the script's header say so.
 
 </br></br><!-- CHANGELOG SPLIT MARKER -->
 

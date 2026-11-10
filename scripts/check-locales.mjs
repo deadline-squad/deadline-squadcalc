@@ -4,8 +4,9 @@
 //
 // A key that English has and another language lacks is an error (the app has no fallback language, so the
 // key itself would be shown); exit code 1. A key a language has and English lacks is only reported as stale.
-// A Ukrainian text that is Russian left untranslated is an error too: one with a letter only Russian has (ы, э, ъ, ё),
-// or one of three or more Cyrillic words (abbreviations such as ПКМ aside) that is the Russian text word for word.
+// Two signs of a Russian text left in a Ukrainian file are errors too: a letter only Russian has (ы, э, ъ, ё), or three
+// or more Cyrillic words (abbreviations such as ПКМ aside) that are the Russian text word for word. A Russian text
+// without either sign passes.
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
