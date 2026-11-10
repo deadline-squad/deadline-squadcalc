@@ -2,16 +2,20 @@
  * Module resolution hook for the tests: SquadCalc's pure modules import `../app.js` (the whole UI) and
  * the coverage and protection zone modules import Leaflet at load time. The first is replaced by a stub holding
  * what the pure modules read from App (gravity, active weapon); Leaflet is replaced by the classes of
- * stubs/leaflet.mjs: empty ones, and a circle and a polygon that keep what they were made with, which the tests of
- * the protection zones read (the Leaflet regression tests import the real package).
+ * stubs/leaflet.mjs: empty ones, and a polygon that keeps what it was made with, which the tests of the protection
+ * zones read. The grid, the shapes sized in metres (groundShapes.js, a Leaflet circle and the ellipse of
+ * libs/leaflet-ellipse.js extended) and the Leaflet regression tests use the real package.
  */
+// The modules that get the real Leaflet: squadGrid.test.mjs draws the grid with it, groundShapes.test.mjs and
+// protectionZone.test.mjs project the shapes sized in metres
+const REAL_LEAFLET = ["/src/js/squadGrid.js", "/src/js/groundShapes.js", "/src/js/libs/leaflet-ellipse.js"];
+
 export async function resolve(specifier, context, nextResolve) {
     const fromSource = context.parentURL?.includes("/src/");
     if (fromSource && specifier === "../app.js") {
         return { url: new URL("./stubs/app.mjs", import.meta.url).href, shortCircuit: true };
     }
-    // squadGrid.test.mjs draws the grid with the real Leaflet
-    if (fromSource && specifier === "leaflet" && !context.parentURL.endsWith("/src/js/squadGrid.js")) {
+    if (fromSource && specifier === "leaflet" && !REAL_LEAFLET.some((path) => context.parentURL.endsWith(path))) {
         return { url: new URL("./stubs/leaflet.mjs", import.meta.url).href, shortCircuit: true };
     }
     return nextResolve(specifier, context);

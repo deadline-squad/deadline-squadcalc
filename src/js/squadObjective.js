@@ -1,4 +1,5 @@
-import { DivIcon, Marker, Circle, LayerGroup, Rectangle } from "leaflet";
+import { DivIcon, Marker, LayerGroup, Rectangle } from "leaflet";
+import { GroundCircle } from "./groundShapes.js";
 import { App } from "../app.js";
 import i18next from "i18next";
 import "tippy.js/dist/tippy.css";
@@ -217,9 +218,8 @@ export class SquadObjective {
         // Capzone is a Sphere
         if (cap.isSphere) {
             let latlng = [location_y , location_x];
-            let radius = cap.sphereRadius / 100 * this.layer.map.gameToMapScale;
-            let capZone = new Circle(latlng, {
-                radius: radius,
+            let capZone = new GroundCircle(latlng, {
+                radius: cap.sphereRadius / 100,
                 ...CZOPTIONS,
             }).addTo(this.layer.activeLayerMarkers);
             this.capZones.addLayer(capZone);
@@ -270,14 +270,14 @@ export class SquadObjective {
                 let lngSphere2 = (capZone.getBounds().getSouthEast().lng + capZone.getBounds().getSouthWest().lng ) / 2;
                 let latlng2 = { lat: latSphere2, lng: lngSphere2 };
 
-                let circle1 = new Circle(latlng1, {
-                    radius: cap.capsuleRadius / 100 * this.layer.map.gameToMapScale,
+                let circle1 = new GroundCircle(latlng1, {
+                    radius: cap.capsuleRadius / 100,
                     ...CZOPTIONS,
                 }).addTo(this.layer.activeLayerMarkers);
                 this.capZones.addLayer(circle1);
 
-                let circle2 = new Circle(latlng2, {
-                    radius: cap.capsuleRadius / 100 * this.layer.map.gameToMapScale,
+                let circle2 = new GroundCircle(latlng2, {
+                    radius: cap.capsuleRadius / 100,
                     ...CZOPTIONS,
                 }).addTo(this.layer.activeLayerMarkers);
                 this.capZones.addLayer(circle2);

@@ -48,58 +48,52 @@ export default class TargetGrid {
         const REVERSEDIST = this.firingSolution.getProjectileDistance(this.firingSolution.milToDeg(this.elevation));
         const QUADRATICDIST = this.firingSolution.distance;
         const AVGDELTA = QUADRATICDIST - REVERSEDIST;
-        const BASEANGLE = this.firingSolution.bearing - 90; // face north
+        const BEARING = this.firingSolution.bearing;
         const weaponLatLng = this.weaponMarker.getLatLng();
 
-        const startRadius = (this.firingSolution.getProjectileDistance(this.firingSolution.milToDeg(this.elevation - this.ELEVATION_DEVIATION/2)) + AVGDELTA) * this.map.gameToMapScale;
-        const endRadius = (this.firingSolution.getProjectileDistance(this.firingSolution.milToDeg(this.elevation + this.ELEVATION_DEVIATION/2)) + AVGDELTA) * this.map.gameToMapScale;
+        // Radii in meters
+        const startRadius = this.firingSolution.getProjectileDistance(this.firingSolution.milToDeg(this.elevation - this.ELEVATION_DEVIATION/2)) + AVGDELTA;
+        const endRadius = this.firingSolution.getProjectileDistance(this.firingSolution.milToDeg(this.elevation + this.ELEVATION_DEVIATION/2)) + AVGDELTA;
         if (isNaN(startRadius) || isNaN(endRadius)) return;
 
         // Start drawing the horizontal arcs
         for (let i = this.elevation - this.ELEVATION_DEVIATION/2; i <= this.elevation + this.ELEVATION_DEVIATION/2 + 1; i = i+ this.ELEVATION_STEP) {
             let aproxDist = this.firingSolution.getProjectileDistance(this.firingSolution.milToDeg(i));
-            let finalDist = (aproxDist + AVGDELTA) * this.map.gameToMapScale;
-            this.linesGroup.addLayer(this.drawArc(weaponLatLng, BASEANGLE, -TargetGrid.ANGLE_DEV/2, TargetGrid.ANGLE_DEV/2, finalDist));
+            let finalDist = aproxDist + AVGDELTA;
+            this.linesGroup.addLayer(this.drawArc(weaponLatLng, BEARING, -TargetGrid.ANGLE_DEV/2, TargetGrid.ANGLE_DEV/2, finalDist));
         }
 
         // Start drawing vertical segment
         for (let i= -TargetGrid.ANGLE_DEV/2; i <= TargetGrid.ANGLE_DEV/2; i= i + TargetGrid.ANGLE_STEP) {
-            this.linesGroup.addLayer(this.drawSegmentAtAngle(weaponLatLng, BASEANGLE + i, startRadius, endRadius));
+            this.linesGroup.addLayer(this.drawSegmentAtAngle(weaponLatLng, BEARING + i, startRadius, endRadius));
         }
+    }
+
+    /**
+     * Point at a distance and bearing from another, each map axis with its own scale (fromMeters)
+     * @param {LatLng} origin
+     * @param {number} distance - meters
+     * @param {number} bearingDeg - degrees clockwise from north
+     * @returns {{lat: number, lng: number}}
+     */
+    pointAt(origin, distance, bearingDeg) {
+        const rad = bearingDeg * Math.PI / 180;
+        return this.map.fromMeters(origin, distance * Math.sin(rad), distance * Math.cos(rad));
     }
 
     drawArc(centerLatLng, bearingDeg, startOffset, endOffset, radius, segments = 64) {
         const points = [];
-        const baseAngle = bearingDeg;
         const step = (endOffset - startOffset) / segments;
 
         for (let offset = startOffset; offset <= endOffset; offset += step) {
-            const angleRad = (baseAngle + offset) * Math.PI / 180;
-            const dx = radius * Math.cos(angleRad);
-            const dy = radius * Math.sin(angleRad);
-            points.push([centerLatLng.lat - dy, centerLatLng.lng + dx]);
+            points.push(this.pointAt(centerLatLng, radius, bearingDeg + offset));
         }
 
         return new Polyline(points, TargetGrid.lineOptions);
     }
 
-    drawSegmentAtAngle(originLatLng, angleDeg, innerRadius, outerRadius) {
-        const angleRad = (angleDeg) * Math.PI / 180;
-        const dx = Math.cos(angleRad);
-        const dy = Math.sin(angleRad);
-
-        // Y-axis inverted: subtract dy from lat
-        const startLatLng = [
-            originLatLng.lat - dy * innerRadius,
-            originLatLng.lng + dx * innerRadius,
-        ];
-
-        const endLatLng = [
-            originLatLng.lat - dy * outerRadius,
-            originLatLng.lng + dx * outerRadius,
-        ];
-
-        return new Polyline([startLatLng, endLatLng], TargetGrid.lineOptions);
+    drawSegmentAtAngle(originLatLng, bearingDeg, innerRadius, outerRadius) {
+        return new Polyline([this.pointAt(originLatLng, innerRadius, bearingDeg), this.pointAt(originLatLng, outerRadius, bearingDeg)], TargetGrid.lineOptions);
     }
 
     show(){
