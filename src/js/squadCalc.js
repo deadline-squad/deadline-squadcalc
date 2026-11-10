@@ -27,7 +27,7 @@ import SquadLayer from "./squadLayer.js";
 import { serverBrowserTooltips, settingsTooltips } from "./tooltips.js";
 import { MapDrawing, MapArrow, MapCircle, MapRectangle } from "./squadShapes.js";
 import { DEFAULT_LAYER, LAYER_ORDER, urlTypeOf } from "./mapLayers.js";
-import { fetchServers } from "./serversSource.js";
+import { HOME_FEED_PERIOD_MS, canFollow, fetchServers } from "./serversSource.js";
 
 
 
@@ -144,69 +144,75 @@ export default class SquadCalc {
         this.initServerDropdown();
     }
 
+    /**
+     * Enters server mode for `serverId`: the feed is read, then the page follows the server (it opens the layer the
+     * server plays with its factions, and checks the feed again every `HOME_FEED_PERIOD_MS`) or, when the feed does
+     * not confirm the server, leaves server mode and tells the user why (`SquadServersBrowser.applyFeed`).
+     * @param {string} serverId
+     * @param {string|null} [sessionId] - session of a page opened with both: joined once the server is followed, and
+     *   also when the feed does not confirm the server
+     */
     initServerMode(serverId, sessionId = null) {
-        if (!this.squadServersBrowser) {
+        const created = !this.squadServersBrowser;
+        if (created) {
             this.squadServersBrowser = new SquadServersBrowser();
             this.squadServersBrowser.init();
         }
+        const browser = this.squadServersBrowser;
+        browser.selectedServer = serverId;
+        browser.selectedLayer = null;
 
         const setup = () => {
-            const server = this.squadServersBrowser.serversData?.find(s => s.id == serverId);
+            // Not when the user left server mode, or chose another server, while the feed was read
+            if (browser.selectedServer !== serverId) return;
 
-            if (!server) {
-                this.updateUrlParams({ server: null });
-                this.openToast("error", "serverNotFound", "");
-                this.loadLayers();
-                this.initStaticMode(this.urlIntent);
+            // A page opened in server mode has asked for no layers yet (loadMinimap)
+            const withoutLayers = !this.layersLoaded;
+            if (withoutLayers) this.loadLayers();
+
+            if (!browser.applyFeed()) {
+                // The page goes on as it would have been opened without the server
+                if (sessionId) this.initSessionMode(sessionId, this.urlIntent);
+                else if (withoutLayers) this.initStaticMode(this.urlIntent);
                 return;
             }
 
-            if (!server.team1 || !server.team2 || !server.mapName) {
-                this.updateUrlParams({ server: null });
-                this.SERVER_SELECTOR.val("").trigger("change.select2");
-                this.loadLayers();
-                this.initStaticMode(this.urlIntent);
-                return;
-            }
-
-            // Server found — discard any URL team overrides; map/layer are overwritten by switchLayer
-            this.updateUrlParams({ team1: null, team1unit: null, team2: null, team2unit: null });
-
-            this.squadServersBrowser.selectedServer = server.id;
-            this.squadServersBrowser.selectedLayer = server.attributes.details.map;
-
-            // Ensure layers are loaded for the server's map before switching layer
-            if (!this.layersLoaded) {
-                console.debug("Layers not loaded yet, loading layers for server map");
-                this.loadLayers();
-            }
-
-            this.squadServersBrowser.switchLayer(
-                server.attributes.name,
-                server.mapName,
-                server.attributes.details.map,
-                server.team1,
-                server.team2
-            );
-
-            $("#serversTableBody tr").removeClass("selected");
-            $(`#serversTableBody tr[data-serverid="${serverId}"]`).addClass("selected");
+            // The map, the layer and the factions are the server's: any team of the URL is dropped
+            this.updateUrlParams({ server: serverId, team1: null, team1unit: null, team2: null, team2unit: null });
+            this.SERVER_SELECTOR.val(serverId).trigger("change.select2");
+            $("#serversTableBody tr").removeClass("selected").filter((_, row) => row.dataset.serverid === String(serverId)).addClass("selected");
             $("#servers").addClass("active");
 
-            if (this.squadServersBrowser.syncInterval) clearInterval(this.squadServersBrowser.syncInterval);
-            this.squadServersBrowser.syncInterval = setInterval(
-                () => this.squadServersBrowser.syncWithServer(),
-                this.squadServersBrowser.refreshInterval * 1000
-            );
+            clearInterval(browser.syncInterval);
+            browser.syncInterval = setInterval(() => browser.syncWithServer(), HOME_FEED_PERIOD_MS);
 
             if (sessionId) this.initSessionMode(sessionId);
         };
 
-        if (this.squadServersBrowser.serversData) {
-            setup();
-        } else {
-            $(document).one("servers:loaded", setup);
+        // A servers list just created reads the feed itself; the copy of an older one may be out of date
+        if (created) $(document).one("servers:loaded", setup);
+        else browser.getServers().then(setup);
+    }
+
+    /**
+     * Leaves server mode: the page stops following the server and shows none as followed (the sync timer, the
+     * `server` URL parameter, the choice of the menu's dropdown, the row of the servers list, the `#servers` button).
+     * @param {string|null} [reason] - when the page leaves by itself, the `tooltips` key of what to tell the user
+     *   (`followDecision`); null when the user leaves
+     */
+    leaveServerMode(reason = null) {
+        const browser = this.squadServersBrowser;
+        if (browser) {
+            clearInterval(browser.syncInterval);
+            browser.syncInterval = null;
+            browser.selectedServer = null;
+            browser.selectedLayer = null;
         }
+        this.updateUrlParams({ server: null });
+        this.SERVER_SELECTOR.val("").trigger("change.select2");
+        $("#serversTableBody tr").removeClass("selected");
+        $("#servers").removeClass("active");
+        if (reason) this.openToast("error", reason, "serverNotFollowed");
     }
 
     initSessionMode(sessionId, intent = null) {
@@ -285,20 +291,8 @@ export default class SquadCalc {
         this.LAYER_SELECTOR.select2();
         this.SERVER_SELECTOR.select2({ minimumResultsForSearch: Infinity, dropdownParent: $("#serverSelector"), allowClear: true });
         this.SERVER_SELECTOR.on("change", (event) => {
-            const serverId = event.target.value;
-            if (!serverId) {
-                this.updateUrlParams({ server: null });
-                $("#serversTableBody tr").removeClass("selected");
-                $("#servers").removeClass("active");
-                if (this.squadServersBrowser) {
-                    this.squadServersBrowser.selectedServer = null;
-                    clearInterval(this.squadServersBrowser.syncInterval);
-                    this.squadServersBrowser.syncInterval = null;
-                }
-                return;
-            }
-            this.updateUrlParams({ server: serverId });
-            this.initServerMode(serverId);
+            if (event.target.value) this.initServerMode(event.target.value);
+            else this.leaveServerMode();
         });
         this.FACTION1_SELECTOR.select2();
         $(".dropbtn8").select2();
@@ -474,30 +468,42 @@ export default class SquadCalc {
 
 
     /**
-     * Fills the menu's server dropdown with the home servers.
+     * Keeps the menu's server dropdown in step with the feed while no server is followed: the feed is read now and
+     * every `HOME_FEED_PERIOD_MS`. In server mode the servers list reads it (`SquadServersBrowser.getServers`).
      */
-    async initServerDropdown() {
-        const servers = await fetchServers();
-        if (servers.length > 0) this.buildServerDropdown(servers);
+    initServerDropdown() {
+        const refresh = async () => {
+            if (!this.squadServersBrowser?.selectedServer) this.buildServerDropdown(await fetchServers());
+        };
+        refresh();
+        setInterval(refresh, HOME_FEED_PERIOD_MS);
     }
 
 
+    /**
+     * Offers the servers of the feed just read in the menu's server dropdown, which is hidden while there is none.
+     * The options are replaced only when they differ: replacing them under an open dropdown loses the choice being
+     * made.
+     * @param {Array} servers - the servers of the feed (`homeServers`)
+     */
     buildServerDropdown(servers) {
-        this.SERVER_SELECTOR.empty();
-        this.SERVER_SELECTOR.append("<option value=\"\"></option>");
-        const currentServerId = this.squadServersBrowser?.selectedServer ?? this.urlIntent.server;
-        servers.forEach(server => {
-            const unavailable = !server.team1 || !server.team2 || !server.mapName;
-            const isActive = !unavailable && currentServerId && String(currentServerId) === String(server.id);
-            const option = new Option(server.attributes.name, server.id, false, isActive);
-            if (unavailable) {
+        const offered = servers.map(server => ({ value: String(server.id), text: server.attributes.name, disabled: !canFollow(server) }));
+        const shown = [...this.SERVER_SELECTOR[0].options].filter(option => option.value)
+            .map(option => ({ value: option.value, text: option.textContent, disabled: option.disabled }));
+        $("#serverSelector").toggle(offered.length > 0);
+        if (JSON.stringify(offered) === JSON.stringify(shown)) return;
+
+        this.SERVER_SELECTOR.empty().append("<option value=\"\"></option>");
+        offered.forEach(({ value, text, disabled }) => {
+            const option = new Option(text, value);
+            if (disabled) {
                 option.disabled = true;
-                option.title = "Modded layer";
+                option.setAttribute("data-i18n-title", "tooltips:serverLayerUnavailable");
+                option.title = i18next.t("tooltips:serverLayerUnavailable");
             }
             this.SERVER_SELECTOR.append(option);
         });
-        this.SERVER_SELECTOR.trigger("change.select2");
-        $("#serverSelector").show();
+        this.SERVER_SELECTOR.val(this.squadServersBrowser?.selectedServer ?? "").trigger("change.select2");
     }
 
 

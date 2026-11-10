@@ -86,6 +86,8 @@
     "quitDrawingMode": "Arrêter le dessin",
     "escape": "Échap",
     "serverNotFound": "Serveur introuvable ou vide",
+    "serverLayerUnavailable": "Aucune donnée pour le layer joué par le serveur",
+    "serverNotFollowed": "La carte ne suit pas le serveur",
     "legacyMode": "Passer en mode simple",
     "returnToMap": "Passer en mode carte",
     "settings": "Paramètres",

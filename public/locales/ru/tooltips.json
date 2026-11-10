@@ -86,6 +86,8 @@
     "quitDrawingMode": "Остановить рисование",
     "escape": "Esc",
     "serverNotFound": "Сервер не найден или пуст",
+    "serverLayerUnavailable": "Нет данных о слое, который играет сервер",
+    "serverNotFollowed": "Карта не следует за сервером",
     "legacyMode": "Переключиться в простой режим",
     "returnToMap": "Переключиться в режим карты",
     "settings": "Настройки",
