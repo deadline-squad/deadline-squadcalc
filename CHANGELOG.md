@@ -2,9 +2,11 @@
 
 </br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
 - **Leaving server mode while the server's next map loads stops the switch.** When the followed server moved to a layer of another map, the page changed the map and waited for its list of layers. If the user left server mode in that time, the page still opened the server's layer and set its factions once the list arrived. Leaving server mode, or choosing another server, now stops a switch under way; what has loaded stays as it is. The page also notes the server's layer as shown only once the layer and its factions are set, so a switch that has not finished is not taken for one that has.
+- **Ukrainian: three messages were in Russian.** "Server not found or empty", the request to report a problem on GitHub or Discord, and the hint that a file can be dragged onto the map are now in Ukrainian.
 
 </br><img src="https://img.shields.io/badge/-%20dev%20-lightgrey">  
 - The one-shot handlers of `SquadServersBrowser.switchLayer` carry the namespace `.serverSwitch`; `cancelSwitch` removes them, and `leaveServerMode` and `initServerMode` call it. `switchingTo` holds the layer being opened, so a read of the feed during the switch does not start it again.
+- `npm run locales` (`scripts/check-locales.mjs`) also fails on a Ukrainian text that is Russian left untranslated: one with a letter only Russian has (ы, э, ъ, ё), or one of three or more words that is the Russian text word for word.
 
 </br></br><!-- CHANGELOG SPLIT MARKER -->
 

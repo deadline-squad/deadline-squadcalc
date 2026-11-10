@@ -82,7 +82,7 @@ The selected weapon is stored by its index in `WEAPONS` (localStorage `data-weap
 ### Locales
 - Namespaces: `tooltips`, `settings`, `maps`, `weapons`, `common`, `factions`, `units`, `vehicles`
 - Languages: `en`, `fr`, `de`, `ru`, `uk`, `zh`
-- `npm run locales` fails when a language lacks a key that `en` has (there is no fallback language)
+- `npm run locales` fails when a language lacks a key that `en` has (there is no fallback language), and on a Ukrainian text that is Russian left untranslated
 - Files: `public/locales/{{lng}}/{{ns}}.json`, cache-busted with `?v=${version}` from `package.json`
 - Weapon display names: key = `weapon.name` value — **spaces in weapon names break i18next keys**, use underscores (e.g. `type_63` not `Type 63`)
 
