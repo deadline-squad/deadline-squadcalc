@@ -31,7 +31,7 @@ App.sanitize(str); // HTML escape utility (static method)
 ### Startup flow
 `App.init()` → `applyUrlIntent()` branches into one of three modes:
 - **Static mode** — default, user picks map/layer manually
-- **Server mode** (`?server=<id>`) — loads live server data, locks the layer to what the server is playing
+- **Server mode** (`?server=<id>`) — loads live server data, locks the layer to what the server is playing. The only servers are the home servers of the deployment: `src/js/serversSource.js` reads the same-origin feed `HOME_SERVERS_URL` (`/live/servers.json`, the Deadline game server, id `deadline`)
 - **Session mode** (`?session=<id>`) — collaborative real-time session over WebSocket
 
 ### Key classes

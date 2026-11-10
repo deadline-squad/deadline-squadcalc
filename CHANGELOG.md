@@ -1,3 +1,13 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.36.0** *(2026-11-10)*
+
+</br><img src="https://img.shields.io/badge/-new%20features-green">  
+- **The servers list is the Deadline game server.** The menu's server dropdown and the servers browser offer `[RU] Deadline` with the layer it plays, its players and both factions, read every 20 s from the game host's own status; choosing it (or opening `/?server=deadline`) opens that layer and follows the server to the next one. The list of other communities' servers and the favourites that went with it are gone
+
+</br><img src="https://img.shields.io/badge/-%20dev%20-lightgrey">  
+- `src/js/serversSource.js` (`fetchServers`, `homeServers`, `mapNameOfLayer`) with `tests/serversSource.test.mjs`: the servers come from the same-origin feed `HOME_SERVERS_URL` (`/live/servers.json`, written by `deploy/live_servers.py` of the deployment repository); a feed older than two minutes, by the `Date` of its own response, is dropped, so a state that can no longer be confirmed is not shown as live. The upstream API's `get/servers` is no longer asked. `tools/browser_check/home_server_check.mjs` in the deployment repository checks it in Chromium.
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.35.0** *(2026-11-08)*
 
 </br><img src="https://img.shields.io/badge/-new%20features-green">  

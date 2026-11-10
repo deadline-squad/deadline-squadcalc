@@ -26,6 +26,7 @@ import SquadLayer from "./squadLayer.js";
 import { serverBrowserTooltips, settingsTooltips } from "./tooltips.js";
 import { MapDrawing, MapArrow, MapCircle, MapRectangle } from "./squadShapes.js";
 import { DEFAULT_LAYER, LAYER_ORDER, urlTypeOf } from "./mapLayers.js";
+import { fetchServers } from "./serversSource.js";
 
 
 
@@ -133,7 +134,7 @@ export default class SquadCalc {
         if (server)       this.initServerMode(server, session);
         else if (session) this.initSessionMode(session, this.urlIntent);
         else              this.initStaticMode(this.urlIntent);
-        this.initFavoriteServers();
+        this.initServerDropdown();
     }
 
     initServerMode(serverId, sessionId = null) {
@@ -467,34 +468,16 @@ export default class SquadCalc {
     }
 
 
-    async initFavoriteServers() {
-        let favoriteIds;
-        try {
-            const stored = localStorage.getItem("favoriteServers");
-            if (!stored) return;
-            favoriteIds = new Set(JSON.parse(stored));
-        } catch {
-            return;
-        }
-        if (favoriteIds.size === 0) return;
-
-        try {
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 10000);
-            const response = await fetch(`${process.env.API_URL}/get/servers`, { signal: controller.signal });
-            clearTimeout(timeout);
-            if (!response.ok) return;
-            const data = await response.json();
-            const favoriteServers = (data.servers || []).filter(s => favoriteIds.has(String(s.id)));
-            if (favoriteServers.length === 0) return;
-            this.buildFavoriteServersDropdown(favoriteServers);
-        } catch {
-            // favorites dropdown is optional, fail silently
-        }
+    /**
+     * Fills the menu's server dropdown with the home servers.
+     */
+    async initServerDropdown() {
+        const servers = await fetchServers();
+        if (servers.length > 0) this.buildServerDropdown(servers);
     }
 
 
-    buildFavoriteServersDropdown(servers) {
+    buildServerDropdown(servers) {
         this.SERVER_SELECTOR.empty();
         this.SERVER_SELECTOR.append("<option value=\"\"></option>");
         const currentServerId = this.squadServersBrowser?.selectedServer ?? this.urlIntent.server;
@@ -805,15 +788,6 @@ export default class SquadCalc {
             // Focus search input at the end
             const searchInput = document.getElementById("serverSearch");
             if (searchInput) searchInput.focus();
-        });
-
-        $(document).on("favorites:changed", (_event, { favorites, servers }) => {
-            const favoriteServers = (servers || []).filter(s => favorites.has(String(s.id)));
-            if (favoriteServers.length === 0) {
-                $("#serverSelector").hide();
-                return;
-            }
-            this.buildFavoriteServersDropdown(favoriteServers);
         });
 
         serversInformation.addEventListener("close", () => {
