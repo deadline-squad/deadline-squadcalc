@@ -7,6 +7,7 @@
 
 </br><img src="https://img.shields.io/badge/-%20dev%20-lightgrey">  
 - Every value above is read from the Squad dedicated server build 26005357. `tests/weapons.test.mjs` holds the pitch range of the mount of the eight artillery weapons and what the game's sight adds to it, and checks the elevation ranges against them, the minimum distances against the range at the mount's stop, and the marker circles against the weapons' longest shot.
+- `SDK_data.heightmap` of seven maps described a landscape the game does not have: Chora's origin lay 762 m north of the landscape's, Mestia's 98 m, Narva's was 16 m off and 32 vertices short, Harju's one vertex short, Kokan's, Sumari's and Tallil's a metre off. These fields only feed `npm run mapinfo`, no height or firing solution used them; `tests/maps.test.mjs` now checks origin, size and scale of the 25 maps against the game's level data.
 
 </br></br><!-- CHANGELOG SPLIT MARKER -->
 
