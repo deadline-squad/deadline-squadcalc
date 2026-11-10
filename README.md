@@ -311,7 +311,9 @@
   </div>
 
   ### Base map :
-  The classic, straight from the game base map.  
+  The classic, straight from the game base map, drawn over the part of the world the game's texture shows (the game's own
+  corners; on Skorpo the rectangle its texture was measured to show on the level data). On a Seed or Skirmish layer with a
+  minimap of its own, that finer picture is drawn over the layer's corners, as the game takes them from the layer's data.
 
   ### Relief map :
   Shaded relief of the game's heights (multi-directional hillshade with a sky-view factor) in the map's own frame: measured
