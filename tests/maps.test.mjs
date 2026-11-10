@@ -69,38 +69,35 @@ test("the landscape origin, size and scale of every map are the game's (origin i
     }
 });
 
-// FOB exclusion radius of a layer in the game: the row of DT_FOBExclusionRadius its data asset names (`FOBRadius`,
-// 02_Medium unless the asset says otherwise; Squad dedicated server build 26005357), in metres
-const GAME_FOB_EXCLUSION = [
-    ["AlBasrah", "AlBasrah_RAAS_v1", 400],
-    ["AlBasrah", "AlBasrah_RAAS_v3", 300],
-    ["AlBasrah", "AlBasrah_Skirmish_v1", 300],
-    ["Chora", "Chora_AAS_v1", 300],
-    ["Logar", "Logar_AAS_v1", 300],
-    ["Narva", "Narva_AAS_v1", 400],
-    ["Narva", "Narva_Skirmish_v1", 300],
-    ["Sanxian", "Sanxian_Seed_v1", 300],
-    ["Tallil", "Tallil_RAAS_v1", 400],
-    ["Tallil", "Tallil_Skirmish_v3", 300],
-    ["Yehorivka", "Yehorivka_AAS_v1", 400],
-    ["Yehorivka", "Yehorivka_Skirmish_v1_WP", 300],
-];
+// FOB exclusion radius of every layer of the game, in metres: the row of DT_FOBExclusionRadius the layer's data asset
+// names (`FOBRadius`, 02_Medium unless the asset says otherwise; Squad dedicated server build 26005357)
+const GAME_FOB_EXCLUSION = JSON.parse(readFileSync(new URL("./fixtures/gameFobExclusion.json", import.meta.url), "utf8")).metres;
+// The two layers of the game on a level the calculator has no map of
+const LAYERS_OF_NO_MAP = ["Tutorial_Helicopter", "Tutorial_Infantry"];
+// A layer belongs to the map whose name starts its own ("JensensRange_Seed_v1" is a layer of "Jensen")
+const mapOfLayer = (layer) => MAPS.find((map) => layer.startsWith(map.name));
 
-test("the FOB exclusion radius is the loaded layer's, and the map's without a layer", () => {
-    for (const [mapName, layer, metres] of GAME_FOB_EXCLUSION) {
-        assert.equal(fobExclusionRadius(MAPS.find((map) => map.name === mapName), layer), metres, layer);
-    }
-    const albasrah = MAPS.find((map) => map.name === "AlBasrah");
-    assert.equal(fobExclusionRadius(albasrah), 400);
-    assert.equal(fobExclusionRadius(albasrah, "AlBasrah_Unknown_v9"), 400);
-    assert.equal(fobExclusionRadius(MAPS.find((map) => map.name === "Chora")), 300);
+test("the FOB exclusion radius of every layer of the game is the game's", () => {
+    const layers = Object.keys(GAME_FOB_EXCLUSION);
+    assert.equal(layers.length, 221);
+    assert.deepEqual(layers.filter((layer) => !mapOfLayer(layer)), LAYERS_OF_NO_MAP);
+    const differing = layers
+        .filter((layer) => mapOfLayer(layer) && fobExclusionRadius(mapOfLayer(layer), layer) !== GAME_FOB_EXCLUSION[layer])
+        .map((layer) => `${layer}: ${fobExclusionRadius(mapOfLayer(layer), layer)} m, the game's ${GAME_FOB_EXCLUSION[layer]} m`);
+    assert.deepEqual(differing, []);
 });
 
-test("every layer listed with the small FOB radius belongs to a map whose regular layers have the medium one", () => {
-    assert.equal(SMALL_FOB_LAYERS.size, 38);
-    for (const layer of SMALL_FOB_LAYERS) {
-        const map = MAPS.find((candidate) => layer.startsWith(`${candidate.name}_`));
-        assert.ok(map, `${layer}: no such map`);
-        assert.equal(map.radiusExclusion, 400, layer);
-    }
+test("the layers listed with the small FOB radius are the game's 300 m layers of the maps whose regular radius is 400 m", () => {
+    const small = Object.keys(GAME_FOB_EXCLUSION).filter((layer) => GAME_FOB_EXCLUSION[layer] === 300 && mapOfLayer(layer)?.radiusExclusion === 400);
+    assert.equal(small.length, 38);
+    assert.deepEqual([...SMALL_FOB_LAYERS].sort(), small.sort());
+});
+
+test("the FOB exclusion radius follows the layer on the map, and is the map's regular one while there is none", () => {
+    const albasrah = MAPS.find((map) => map.name === "AlBasrah");
+    // The map passes the raw name of the loaded layer, and none before a layer has loaded and after it was cleared
+    // (squadMinimap.fobExclusionSize): no layer, Al Basrah RAAS v3, RAAS v1 in its place, the layer cleared
+    assert.deepEqual([undefined, "AlBasrah_RAAS_v3", "AlBasrah_RAAS_v1", undefined].map((layer) => fobExclusionRadius(albasrah, layer)), [400, 300, 400, 400]);
+    assert.equal(fobExclusionRadius(MAPS.find((map) => map.name === "Chora")), 300);
+    assert.equal(fobExclusionRadius(albasrah, "AlBasrah_Unknown_v9"), 400);
 });

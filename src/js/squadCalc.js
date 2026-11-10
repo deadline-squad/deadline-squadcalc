@@ -349,6 +349,7 @@ export default class SquadCalc {
                 this.updateUrlParams({ layer: null, team1: null, team1unit: null, team2: null, team2unit: null });
                 if (abortController) { abortController.abort(); } // Abort the ongoing fetch request
                 if (this.minimap.layer) this.minimap.layer.clear();
+                this.minimap.setLayer("");
                 $(".btn-layer").hide();
                 $(".btn-share").hide();
                 $("#factionsTab, #factionsButton").hide();
@@ -402,7 +403,7 @@ export default class SquadCalc {
                     if (!layerData) return; // prevent continuing on fetch failure
 
                     if (this.minimap.layer) this.minimap.layer.clear();
-                    this.minimap.layer = new SquadLayer(this.minimap, layerData, broadcast);
+                    this.minimap.setLayer(new SquadLayer(this.minimap, layerData, broadcast));
                     $(".btn-layer").addClass("active").show();
                     $(".btn-share").show();
 

@@ -1,0 +1,27 @@
+{
+    "source": "mapAssets.protectionZones of https://squadcalc.app/api/get/layer?name=<layer>, read on 2026-11-10; only the fields src/js/protectionZone.js and SquadLayer.createProtectionZones read",
+    "layers": {
+        "GooseBay_AAS_v1": [
+            {"teamid": "1", "deployableLockDistance": 15000, "objects": [{"isSphere": true, "isBox": false, "sphereRadius": -23637.880859375, "location_x": -153601.515625, "location_y": -175253.6875, "boxExtent": {"extent_x": -23637.880859375, "extent_y": -23637.880859375, "rotation_z": -75.86536407470703}}]},
+            {"teamid": "2", "deployableLockDistance": 15000, "objects": [{"isSphere": true, "isBox": false, "sphereRadius": 15000, "location_x": 185162.484375, "location_y": 173416.234375, "boxExtent": {"extent_x": 15000, "extent_y": 15000, "rotation_z": 10.000028610229492}}]}
+        ],
+        "GooseBay_RAAS_v1": [
+            {"teamid": "1", "deployableLockDistance": 15000, "objects": [{"isSphere": true, "isBox": false, "sphereRadius": -23637.892578125, "location_x": -153601.515625, "location_y": -175253.6875, "boxExtent": {"extent_x": -23637.892578125, "extent_y": -23637.892578125, "rotation_z": -75.86536407470703}}]},
+            {"teamid": "2", "deployableLockDistance": 15000, "objects": [{"isSphere": true, "isBox": false, "sphereRadius": 15000, "location_x": 185162.484375, "location_y": 173416.234375, "boxExtent": {"extent_x": 15000, "extent_y": 15000, "rotation_z": 10.000028610229492}}]}
+        ],
+        "GooseBay_RAAS_v2": [
+            {"teamid": "1", "deployableLockDistance": 15000, "objects": [{"isSphere": true, "isBox": false, "sphereRadius": -23637.880859375, "location_x": -174901.78125, "location_y": 81769.1640625, "boxExtent": {"extent_x": -23637.880859375, "extent_y": -23637.880859375, "rotation_z": -85.86107635498047}}]},
+            {"teamid": "2", "deployableLockDistance": 15000, "objects": [{"isSphere": true, "isBox": false, "sphereRadius": 15000, "location_x": 147416.203125, "location_y": -79122.5625, "boxExtent": {"extent_x": 15000, "extent_y": 15000, "rotation_z": 160.62001037597656}}]}
+        ],
+        "Sumari_Invasion_v1": [
+            {"teamid": "1", "deployableLockDistance": 10000, "objects": [{"isSphere": false, "isBox": true, "sphereRadius": 10344.080078125, "location_x": -51744.3671875, "location_y": 29626.78125, "boxExtent": {"extent_x": 7000, "extent_y": 7000, "rotation_z": 0}}]},
+            {"teamid": "2", "deployableLockDistance": 15000, "objects": [{"isSphere": false, "isBox": true, "sphereRadius": 6965.32080078125, "location_x": 52119.96875, "location_y": 32698.61328125, "boxExtent": {"extent_x": 4444.97998046875, "extent_y": 4444.97998046875, "rotation_z": -31.671628952026367}}]},
+            {"teamid": "2", "deployableLockDistance": 5000, "objects": [{"isSphere": false, "isBox": true, "sphereRadius": 80.32166290283203, "location_x": -32086.552734375, "location_y": 3599.09619140625, "boxExtent": {"extent_x": 44.449798583984375, "extent_y": 44.449798583984375, "rotation_z": -17.409238815307617}}]}
+        ],
+        "Sumari_TC_v1": [
+            {"teamid": "1", "deployableLockDistance": 10000, "objects": [{"isSphere": false, "isBox": true, "sphereRadius": 9110.43359375, "location_x": -52432.12890625, "location_y": 30085.26953125, "boxExtent": {"extent_x": 5000, "extent_y": 7000, "rotation_z": 0}}]},
+            {"teamid": "2", "deployableLockDistance": 15000, "objects": [{"isSphere": false, "isBox": true, "sphereRadius": 6965.32080078125, "location_x": 52119.96875, "location_y": 32698.61328125, "boxExtent": {"extent_x": 4444.97998046875, "extent_y": 4444.97998046875, "rotation_z": -31.671628952026367}}]},
+            {"teamid": "2", "deployableLockDistance": 5000, "objects": [{"isSphere": false, "isBox": true, "sphereRadius": 80.32166290283203, "location_x": -32086.552734375, "location_y": 3599.09619140625, "boxExtent": {"extent_x": 44.449798583984375, "extent_y": 44.449798583984375, "rotation_z": -17.409238815307617}}]}
+        ]
+    }
+}

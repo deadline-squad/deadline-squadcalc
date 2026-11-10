@@ -9,7 +9,7 @@ import { squadSpawnGroup } from "./squadSpawnGroup.js";
 import { squadCameraActor } from "./squadCameraActor.js";
 import { SquadVehicleSpawner } from "./squadVehicleSpawner.js";
 import { layerGridOffset } from "../data/maps.js";
-import { protectionRadii } from "./protectionZone.js";
+import { protectionShapes } from "./protectionZone.js";
 
 export default class SquadLayer {
 
@@ -609,35 +609,27 @@ export default class SquadLayer {
     
 
     /**
-     * Create protection zones and no construction zones
+     * Create protection zones and no construction zones: the shapes `protectionShapes` gives for the layer's zones
      * @param {Array} this.layerData.mapAssets.protectionZones - Array of protection zones
      */
     createProtectionZones() {
         const PZONECOLOR = App.mainColor;
 
         // Creating protectionZones + noConstructionZones
-        this.layerData.mapAssets.protectionZones.forEach((pZone) => {
-
-            // Skip small protection zones (old basrah)
-            if (pZone.objects[0].boxExtent.extent_x < 100) return;
-
-            // Skip weird protection zones
-            if (pZone.teamid === "0") return;
+        protectionShapes(this.layerData.mapAssets.protectionZones).forEach(({ zone: pZone, shape, protect, noDeploy }) => {
 
             // Center of the protection zone
             let [location_y, location_x] = this.convertToLatLng(pZone.objects[0].location_x, pZone.objects[0].location_y);
 
-            // Protection Zone is a Rectangle/Capsule
-            // We're drawing capsule as a rectangle cause it's easier
-            //if (pZone.objects[0].isBox || pZone.objects[0].isCapsule) {  
-            if (pZone.objects[0].isBox) {              
+            // Protection Zone is a Rectangle
+            if (shape === "box") {
 
                 // Radiis
-                let protectRadiusX = ( pZone.objects[0].boxExtent.extent_x / 100 ) * -this.map.gameToMapScale;
-                let protectRadiusY = ( pZone.objects[0].boxExtent.extent_y / 100 ) * -this.map.gameToMapScaleY;
+                let protectRadiusX = protect[0] * -this.map.gameToMapScale;
+                let protectRadiusY = protect[1] * -this.map.gameToMapScaleY;
 
-                let nodeploRadiusX = protectRadiusX + ( pZone.deployableLockDistance / 100 ) * -this.map.gameToMapScale;
-                let nodeploRadiusY = protectRadiusY + ( pZone.deployableLockDistance / 100 ) * -this.map.gameToMapScaleY;
+                let nodeploRadiusX = noDeploy[0] * -this.map.gameToMapScale;
+                let nodeploRadiusY = noDeploy[1] * -this.map.gameToMapScaleY;
 
                 // Bounds
                 let protectNWCorner = [(location_y + protectRadiusY) , (location_x + protectRadiusX)];
@@ -672,15 +664,14 @@ export default class SquadLayer {
             }
 
             // Protection is a Sphere
-            if (pZone.objects[0].isSphere) {
+            if (shape === "circle") {
 
                 // Center of the protection zone
                 let latlngSphere = [location_y, location_x];
 
                 // Protection & NoDeployementZone radiis
-                const radii = protectionRadii(pZone);
-                let protectRadius = radii.protect * this.map.gameToMapScale;
-                let noDeployRadius = radii.noDeploy * this.map.gameToMapScale;
+                let protectRadius = protect * this.map.gameToMapScale;
+                let noDeployRadius = noDeploy * this.map.gameToMapScale;
 
                 let protectionZone = new Circle(latlngSphere, {
                     color: App.mainColor,

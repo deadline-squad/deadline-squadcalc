@@ -272,6 +272,7 @@ export default class SquadSettings {
                 default: true,
                 selector: "#respawnCamSettings",
                 onChange: (val) => {
+                    if (!this.app.minimap.layer) return;
                     if (val) {
                         this.app.minimap.layer.cameraActor?.show();
                     } else {
@@ -354,6 +355,7 @@ export default class SquadSettings {
                 default: true,
                 selector: "#showMapBordersSettings",
                 onChange: (val) => {
+                    if (!this.app.minimap.layer) return;
                     if (this.app.minimap.layer.borders) {
                         this.app.minimap.layer.borders.setStyle({
                             opacity: 0,
@@ -367,6 +369,7 @@ export default class SquadSettings {
                 default: true,
                 selector: "#showMainZonesSettings",
                 onChange: (val) => {
+                    if (!this.app.minimap.layer) return;
                     this.app.minimap.layer.mainZones.rectangles.forEach((rectangle) => {
                         rectangle.setStyle({
                             fillOpacity: val ? 0.1 : 0,
@@ -380,6 +383,7 @@ export default class SquadSettings {
                 default: true,
                 selector: "#showMainAssetsSettings",
                 onChange: (val) => {
+                    if (!this.app.minimap.layer) return;
                     if (this.app.minimap.getZoom() > this.app.minimap.detailedZoomThreshold) {
                         this.app.minimap.layer.mainZones.assets.forEach(asset => {
                             asset.setOpacity(val ? 1 : 0);
