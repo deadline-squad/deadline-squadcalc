@@ -31,7 +31,7 @@ App.sanitize(str); // HTML escape utility (static method)
 ### Startup flow
 `App.init()` → `applyUrlIntent()` branches into one of three modes:
 - **Static mode** — default, user picks map/layer manually
-- **Server mode** (`?server=<id>`) — loads live server data, locks the layer to what the server is playing. The only servers are the home servers of the deployment: `src/js/serversSource.js` reads the same-origin feed `HOME_SERVERS_URL` (`/live/servers.json`, the Deadline game server, id `deadline`)
+- **Server mode** (`?server=<id>`) — follows a server: the page opens the layer it plays with the factions of both teams and reads its status again every 20 s. The only servers are the home servers of the deployment: `src/js/serversSource.js` reads the same-origin feed `HOME_SERVERS_URL` (`/live/servers.json`, the Deadline game server, id `deadline`). `SquadCalc.initServerMode` enters the mode (page load, the menu's dropdown, a row of the servers list) after a fresh read of the feed; `SquadCalc.leaveServerMode` is the only place that leaves it. After every read `followDecision` (`serversSource.js`) says what to do with the followed server: open its new layer, stay, or leave with a toast because the feed no longer has it or the calculator cannot show its layer (`canFollow`: a map of `MAPS` and the faction of both teams). While no server is followed, the dropdown is refreshed from the feed every 20 s
 - **Session mode** (`?session=<id>`) — collaborative real-time session over WebSocket
 
 ### Key classes
@@ -47,6 +47,7 @@ App.sanitize(str); // HTML escape utility (static method)
 | `SquadFactions` | `squadFactions.js` | Faction/unit picker dialogs and background images |
 | `SquadSession` | `squadSession.js` | WebSocket collab session (create/join/sync map state) |
 | `SquadSettings` | `squadSettings.js` | Settings definitions, localStorage bindings, mod toggles |
+| `SquadServersBrowser` | `squadServersBrowser.js` | Servers list dialog and the state of server mode: the followed server, the layer opened for it, the sync timer; `applyFeed` applies `followDecision` after each read, `switchLayer` opens a server's map, layer and factions |
 | `squadCalcAPI.js` | `squadCalcAPI.js` | All backend fetch calls (`process.env.API_URL`) — layers, heatmap markers, health check |
 | `smcConnector.js` | `smcConnector.js` | Optional WebSocket bridge to SquadMortarOverlay.exe (enabled via `SMO_WEBSOCKET=true` in `.env`) |
 

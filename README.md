@@ -344,15 +344,9 @@
   <summary><b>Server Syncing</b></summary>
   </br>
 
-  <br>
+  The servers list and the server dropdown of the menu hold one server, the Deadline game server (`/?server=deadline` opens the page already following it). Choose it and the map switches to the layer the server plays, with the faction of both teams; the units stay the default ones of those factions, because the server's status does not name them. Every 20 seconds the page reads the status again and follows the server to its next layer.
 
-  <div align="center">
-    <picture><img width="80%" src="./public/img/github/servers.webp" alt="Server Syncing"></picture>
-  </div>
-
-  <br>
-
-  Browse the active servers and click the one you're playing on. SquadCalc will automatically update and load the factions and units for the server’s current map. It will even update automatically if it detects a map change!
+  The status is a feed of the deployment (`HOME_SERVERS_URL`), written from the game host's own status. The page stops following, keeps the map as it is and says why, as soon as the feed no longer confirms the server: it is older than two minutes (a read that fails, on a connection that drops for a moment, changes nothing while the last feed read is younger than that), the server is not in it, or it plays a layer the calculator has no data for (a layer of a map it does not have, or one whose factions the feed does not name). Until the feed has the server again, the dropdown does not offer it, or lists it as unavailable. The list of the servers dialog shows what was read when it was first loaded or last refreshed with its button; choosing a server there reads the feed again first.
 
 </details>
 

@@ -86,6 +86,8 @@
     "quitDrawingMode": "停止绘制",
     "escape": "Esc",
     "serverNotFound": "未找到服务器或服务器为空",
+    "serverLayerUnavailable": "没有服务器当前图层的数据",
+    "serverNotFollowed": "地图未跟随服务器",
     "legacyMode": "切换到简单模式",
     "returnToMap": "切换到地图模式",
     "settings": "设置",

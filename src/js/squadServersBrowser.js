@@ -3,17 +3,18 @@ import { App } from "../app.js";
 import { MAPS } from "../data/maps.js";
 import { serverBrowserTooltips } from "./tooltips.js";
 import Fuse from "fuse.js";
-import { fetchServers } from "./serversSource.js";
+import { canFollow, fetchServers, followDecision } from "./serversSource.js";
 
 export default class SquadServersBrowser {
 
     constructor() {
         this.serversData = null;
         this.filteredData = null;
-        this.syncInterval = null;
+        // Server mode (App.initServerMode, App.leaveServerMode): the id of the server the page follows, or is about
+        // to follow while the feed is read; the layer the page has opened for it; the timer of syncWithServer
         this.selectedServer = null;
         this.selectedLayer = null;
-        this.refreshInterval = 20; // seconds
+        this.syncInterval = null;
     }
 
     init(){
@@ -22,49 +23,49 @@ export default class SquadServersBrowser {
 
 
     /**
-     * Syncs the selected server's state:
-     * - Updates `selectedLayer` if the server's current map changes
-     * - Switches map, layer, factions, and units to match the server
+     * Reads the feed again and brings the page in line with the followed server (`applyFeed`).
      */
-    async syncWithServer(){
-        if (!this.selectedServer) return;
+    async syncWithServer() {
+        const followed = this.selectedServer;
+        if (!followed) return;
         await this.getServers();
-        if (!this.serversData) return;
-
-        this.serversData.forEach(server => {
-            if (server.id == this.selectedServer) {
-                let playTime = this.toMinSec(server.attributes.details.squad_playTime);
-                console.debug(`[SERVER] ${server.attributes.name} - ${server.attributes.details.map} - playtime : ${playTime}`);
-                if (server.attributes.details.map != this.selectedLayer) {
-                    console.debug(`[SERVER]   LAYER CHANGED FROM ${this.selectedLayer} to ${server.attributes.details.map}`);
-                    this.selectedLayer = server.attributes.details.map;
-                    this.switchLayer(
-                        server.attributes.name,
-                        server.mapName,
-                        server.attributes.details.map,
-                        server.team1,
-                        server.team2,
-                        server.attributes.details.squad_teamOne,
-                        server.attributes.details.squad_teamTwo
-                    );
-                }
-            }
-        });
+        // Not when the user left server mode, or chose another server, while the feed was read
+        if (this.selectedServer === followed) this.applyFeed();
     }
 
 
     /**
-     * Fetches the home servers and stores them in `this.serversData`.
+     * Brings the page in line with the followed server in the feed just read (`followDecision`): opens the layer it
+     * plays now, or leaves server mode and tells the user why when the feed does not confirm the server.
+     * @returns {boolean} whether the page still follows the server
+     */
+    applyFeed() {
+        const { action, reason, server } = followDecision(this.serversData, this.selectedServer, this.selectedLayer);
+        if (action === "leave") {
+            App.leaveServerMode(reason);
+            return false;
+        }
+        if (action === "switch") {
+            console.debug(`[SERVER] ${server.attributes.name}: layer ${this.selectedLayer} -> ${server.attributes.details.map}`);
+            this.selectedLayer = server.attributes.details.map;
+            this.switchLayer(server);
+        }
+        return true;
+    }
+
+
+    /**
+     * Reads the home servers into `this.serversData`; the menu's dropdown offers what was read.
      */
     async getServers() {
         this.serversData = await fetchServers();
+        App.buildServerDropdown(this.serversData);
 
         // Initiate fuse index
         this.fuse = new Fuse(this.serversData, {
             includeScore: true,
             threshold: 0.4,
             distance: 500,
-            //minMatchCharLength: 3,
             keys: ["attributes.name", "attributes.details.map"]
         });
     }
@@ -131,23 +132,6 @@ export default class SquadServersBrowser {
 
 
     /**
-     * Returns the HTML for the server's next layer (or "Map Voting" if unavailable).
-     * @param {object} server
-     * @returns {string}
-     */
-    getNextLayerHTML(server){
-        if (server.attributes.details.squad_nextLayer) {
-            return `
-                <span class="nextMap" data-i18n="common:next">
-                    ${i18next.t("next", { ns: "common" })}: ${server.attributes.details.squad_nextLayer}
-                </span>
-                `;
-        } 
-        return "<span class=\"nextMap\">Map Voting</span>";
-    }
-
-
-    /**
      * Returns the players HTML for a server.
      * @param {number|null} players
      * @param {number|null} maxPlayers
@@ -164,16 +148,13 @@ export default class SquadServersBrowser {
 
     /**
      * Returns the flag icon HTML for a team
-     * @param {string|null} team
-     * @param {string} label
+     * @param {string|undefined} team - the id of the team's faction, undefined when the feed has none
      * @returns {string}
      */
-    getTeamHTML(team, label) {
-        if (team) {
-            return `<img title="${label}" src="/img/flags/${team}.webp" alt="${team}" class="flag-icon">`;
-        } else {
-            return `<img title="${label}" src="/img/flags/unknown.webp" alt="Unknown" class="flag-icon">`;
-        }
+    getTeamHTML(team) {
+        if (!team) return "<img src=\"/img/flags/unknown.webp\" alt=\"Unknown\" class=\"flag-icon\">";
+        const faction = App.sanitize(team);
+        return `<img title="${faction}" src="/img/flags/${faction}.webp" alt="${faction}" class="flag-icon">`;
     }
 
 
@@ -188,19 +169,15 @@ export default class SquadServersBrowser {
         if (servers && servers.length > 0) {
             servers.forEach(server => {
                 const isSelected = server.id == this.selectedServer ? "selected" : "";
-                const unavailable = (!server.team1 || !server.team2 || !server.mapName) ? "unavailable" : "";
-                const nextLayer = this.getNextLayerHTML(server);
+                const unavailable = canFollow(server) ? "" : "unavailable";
                 rows += `
-                    <tr class="${isSelected} ${unavailable}" data-serverid="${server.id}">
+                    <tr class="${isSelected} ${unavailable}" data-serverid="${App.sanitize(server.id)}">
                         <td title="${App.sanitize(server.attributes.name)}"><div class="server-name">${App.sanitize(server.attributes.name)}</div></td>
-                        <td class="mapdata">
-                            ${App.sanitize(server.attributes.details.map)}<br>
-                            ${nextLayer}
-                        </td>
+                        <td class="mapdata">${App.sanitize(server.attributes.details.map)}</td>
                         <td>${this.getPlayersHTML(server.attributes.players, server.attributes.maxPlayers)}</td>
                         <td class="teamFlags">
-                            ${this.getTeamHTML(server.team1, server.attributes.details.squad_teamOne ?? server.team1)}
-                            ${this.getTeamHTML(server.team2, server.attributes.details.squad_teamTwo ?? server.team2)}
+                            ${this.getTeamHTML(server.team1)}
+                            ${this.getTeamHTML(server.team2)}
                         </td>
                     </tr>
                 `;
@@ -208,7 +185,7 @@ export default class SquadServersBrowser {
         } else {
             rows = `
                 <tr>
-                    <td colspan="4" style="text-align: center; padding: 40px;">
+                    <td colspan="4" style="text-align: center; padding: 40px;" data-i18n="common:noServersFound">
                         ${i18next.t("noServersFound", { ns: "common" })}
                     </td>
                 </tr>
@@ -276,66 +253,17 @@ export default class SquadServersBrowser {
 
 
     /**
-     * Handles click events on a server table row:
-     * - Selects or unselects the row
-     * - Updates the active server and layer
-     * - Starts or stops automatic syncing
-     * - Switches the map/layer/factions/units to match the selected server
+     * Handles a click on a row of the servers table: the row of the followed server leaves server mode, the row of
+     * another server enters it for that server (the feed is read again first, the row may be old).
      * @param {jQuery<HTMLElement>} row - The clicked table row as a jQuery object.
      */
     handleRowClicks(row) {
+        // The header, a row without a server (loading, no servers found) and a server the calculator cannot show
+        const serverId = row.attr("data-serverid");
+        if (!serverId || row.hasClass("unavailable")) return;
 
-        // Ignore disabled rows
-        if (!row || row.hasClass("unavailable")) return;
-
-        // Ignore clicks on header rows
-        if (row.closest("thead").length) return;
-
-        // --- UNSELECT ---
-        if (row.hasClass("selected")) {
-            row.removeClass("selected");
-            $("#servers").removeClass("active");
-            this.selectedServer = null;
-            App.updateUrlParams({ server: null });
-            App.SERVER_SELECTOR.val("").trigger("change.select2");
-
-            // stop sync
-            if (this.syncInterval) {
-                clearInterval(this.syncInterval);
-                this.syncInterval = null;
-            }
-            return;
-        }
-
-        // --- SELECT ---
-        $(".servers-table tr").removeClass("selected");
-        row.addClass("selected");
-        $("#servers").addClass("active");
-
-        // Retrieve fresh data from the serversData array in case it has changed since rendering
-        const server = this.serversData.find(s => s.id == row.data("serverid"));
-
-        App.updateUrlParams({ server: server.id });
-        App.SERVER_SELECTOR.val(server.id).trigger("change.select2");
-
-        // Update the selected server and layer
-        this.selectedServer = server.id;
-        this.selectedLayer = server.attributes.details.map;
-
-        // start sync every X seconds
-        if (this.syncInterval) clearInterval(this.syncInterval);
-        this.syncInterval = setInterval(() => this.syncWithServer(), this.refreshInterval * 1000);
-
-        // switch layer immediately
-        this.switchLayer(
-            server.attributes.name,
-            server.mapName,
-            server.attributes.details.map,
-            server.team1,
-            server.team2,
-            server.attributes.details.squad_teamOne,
-            server.attributes.details.squad_teamTwo
-        );
+        if (row.hasClass("selected")) App.leaveServerMode();
+        else App.initServerMode(serverId);
     }
 
 
@@ -394,50 +322,39 @@ export default class SquadServersBrowser {
 
 
     /**
-     * Switches the map, layer, factions, and units to match the selected server.
-     * @param {string} serverName
-     * @param {string} mapName
-     * @param {number} layerIndex
-     * @param {string} team1
-     * @param {string} team2
-     * @param {string} unit1
-     * @param {string} unit2
+     * Switches the map, the layer and the factions to what a server plays. The feed has no unit of a team, so the
+     * units stay the factions' default ones.
+     * @param {object} server - a home server the calculator can show (`canFollow`)
      */
-    switchLayer(serverName, mapName, layerIndex, team1, team2, unit1, unit2) {
-        if (!mapName || !serverName || !layerIndex) return;
-
+    switchLayer(server) {
+        const { mapName, team1, team2 } = server;
+        const layer = server.attributes.details.map;
         const mapIndex = MAPS.findIndex(m => m.name.toLowerCase() === mapName.toLowerCase());
         const currentMapIndex = parseInt(App.MAP_SELECTOR.val());
-        const currentLayerIndex = App.LAYER_SELECTOR.val();
+        const currentLayer = App.LAYER_SELECTOR.val();
 
         const applyFactions = () => {
-            if (team1 && team2) {
-                App.FACTION1_SELECTOR.val(team1).trigger($.Event("change", { broadcast: false }));
-                App.FACTION2_SELECTOR.val(team2).trigger($.Event("change", { broadcast: false }));
-                if (unit1 && unit2) {
-                    App.UNIT1_SELECTOR.val(unit1).trigger($.Event("change", { broadcast: false }));
-                    App.UNIT2_SELECTOR.val(unit2).trigger($.Event("change", { broadcast: false }));
-                }
-                // Strip any team params that default faction loading may have written
-                App.updateUrlParams({ team1: null, team1unit: null, team2: null, team2unit: null });
-            }
+            App.FACTION1_SELECTOR.val(team1).trigger($.Event("change", { broadcast: false }));
+            App.FACTION2_SELECTOR.val(team2).trigger($.Event("change", { broadcast: false }));
+            // Strip any team params that default faction loading may have written
+            App.updateUrlParams({ team1: null, team1unit: null, team2: null, team2unit: null });
             serverBrowserTooltips.hide();
             App.openToast("success", "mapUpdated", "");
         };
 
         const setLayerAndFactions = () => {
-            if (!App.LAYER_SELECTOR.find(`option[value="${layerIndex}"]`).length) {
+            if (!App.LAYER_SELECTOR.find(`option[value="${layer}"]`).length) {
                 $(document).one("layers:loaded", setLayerAndFactions);
                 return;
             }
-            App.LAYER_SELECTOR.val(layerIndex).trigger($.Event("change", { broadcast: true }));
+            App.LAYER_SELECTOR.val(layer).trigger($.Event("change", { broadcast: true }));
             $(document).one("layer:loaded", applyFactions);
         };
 
         $("#serversInformation")[0].close();
 
         // Already on the right map and layer — factions only
-        if (currentMapIndex === mapIndex && currentLayerIndex === layerIndex) {
+        if (currentMapIndex === mapIndex && currentLayer === layer) {
             applyFactions();
             return;
         }
@@ -503,34 +420,6 @@ export default class SquadServersBrowser {
         this.filteredData = sorted;
         this.renderRows(sorted);
         return direction;
-    }
-
-
-    /**
-     * Converts a time in seconds to "HH:MM:SS" format.
-     * @param {number} seconds - The total time in seconds.
-     * @returns {string} Formatted time as "HH:MM".
-     */
-    toMinSec(seconds) {
-        const h = Math.floor(seconds / 3600);
-        const m = Math.floor((seconds % 3600) / 60);
-        const s = seconds % 60;
-        if (h > 0) return `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
-        return `${m}:${s.toString().padStart(2, "0")}`;
-    }
-
-
-    /**
-     * Converts a time in seconds to "HH:MM" format.
-     * @param {number} seconds - The total time in seconds.
-     * @returns {string} Formatted time as "HH:MM".
-     */
-    formatPlayTime(seconds) {
-        const totalMinutes = Math.floor(seconds / 60);
-        const h = Math.floor(totalMinutes / 60);
-        const m = totalMinutes % 60;
-
-        return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
     }
 
 }
