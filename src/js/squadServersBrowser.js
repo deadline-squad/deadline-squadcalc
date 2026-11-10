@@ -24,7 +24,7 @@ export default class SquadServersBrowser {
     /**
      * Syncs the selected server's state:
      * - Updates `selectedLayer` if the server's current map changes
-     * - Switches map, layer, factions, and units to match the server
+     * - Switches map, layer and factions to match the server
      */
     async syncWithServer(){
         if (!this.selectedServer) return;
@@ -33,8 +33,6 @@ export default class SquadServersBrowser {
 
         this.serversData.forEach(server => {
             if (server.id == this.selectedServer) {
-                let playTime = this.toMinSec(server.attributes.details.squad_playTime);
-                console.debug(`[SERVER] ${server.attributes.name} - ${server.attributes.details.map} - playtime : ${playTime}`);
                 if (server.attributes.details.map != this.selectedLayer) {
                     console.debug(`[SERVER]   LAYER CHANGED FROM ${this.selectedLayer} to ${server.attributes.details.map}`);
                     this.selectedLayer = server.attributes.details.map;
@@ -43,9 +41,7 @@ export default class SquadServersBrowser {
                         server.mapName,
                         server.attributes.details.map,
                         server.team1,
-                        server.team2,
-                        server.attributes.details.squad_teamOne,
-                        server.attributes.details.squad_teamTwo
+                        server.team2
                     );
                 }
             }
@@ -64,7 +60,6 @@ export default class SquadServersBrowser {
             includeScore: true,
             threshold: 0.4,
             distance: 500,
-            //minMatchCharLength: 3,
             keys: ["attributes.name", "attributes.details.map"]
         });
     }
@@ -131,23 +126,6 @@ export default class SquadServersBrowser {
 
 
     /**
-     * Returns the HTML for the server's next layer (or "Map Voting" if unavailable).
-     * @param {object} server
-     * @returns {string}
-     */
-    getNextLayerHTML(server){
-        if (server.attributes.details.squad_nextLayer) {
-            return `
-                <span class="nextMap" data-i18n="common:next">
-                    ${i18next.t("next", { ns: "common" })}: ${server.attributes.details.squad_nextLayer}
-                </span>
-                `;
-        } 
-        return "<span class=\"nextMap\">Map Voting</span>";
-    }
-
-
-    /**
      * Returns the players HTML for a server.
      * @param {number|null} players
      * @param {number|null} maxPlayers
@@ -164,16 +142,12 @@ export default class SquadServersBrowser {
 
     /**
      * Returns the flag icon HTML for a team
-     * @param {string|null} team
-     * @param {string} label
+     * @param {string|undefined} team - the id of the team's faction, undefined when the feed has none
      * @returns {string}
      */
-    getTeamHTML(team, label) {
-        if (team) {
-            return `<img title="${label}" src="/img/flags/${team}.webp" alt="${team}" class="flag-icon">`;
-        } else {
-            return `<img title="${label}" src="/img/flags/unknown.webp" alt="Unknown" class="flag-icon">`;
-        }
+    getTeamHTML(team) {
+        if (!team) return "<img src=\"/img/flags/unknown.webp\" alt=\"Unknown\" class=\"flag-icon\">";
+        return `<img title="${team}" src="/img/flags/${team}.webp" alt="${team}" class="flag-icon">`;
     }
 
 
@@ -189,18 +163,14 @@ export default class SquadServersBrowser {
             servers.forEach(server => {
                 const isSelected = server.id == this.selectedServer ? "selected" : "";
                 const unavailable = (!server.team1 || !server.team2 || !server.mapName) ? "unavailable" : "";
-                const nextLayer = this.getNextLayerHTML(server);
                 rows += `
                     <tr class="${isSelected} ${unavailable}" data-serverid="${server.id}">
                         <td title="${App.sanitize(server.attributes.name)}"><div class="server-name">${App.sanitize(server.attributes.name)}</div></td>
-                        <td class="mapdata">
-                            ${App.sanitize(server.attributes.details.map)}<br>
-                            ${nextLayer}
-                        </td>
+                        <td class="mapdata">${App.sanitize(server.attributes.details.map)}</td>
                         <td>${this.getPlayersHTML(server.attributes.players, server.attributes.maxPlayers)}</td>
                         <td class="teamFlags">
-                            ${this.getTeamHTML(server.team1, server.attributes.details.squad_teamOne ?? server.team1)}
-                            ${this.getTeamHTML(server.team2, server.attributes.details.squad_teamTwo ?? server.team2)}
+                            ${this.getTeamHTML(server.team1)}
+                            ${this.getTeamHTML(server.team2)}
                         </td>
                     </tr>
                 `;
@@ -280,7 +250,7 @@ export default class SquadServersBrowser {
      * - Selects or unselects the row
      * - Updates the active server and layer
      * - Starts or stops automatic syncing
-     * - Switches the map/layer/factions/units to match the selected server
+     * - Switches the map/layer/factions to match the selected server
      * @param {jQuery<HTMLElement>} row - The clicked table row as a jQuery object.
      */
     handleRowClicks(row) {
@@ -332,9 +302,7 @@ export default class SquadServersBrowser {
             server.mapName,
             server.attributes.details.map,
             server.team1,
-            server.team2,
-            server.attributes.details.squad_teamOne,
-            server.attributes.details.squad_teamTwo
+            server.team2
         );
     }
 
@@ -394,16 +362,15 @@ export default class SquadServersBrowser {
 
 
     /**
-     * Switches the map, layer, factions, and units to match the selected server.
+     * Switches the map, the layer and the factions to match the selected server. The feed has no unit of a team, so
+     * the units stay the factions' default ones.
      * @param {string} serverName
      * @param {string} mapName
-     * @param {number} layerIndex
+     * @param {string} layerIndex - the layer's raw name
      * @param {string} team1
      * @param {string} team2
-     * @param {string} unit1
-     * @param {string} unit2
      */
-    switchLayer(serverName, mapName, layerIndex, team1, team2, unit1, unit2) {
+    switchLayer(serverName, mapName, layerIndex, team1, team2) {
         if (!mapName || !serverName || !layerIndex) return;
 
         const mapIndex = MAPS.findIndex(m => m.name.toLowerCase() === mapName.toLowerCase());
@@ -414,10 +381,6 @@ export default class SquadServersBrowser {
             if (team1 && team2) {
                 App.FACTION1_SELECTOR.val(team1).trigger($.Event("change", { broadcast: false }));
                 App.FACTION2_SELECTOR.val(team2).trigger($.Event("change", { broadcast: false }));
-                if (unit1 && unit2) {
-                    App.UNIT1_SELECTOR.val(unit1).trigger($.Event("change", { broadcast: false }));
-                    App.UNIT2_SELECTOR.val(unit2).trigger($.Event("change", { broadcast: false }));
-                }
                 // Strip any team params that default faction loading may have written
                 App.updateUrlParams({ team1: null, team1unit: null, team2: null, team2unit: null });
             }
@@ -503,34 +466,6 @@ export default class SquadServersBrowser {
         this.filteredData = sorted;
         this.renderRows(sorted);
         return direction;
-    }
-
-
-    /**
-     * Converts a time in seconds to "HH:MM:SS" format.
-     * @param {number} seconds - The total time in seconds.
-     * @returns {string} Formatted time as "HH:MM".
-     */
-    toMinSec(seconds) {
-        const h = Math.floor(seconds / 3600);
-        const m = Math.floor((seconds % 3600) / 60);
-        const s = seconds % 60;
-        if (h > 0) return `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
-        return `${m}:${s.toString().padStart(2, "0")}`;
-    }
-
-
-    /**
-     * Converts a time in seconds to "HH:MM" format.
-     * @param {number} seconds - The total time in seconds.
-     * @returns {string} Formatted time as "HH:MM".
-     */
-    formatPlayTime(seconds) {
-        const totalMinutes = Math.floor(seconds / 60);
-        const h = Math.floor(totalMinutes / 60);
-        const m = totalMinutes % 60;
-
-        return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
     }
 
 }

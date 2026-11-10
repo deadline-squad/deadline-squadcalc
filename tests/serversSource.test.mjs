@@ -60,9 +60,8 @@ test("a layer of no known map has no map", () => {
     assert.equal(mapNameOfLayer(undefined), null);
 });
 
-test("a fresh home feed gives its servers, marked home and with their map", () => {
+test("a fresh home feed gives its servers with their map", () => {
     const [server] = homeServers({ generated: GENERATED, servers: [home()] }, NOW);
-    assert.equal(server.home, true);
     assert.equal(server.mapName, "AlBasrah");
     assert.equal(server.attributes.details.map, "AlBasrah_RAAS_v1");
     assert.equal(server.team1, "AFU");
@@ -89,7 +88,7 @@ test("fetchServers gives the feed's servers; the feed's age is counted from its 
     const feed = { generated: GENERATED, servers: [home()] };
     const asked = stubFetch({ "/live/servers.json": json(feed, { headers: { Date: new Date(NOW).toUTCString() } }) });
     const servers = await fetchServers();
-    assert.deepEqual(servers.map(server => [server.id, server.mapName, server.home]), [["deadline", "AlBasrah", true]]);
+    assert.deepEqual(servers.map(server => [server.id, server.mapName]), [["deadline", "AlBasrah"]]);
     assert.deepEqual(asked, ["/live/servers.json"]);
 
     stubFetch({ "/live/servers.json": json(feed, { headers: { Date: new Date(NOW + HOME_FEED_MAX_AGE_MS + 60000).toUTCString() } }) });

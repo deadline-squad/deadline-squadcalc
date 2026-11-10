@@ -29,7 +29,7 @@ export function mapNameOfLayer(layer) {
 
 
 /**
- * The servers of a home feed, marked `home` and given their map.
+ * The servers of a home feed, each given its map.
  * @param {object} feed - `{ generated: ISO time, servers: [...] }`
  * @param {number} now - the time the feed was received, in ms
  * @returns {Array} empty for a malformed feed or one older than `HOME_FEED_MAX_AGE_MS`
@@ -39,7 +39,7 @@ export function homeServers(feed, now) {
     if (!(now - Date.parse(feed.generated) <= HOME_FEED_MAX_AGE_MS)) return [];
     return feed.servers
         .filter(server => server?.id && server.attributes?.name && server.attributes.details?.map)
-        .map(server => ({ ...server, home: true, mapName: mapNameOfLayer(server.attributes.details.map) }));
+        .map(server => ({ ...server, mapName: mapNameOfLayer(server.attributes.details.map) }));
 }
 
 

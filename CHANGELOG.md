@@ -1,3 +1,13 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.41.0** *(2026-11-10)*
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- The servers list no longer writes "Map Voting" under the layer of a server: the status names no next layer.
+
+</br><img src="https://img.shields.io/badge/-%20dev%20-lightgrey">  
+- Removed what only read the upstream servers API: the play-time log line with `toMinSec` and `formatPlayTime`, the next-layer cell with its style and the `common:next` texts, the unit arguments of `switchLayer`, the `home` mark of a server.
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.40.0** *(2026-11-10)*
 
 </br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  

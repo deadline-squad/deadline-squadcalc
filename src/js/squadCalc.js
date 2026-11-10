@@ -186,9 +186,7 @@ export default class SquadCalc {
                 server.mapName,
                 server.attributes.details.map,
                 server.team1,
-                server.team2,
-                server.attributes.details.squad_teamOne,
-                server.attributes.details.squad_teamTwo
+                server.team2
             );
 
             $("#serversTableBody tr").removeClass("selected");
