@@ -19,6 +19,8 @@
     "deleteTargets": "Alle Ziele und Markierungen löschen",
     "bearing": "Peilung",
     "whereToAim": "(wohin zielen)",
+    "compassCut": "Der Kompass im Spiel schneidet das Zehntel ab: Er zeigt 045 von 45.0° bis 45.9°. Das Zehntel sagt, wohin innerhalb dieses Grads zu zielen ist.",
+    "markerDistance": "Die horizontale Entfernung, die eine Feuerlösung braucht. Die Entfernung, die der Kompass im Spiel zu einer Kartenmarkierung zeigt, ist schräg (mit dem Höhenunterschied) und von 300 m bis 1999 m auf 50-m-Schritte abgeschnitten: Eine Markierung in 1049 m zeigt 1000.",
     "elevation": "Elevation",
     "howFar": "(wie weit geschossen wird)",
     "save": "Speichern",

@@ -19,6 +19,8 @@
     "deleteTargets": "Delete every targets and markers",
     "bearing": "Bearing",
     "whereToAim": "(where to aim)",
+    "compassCut": "The game's compass cuts off the tenth: it shows 045 from 45.0° to 45.9°. The tenth says where in that degree to aim.",
+    "markerDistance": "The horizontal distance, the one a firing solution needs. The distance the game's compass shows to a map marker is slant (it includes the height difference) and cut to 50 m steps from 300 m to 1999 m: a marker 1049 m away reads 1000.",
     "elevation": "elevation",
     "howFar": "(how far it will shoot)",
     "save": "Save",

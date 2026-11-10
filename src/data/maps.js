@@ -507,16 +507,16 @@ export const MAPS = [
         }
     },
     { 
-        // HEIGHTMAP SHOULD BE ROTATED 2.02deg
-        // THEN SCALED TO 8510/6079
-        // THEN OFFSET -421;+998
         name: "Skorpo", 
         mapURL: "/img/maps/skorpo/",
         radiusExclusion: FOBEXCLUSIONS.medium,
         SDK_data: {
             minimap: {
-                // 6869x6869 is not from SDK, probably due to 2.02deg rotation
-                // This corners are perfect for settings map assets, but the ingame grid is more 6900*6900
+                // The map image spans these corners, 6849 m by 6869 m: its west edge 9.5 m and its east edge 10.5 m west
+                // of the game's minimap (`game`), its south edge 0.08 m north of it. Nothing is turned: the game's minimap
+                // texture lies on world X and Y within 0.05 degrees, as its compass and map do; only Skorpo's landscape
+                // actor is turned (yaw -2.006 degrees), which the heightmaps take in (tools/heightmaps of the deployment
+                // repository places each landscape with its actor's transform).
                 corner0: [-3611, -3293],
                 corner1: [3238, 3576],
                 // The game's own corners (MapTextureCorner0/1 of the layers' SQWorldSettings, build 26005357), in metres

@@ -173,8 +173,8 @@ export const squadMinimap = Map.extend({
 
         // The map image is a square of pixelSize units spanning the minimap corners, which are not
         // square on every map (Skorpo 6849 x 6869 m): lng (world X) and lat (world Y) have their own
-        // scale. A distance in meters is converted with toMeters/fromMeters; the X scale alone only
-        // sizes round shapes (range rings, radii), where the difference is under 0.3 %.
+        // scale. A distance in meters is converted with toMeters/fromMeters, and a round shape is drawn
+        // through them (groundShapes.js), each direction with its own scale.
         this.gameToMapScale = this.pixelSize / this.activeMap.size;
         this.gameToMapScaleY = this.pixelSize / this.activeMap.sizeY;
         this.mapToGameScale = this.activeMap.size / this.pixelSize;
@@ -1030,14 +1030,15 @@ export const squadMinimap = Map.extend({
     /**
      * Radius of a FOB marker's exclusion circle: how far from a FOB the loaded layer lets the next one be placed,
      * or the map's regular layers do while no layer is loaded
-     * @returns {number} - in map units
+     * @returns {number} - in meters
      */
     fobExclusionSize: function() {
-        return fobExclusionRadius(this.activeMap, this.layer?.layerData?.rawName) * this.gameToMapScale;
+        return fobExclusionRadius(this.activeMap, this.layer?.layerData?.rawName);
     },
 
 
     createMarker(latlng, team, category, icon, uid = false) {
+        // circles1Size and circles2Size, set below, are the radii of the marker's circles in meters
         let markerOptions = { icon: "", circlesOnHover: false, team: team, category: category, icontype: icon, uid: uid };
         let markerSizeSetting = App.userSettings.markerSize;
         let iconSizeValue = 20 + (markerSizeSetting - 1) * 5;
@@ -1049,7 +1050,7 @@ export const squadMinimap = Map.extend({
             if (icon === "deployable_mortars") range = 1237;
             if (icon === "deployable_hellcannon") range = 924;
 
-            markerOptions.circles1Size = range * this.gameToMapScale;
+            markerOptions.circles1Size = range;
             markerOptions.circlesOnHover = true;
             markerOptions.circles1Weight = 2;
             markerOptions.circles1Color = team === "ally" ? "white" : "#f23534";
@@ -1058,7 +1059,7 @@ export const squadMinimap = Map.extend({
 
         if (icon === "deployable_fob") { 
             markerOptions.circlesOnHover = false;
-            markerOptions.circles1Size = 150 * this.gameToMapScale;
+            markerOptions.circles1Size = 150;
             markerOptions.circles2Color = "white";
             markerOptions.circles2Size = this.fobExclusionSize();
 
@@ -1087,7 +1088,7 @@ export const squadMinimap = Map.extend({
         }
 
         if (icon === "T_strategic_uav") { 
-            markerOptions.circles1Size = 300 * this.gameToMapScale;
+            markerOptions.circles1Size = 300;
             markerOptions.circles1Color = team === "ally" ? "#ffc400" : "#f23534";
         }
         

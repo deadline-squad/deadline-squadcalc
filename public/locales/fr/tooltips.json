@@ -19,6 +19,8 @@
     "deleteTargets": "Supprimer les cibles et marqueurs",
     "bearing": "Direction",
     "whereToAim": "(où viser)",
+    "compassCut": "La boussole du jeu tronque le dixième : elle affiche 045 de 45.0° à 45.9°. Le dixième indique où viser dans ce degré.",
+    "markerDistance": "La distance horizontale, celle dont la solution de tir a besoin. La distance que la boussole du jeu affiche jusqu'à un marqueur de carte est oblique (elle inclut la différence de hauteur) et tronquée par pas de 50 m de 300 m à 1999 m : un marqueur à 1049 m affiche 1000.",
     "elevation": "Elévation",
     "howFar": "(A quelle distance ça tirera)",
     "save": "Sauvegarder",

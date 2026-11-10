@@ -1,6 +1,7 @@
 import { App } from "../app.js";
 import "./libs/leaflet-visual-click.js";
-import { Marker, Circle, CircleMarker, Popup, Polygon, Icon, DivIcon } from "leaflet";
+import { Marker, CircleMarker, Popup, Polygon, Icon, DivIcon } from "leaflet";
+import { GroundCircle } from "./groundShapes.js";
 import i18next from "i18next";
 import { sendMarkerData } from "./squadCalcAPI.js";
 import { v4 as uuidv4 } from "uuid";
@@ -102,7 +103,7 @@ export const squadWeaponMarker = squadMarker.extend({
         };
 
         this.maxDistCircleOn = {
-            radius: App.activeWeapon.getMaxDistance() * this.map.gameToMapScale,
+            radius: App.activeWeapon.getMaxDistance(),
             opacity: 0.7,
             color: CIRCLESCOLOR,
             fillOpacity: 0,
@@ -112,7 +113,7 @@ export const squadWeaponMarker = squadMarker.extend({
         };
 
         this.minDistCircleOn = {
-            radius: App.activeWeapon.minDistance * this.map.gameToMapScale,
+            radius: App.activeWeapon.minDistance,
             opacity: 0.7,
             color: CIRCLESCOLOR,
             fillOpacity: 0.2,
@@ -137,7 +138,7 @@ export const squadWeaponMarker = squadMarker.extend({
         };
 
         this.fobCircleOptions = {
-            radius: 150 * this.map.gameToMapScale,
+            radius: 150,
             opacity: 0,
             dashArray: "5,5",
             fillOpacity: 0,
@@ -154,10 +155,10 @@ export const squadWeaponMarker = squadMarker.extend({
         this.heightPadding = parseFloat(options.heightPadding) || 0;
 
         // Create the min/max range markers
-        this.minRangeMarker = new Circle(latlng, this.minDistCircleOn).addTo(this.map.markersGroup);
-        this.rangeMarker = new Circle(latlng, this.maxDistCircleOn).addTo(this.map.markersGroup);
+        this.minRangeMarker = new GroundCircle(latlng, this.minDistCircleOn).addTo(this.map.markersGroup);
+        this.rangeMarker = new GroundCircle(latlng, this.maxDistCircleOn).addTo(this.map.markersGroup);
         this.miniCircle = new CircleMarker(latlng, this.miniCircleOptions).addTo(this.map.markersGroup);
-        this.fobCircle = new Circle(latlng, this.fobCircleOptions).addTo(this.map.markersGroup);
+        this.fobCircle = new GroundCircle(latlng, this.fobCircleOptions).addTo(this.map.markersGroup);
         
         // Initiate Position PopUp
         this.posPopUp = new Popup(this.posPopUpOptions).setLatLng(latlng).addTo(this.map.markersGroup).close();
@@ -236,8 +237,8 @@ export const squadWeaponMarker = squadMarker.extend({
      */
     updateWeapon: function(){
 
-        const MAXRADIUS = App.activeWeapon.getMaxDistance() * this.map.gameToMapScale;
-        const MINRADIUS = App.activeWeapon.minDistance * this.map.gameToMapScale;
+        const MAXRADIUS = App.activeWeapon.getMaxDistance();
+        const MINRADIUS = App.activeWeapon.minDistance;
 
         this.angleType = App.activeWeapon.angleType;
         this.minRangeMarker.setRadius(MINRADIUS);
@@ -678,12 +679,12 @@ export const squadStratMarker = squadMarker.extend({
 
         // Create the min/max range markers
         if (options.circles1Size) {
-            this.constructionRange = new Circle(latlng, this.minDistCircleOn);
+            this.constructionRange = new GroundCircle(latlng, this.minDistCircleOn);
             if (!options.circlesOnHover) this.constructionRange.addTo(this.map.markersGroup);
         }
 
         if (options.circles2Size) {
-            this.exclusionRange = new Circle(latlng, this.maxDistCircleOn);
+            this.exclusionRange = new GroundCircle(latlng, this.maxDistCircleOn);
             if (!options.circlesOnHover) this.exclusionRange.addTo(this.map.markersGroup);
         }
 

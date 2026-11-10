@@ -343,6 +343,7 @@ export default class SquadSettings {
                             this.app.minimap.layer.polyline.showMeasurements({
                                 minPixelDistance: 50,
                                 scaling: this.app.minimap.mapToGameScale,
+                                scalingY: this.app.minimap.mapToGameScaleY,
                             });
                         } else {
                             this.app.minimap.layer.polyline.hideMeasurements();

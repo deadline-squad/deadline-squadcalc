@@ -55,6 +55,17 @@ test("the elevation of the popup follows the ammunition and the weapon", () => {
     assert.notEqual(elevationOf(contentFor("Mortar", 0, null)), elevationOf(contentFor("M109", 0, null)));
 });
 
+test("the bearing line and the summary give the bearing as the game's compass shows it: three digits cut, the tenth within", () => {
+    const { weapon } = loadWeapon("Mortar", 0);
+    App.activeWeapon = weapon;
+    App.userSettings = { lowAndHigh: false, showBearing: true, showTimeOfFlight: false, showDistance: false, showHeight: false };
+    const bearing = 45.96 * Math.PI / 180;
+    const firingSolution = new SquadFiringSolution({ lat: 0, lng: 0 }, { lat: 800 * Math.cos(bearing), lng: 800 * Math.sin(bearing) }, flatMap, 0);
+    const [html, summary] = popupContent(firingSolution, "high", { formatRounds: () => "", targetLines: "" });
+    assert.match(html, /<span class=bearingUiCalc>045<span class="compassTenth">\.9<\/span><span data-i18n="common:°">°<\/span><\/span>/);
+    assert.match(summary, / - Bearing: 045\.9°$/);
+});
+
 test("the lines of the target come after the rounds and before the settings' lines", () => {
     const html = contentFor("Mortar", 0, 3.3, "<br><span class=\"calcCorrection\">x</span>");
     assert.ok(html.indexOf("calcCorrection") < html.indexOf("bearingUiCalc"));

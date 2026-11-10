@@ -29,6 +29,7 @@ import { MapDrawing, MapArrow, MapCircle, MapRectangle } from "./squadShapes.js"
 import { DEFAULT_LAYER, LAYER_ORDER, urlTypeOf } from "./mapLayers.js";
 import { HOME_FEED_PERIOD_MS, canFollow, fetchServers } from "./serversSource.js";
 import { formatKeyPad, keypadPosition } from "./keypad.js";
+import { compassHTML } from "./compass.js";
 
 
 
@@ -1542,12 +1543,12 @@ export default class SquadCalc {
 
     /**
      * Insert Calculations into html
-     * @param {number} bearing 
+     * @param {number} bearing - degrees clockwise from north, shown as the game's compass shows it (compass.js)
      * @param {number} elevation 
      */
     insertCalc(bearing, elevation) {
 
-        animateCalc(bearing.toFixed(1), 500, "bearingNum");
+        animateCalc(bearing, 500, "bearingNum", compassHTML);
         animateCalc(elevation.toFixed(this.activeWeapon.elevationPrecision), 500, "elevationNum");
 
         if (this.activeWeapon.name != "Mortar" && this.activeWeapon.name != "UB-32" && !this.activeWeapon.elevationRate) $("#highlow").addClass("active");

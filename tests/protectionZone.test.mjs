@@ -1,7 +1,7 @@
 /**
  * What the map draws for the protection zones of a layer (src/js/protectionZone.js: `protectionShapes`, and
- * `protectionZoneLayers`, the circles and polygons SquadLayer.createProtectionZones puts on the map, with the Leaflet
- * classes of tests/stubs/leaflet.mjs), on the layer data of the API (tests/fixtures/protectionZones.json), against the
+ * `protectionZoneLayers`, the circles and polygons SquadLayer.createProtectionZones puts on the map: GroundCircle of
+ * groundShapes.js, the polygon of tests/stubs/leaflet.mjs), on the layer data of the API (tests/fixtures/protectionZones.json), against the
  * zones of the game: the Gameplay_TeamZone actors of the layer's level in the Squad dedicated server build 26005357,
  * their sphere, box and capsule components (a size times the smallest absolute axis of its scale, a box's extent times
  * its scale) and the actor's DeployableLockDistance (150 m unless the actor sets it).
@@ -24,7 +24,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { protectionShapes, protectionZoneLayers } from "../src/js/protectionZone.js";
-import { Circle, Polygon } from "./stubs/leaflet.mjs";
+import { GroundCircle } from "../src/js/groundShapes.js";
+import { Polygon } from "./stubs/leaflet.mjs";
 
 const LAYERS = JSON.parse(readFileSync(new URL("./fixtures/protectionZones.json", import.meta.url), "utf8")).layers;
 
@@ -156,7 +157,10 @@ test("Al Basrah Seed v1: the zone of no team, four boxes, is not drawn", () => {
  * The map layers of a layer of the fixture on a map with `scaleX` and `scaleY` map units per metre east and south,
  * with the world origin at the map's origin (SquadLayer.convertToLatLng without the layer's offsets)
  */
-const layersOf = (layer, scaleX = 1, scaleY = 1) => protectionZoneLayers(LAYERS[layer], (x, y) => [y / 100 * -scaleY, x / 100 * scaleX], scaleX, "#fff");
+const layersOf = (layer, scaleX = 1, scaleY = 1) => protectionZoneLayers(LAYERS[layer], (x, y) => [y / 100 * -scaleY, x / 100 * scaleX], "#fff");
+
+/** What a map layer is, and its outline: [circle or polygon, solid or the dash pattern] */
+const kinds = (layers) => layers.map((layer) => [layer instanceof GroundCircle ? "circle" : layer instanceof Polygon ? "polygon" : "other", layer.options.dashArray ?? "solid"]);
 
 /** The points of a polygon of the map back in world metres, east and south */
 const metres = (polygon, scaleX = 1, scaleY = 1) => polygon.latlngs.map(([lat, lng]) => [lng / scaleX, -lat / scaleY]);
@@ -171,8 +175,8 @@ function reach(points, centre, degrees) {
 
 test("the map gets the stadium of the capsule of Kohat TC v1, 1199 m by 400 m around its centre, and no dashed outline for it", () => {
     const layers = layersOf("Kohat_TC_v1");
-    assert.deepEqual(layers.map((layer) => [layer.constructor.name, layer.options.dashArray ?? "solid"]), [
-        ["Circle", "solid"], ["Circle", "10,20"], ["Circle", "solid"], ["Circle", "10,20"], ["Polygon", "solid"], ["Circle", "solid"], ["Circle", "10,20"],
+    assert.deepEqual(kinds(layers), [
+        ["circle", "solid"], ["circle", "10,20"], ["circle", "solid"], ["circle", "10,20"], ["polygon", "solid"], ["circle", "solid"], ["circle", "10,20"],
     ]);
     const capsule = LAYERS.Kohat_TC_v1[2].objects[0];
     const centre = [capsule.location_x / 100, capsule.location_y / 100];
@@ -189,8 +193,8 @@ test("the map gets the stadium of the capsule of Kohat TC v1, 1199 m by 400 m ar
 
 test("the map gets every box of Fallujah Invasion v2's zone of three, as rectangles of the game's size and turn, and no dashed outline for them", () => {
     const layers = layersOf("Fallujah_Invasion_v2");
-    assert.deepEqual(layers.map((layer) => [layer.constructor.name, layer.options.dashArray ?? "solid"]), [
-        ["Circle", "solid"], ["Circle", "10,20"], ["Polygon", "solid"], ["Polygon", "solid"], ["Polygon", "solid"], ["Circle", "solid"], ["Circle", "10,20"],
+    assert.deepEqual(kinds(layers), [
+        ["circle", "solid"], ["circle", "10,20"], ["polygon", "solid"], ["polygon", "solid"], ["polygon", "solid"], ["circle", "solid"], ["circle", "10,20"],
     ]);
     FALLUJAH_BOXES.forEach(({ halfSizes: [x, y], centre, yaw }, index) => {
         const corners = metres(layers[2 + index]);
@@ -211,13 +215,14 @@ test("a turned box is a rectangle of its size in the game's metres also on a map
     assertNear(reach(metres(noDeploy, scaleX, scaleY), centre, rotation_z), [extent_x / 100 + lock, extent_x / 100 + lock, extent_y / 100 + lock, extent_y / 100 + lock], "no-deploy box");
 });
 
-test("the map gets circles of the radius in map units, at the zone's centre (Goose Bay AAS v1), and the dashed box of the point of Sumari", () => {
+test("the map gets circles of the radius in metres, drawn with the map's scales (groundShapes.js), at the zone's centre (Goose Bay AAS v1), and the dashed box of the point of Sumari", () => {
     const scale = 256 / 4065;
     const [protect, noDeploy] = layersOf("GooseBay_AAS_v1", scale, scale);
     const sphere = LAYERS.GooseBay_AAS_v1[0].objects[0];
-    assert.ok(protect instanceof Circle && noDeploy instanceof Circle);
-    assertNear([protect.options.radius / scale, noDeploy.options.radius / scale], [Math.abs(sphere.sphereRadius) / 100, Math.abs(sphere.sphereRadius) / 100 + 150], "radii");
-    assertNear(protect.latlng, [sphere.location_y / 100 * -scale, sphere.location_x / 100 * scale], "centre");
+    assert.ok(protect instanceof GroundCircle && noDeploy instanceof GroundCircle);
+    assertNear([protect.getRadius(), noDeploy.getRadius()], [Math.abs(sphere.sphereRadius) / 100, Math.abs(sphere.sphereRadius) / 100 + 150], "radii");
+    const centre = protect.getLatLng();
+    assertNear([centre.lat, centre.lng], [sphere.location_y / 100 * -scale, sphere.location_x / 100 * scale], "centre");
     const point = layersOf("Sumari_Invasion_v1").slice(-2);
     assert.ok(point.every((layer) => layer instanceof Polygon));
     assert.equal(point[1].options.dashArray, "10,20");

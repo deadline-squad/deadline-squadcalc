@@ -1,5 +1,6 @@
 
-import { DivIcon, Marker, Circle, LayerGroup, Polyline, Polygon, FeatureGroup } from "leaflet";
+import { DivIcon, Marker, LayerGroup, Polyline, Polygon, FeatureGroup } from "leaflet";
+import { GroundCircle } from "./groundShapes.js";
 import { SquadObjective } from "./squadObjective.js";
 import { App } from "../app.js";
 import "./libs/leaflet-measure-path.js";
@@ -41,6 +42,7 @@ export default class SquadLayer {
             measurementOptions: {
                 minPixelDistance: 50,
                 scaling: this.map.mapToGameScale,
+                scalingY: this.map.mapToGameScaleY,
             }
         }).addTo(this.activeLayerMarkers);
 
@@ -169,9 +171,8 @@ export default class SquadLayer {
         this.layerData.mapAssets.spawnPoints.forEach((spawnPoint) => {
             const latlng = this.convertToLatLng(spawnPoint.location_x, spawnPoint.location_y);
             //this.spawnGroups.push(new squadSpawnGroup(latlng, spawnGroup, this).addTo(this.activeLayerMarkers));
-            const radius = 1 * this.map.gameToMapScale;
-            new Circle(latlng, {
-                radius: radius,
+            new GroundCircle(latlng, {
+                radius: 1,
                 color: App.mainColor,
                 fillColor: "white",
                 opacity: 1,
@@ -319,9 +320,8 @@ export default class SquadLayer {
         // Creating the Caches
         Object.values(capturePoints.objectiveSpawnLocations).forEach((cache) => {
             const latlng = this.convertToLatLng(cache.location_x, cache.location_y);
-            const radius = 1.5 * this.map.gameToMapScale;
-            this.caches.addLayer(new Circle(latlng, {
-                radius: radius,
+            this.caches.addLayer(new GroundCircle(latlng, {
+                radius: 1.5,
                 color: App.mainColor,
                 fillColor: "white",
                 opacity: 1,
@@ -565,45 +565,39 @@ export default class SquadLayer {
     }
 
     /**
+     * A point turned around a center in the game's meters, each map axis with its own scale (toMeters, fromMeters)
+     * @param {LatLng} point
+     * @param {number} angle - degrees, from north towards east
+     * @param {LatLng} center
+     * @returns {{lat: number, lng: number}}
+     */
+    rotatePoint(point, angle, center) {
+        const { east, north } = this.map.toMeters(center, point);
+        const radians = (Math.PI / 180) * angle;
+        return this.map.fromMeters(center, north * Math.sin(radians) + east * Math.cos(radians), north * Math.cos(radians) - east * Math.sin(radians));
+    }
+
+    /**
      * Rotate a Leaflet Rectangle around its center
      * @param {Rectangle} rectangle - Rectangle to rotate
-     * @param {number} angle - The angle in degrees
-     * @param {Array} rotationCenter - The center of rotation [latitude, longitude]
+     * @param {number} angle - The angle in degrees (rotatePoint)
      * @returns {void}
      */
     rotateRectangle(rectangle, angle) {
         const center = rectangle.getBounds().getCenter();
-        const corners = rectangle.getLatLngs()[0];
-        const radians = (Math.PI / 180) * angle;
-        const rotatedCorners = corners.map(corner => {
-            const latDiff = corner.lat - center.lat;
-            const lngDiff = corner.lng - center.lng;
-            return [
-                center.lat + (latDiff * Math.cos(radians) - lngDiff * Math.sin(radians)),
-                center.lng + (latDiff * Math.sin(radians) + lngDiff * Math.cos(radians))
-            ];
-        });
-        rectangle.setLatLngs(rotatedCorners);
+        rectangle.setLatLngs(rectangle.getLatLngs()[0].map((corner) => this.rotatePoint(corner, angle, center)));
     }
 
     
     /**
      * Rotate a Leaflet Circle around a center point
      * @param {Circle} circle - Leaflet circle to rotate
-     * @param {number} angle - The angle in degrees
-     * @param {Array} rotationCenter - The center of rotation [latitude, longitude]
+     * @param {number} angle - The angle in degrees (rotatePoint)
+     * @param {LatLng} rotationCenter - The center of rotation
      * @returns {void}
      */ 
     rotateCircle(circle, angle, rotationCenter) {
-        const circleCenter = circle.getLatLng();
-        const radians = (Math.PI / 180) * angle; // Convert angle to radians
-        const latDiff = circleCenter.lat - rotationCenter.lat;
-        const lngDiff = circleCenter.lng - rotationCenter.lng;
-        const newCenter = [
-            rotationCenter.lat + (latDiff * Math.cos(radians) - lngDiff * Math.sin(radians)),
-            rotationCenter.lng + (latDiff * Math.sin(radians) + lngDiff * Math.cos(radians))
-        ];
-        circle.setLatLng(newCenter);
+        circle.setLatLng(this.rotatePoint(circle.getLatLng(), angle, rotationCenter));
     }
     
 
@@ -612,7 +606,7 @@ export default class SquadLayer {
      * for `mapAssets.protectionZones`, kept in `mainZones.rectangles` for the settings that show or hide them
      */
     createProtectionZones() {
-        protectionZoneLayers(this.layerData.mapAssets.protectionZones, (x, y) => this.convertToLatLng(x, y), this.map.gameToMapScale, App.mainColor).forEach((zone) => {
+        protectionZoneLayers(this.layerData.mapAssets.protectionZones, (x, y) => this.convertToLatLng(x, y), App.mainColor).forEach((zone) => {
             this.mainZones.rectangles.push(zone.addTo(this.activeLayerMarkers));
         });
     }
@@ -1236,6 +1230,7 @@ export default class SquadLayer {
                 this.polyline.showMeasurements({
                     minPixelDistance: 50,
                     scaling: this.map.mapToGameScale,
+                    scalingY: this.map.mapToGameScaleY,
                 });
             }
             $(".btn-layer").addClass("active");

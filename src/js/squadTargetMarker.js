@@ -5,7 +5,7 @@ import SquadSimulation from "./squadSimulation.js";
 import SquadFiringSolution from "./squadFiringSolution.js";
 import TargetGrid from "./squadTargetGrid.js";
 import { sendTargetData } from "./squadCalcAPI.js";
-import { Ellipse } from "./libs/leaflet-ellipse.js";
+import { GroundEllipse } from "./groundShapes.js";
 import { squadMarker } from "./squadMarker.js";
 import { damageField, hitProbability, roundsNeeded, KILL_DAMAGE, WOUND_DAMAGE } from "./squadDamage.js";
 import { notifyBridgeChange } from "./smcConnector.js";
@@ -239,15 +239,15 @@ export const squadTargetMarker = squadMarker.extend({
         this.drawLineToTarget();
 
         // Initiate Spread Ellipse
-        this.spreadMarker1 = new Ellipse(latlng, [0, 0], 0, this.spreadOptionsOff).addTo(this.map.markersGroup);
-        this.spreadMarker11 = new Ellipse(latlng, [0, 0], 0, this.spreadOptionsOff).addTo(this.map.markersGroup);
-        this.spreadMarker2 = new Ellipse(latlng, [0, 0], 0, this.spreadOptionsOff).addTo(this.map.markersGroup);
+        this.spreadMarker1 = new GroundEllipse(latlng, [0, 0], 0, this.spreadOptionsOff).addTo(this.map.markersGroup);
+        this.spreadMarker11 = new GroundEllipse(latlng, [0, 0], 0, this.spreadOptionsOff).addTo(this.map.markersGroup);
+        this.spreadMarker2 = new GroundEllipse(latlng, [0, 0], 0, this.spreadOptionsOff).addTo(this.map.markersGroup);
         
         this.updateSpread();
 
         // Initiate Damage Ellipse
-        this.hundredDamageRadius = new Ellipse(latlng, [0, 0], 0, this.hundredDamageCircleOn).addTo(this.map.markersGroup);
-        this.twentyFiveDamageRadius = new Ellipse(latlng, [0, 0], 0, this.twentyFiveDamageCircleOn).addTo(this.map.markersGroup);
+        this.hundredDamageRadius = new GroundEllipse(latlng, [0, 0], 0, this.hundredDamageCircleOn).addTo(this.map.markersGroup);
+        this.twentyFiveDamageRadius = new GroundEllipse(latlng, [0, 0], 0, this.twentyFiveDamageCircleOn).addTo(this.map.markersGroup);
         this.updateDamageRadius();
 
         this.updateIcon(true);
@@ -348,7 +348,6 @@ export const squadTargetMarker = squadMarker.extend({
     updateSpread: function(){
         let spreadParameters;
         const weapons = this.map.activeWeaponsMarkers.getLayers();
-        const gameToMapScale = this.map.gameToMapScale;
     
         // No spread wanted, return
         if (!App.userSettings.spreadRadius) {
@@ -371,7 +370,7 @@ export const squadTargetMarker = squadMarker.extend({
                 } else {
                     spreadParameters = angleType === "high" ? firingSolution.spreadParameters.high : firingSolution.spreadParameters.low;
                 }
-                marker.setRadius([(spreadParameters.semiMajorAxis * gameToMapScale) / 2, (spreadParameters.semiMinorAxis * gameToMapScale) / 2]);
+                marker.setRadius([spreadParameters.semiMajorAxis / 2, spreadParameters.semiMinorAxis / 2]);
                 marker.setTilt(firingSolution.bearing);
                 marker.setStyle(this.spreadOptionsOn);
             } else {
@@ -428,9 +427,9 @@ export const squadTargetMarker = squadMarker.extend({
             return;
         }
     
-        // Calculate damage radii based on map scale
-        const RADIUS100 = App.activeWeapon.hundredDamageRadius * this.map.gameToMapScale;
-        const RADIUS25 = App.activeWeapon.twentyFiveDamageRadius * this.map.gameToMapScale;
+        // Damage radii in meters, around the spread's radii in meters
+        const RADIUS100 = App.activeWeapon.hundredDamageRadius;
+        const RADIUS25 = App.activeWeapon.twentyFiveDamageRadius;
     
         // Check if first firing solution is valid
         const hasFiringSolution1 = !isNaN(this.firingSolution1.elevation.high.rad) || !isNaN(this.firingSolution1.elevation.low.rad);
@@ -1357,12 +1356,15 @@ export const squadTargetMarker = squadMarker.extend({
         return positions;
     },
 
-    // Spacing between targets, based on the spread ellipse radius in a given
-    // compass direction (e.g. the direction the player is dragging)
+    // Spacing between targets in map units, based on the spread ellipse radius in a given
+    // compass direction (e.g. the direction the player is dragging): that radius in meters along
+    // the direction, each map axis with its own scale (fromMeters)
     _getStepAtBearing: function (bearingDeg) {
         const [fs, weaponMarker] = this.getFirstAvailableWeapon();
         const radius = fs.getSpreadRadiusAtBearing(bearingDeg, weaponMarker.angleType);
-        return radius * this.map.gameToMapScale;
+        const rad = bearingDeg * Math.PI / 180;
+        const step = this.map.fromMeters({ lat: 0, lng: 0 }, radius * Math.sin(rad), radius * Math.cos(rad));
+        return Math.hypot(step.lat, step.lng);
     },
 
     _startRectangleDrag: function (e) {

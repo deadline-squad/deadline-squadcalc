@@ -1,4 +1,5 @@
-import { Circle, Polygon } from "leaflet";
+import { Polygon } from "leaflet";
+import { GroundCircle } from "./groundShapes.js";
 
 /** Points on each half-circle of a capsule's footprint: under 25 cm off the arc of the 200 m capsule of Kohat TC v1 */
 const ARC_POINTS = 32;
@@ -113,13 +114,13 @@ function outlinePoints({ shape, object, radius, halfSizes, halfLength, yaw }) {
  * where it has one
  * @param {Array} zones - `mapAssets.protectionZones` of the layer data
  * @param {(x: number, y: number) => [number, number]} toLatLng - world X and Y in cm to map units (SquadLayer.convertToLatLng)
- * @param {number} scale - map units per metre along world X, for a circle's radius (squadMinimap.gameToMapScale)
  * @param {string} color - outline colour
- * @returns {Array<Circle|Polygon>} - not yet on a map, each zone's outlines before its no-deploy area
+ * @returns {Array<GroundCircle|Polygon>} - not yet on a map, each zone's outlines before its no-deploy area; a circle's
+ *     radius in metres
  */
-export function protectionZoneLayers(zones, toLatLng, scale, color) {
+export function protectionZoneLayers(zones, toLatLng, color) {
     const draw = (shape, style) => (shape.shape === "circle"
-        ? new Circle(toLatLng(shape.object.location_x, shape.object.location_y), { ...style, radius: shape.radius * scale })
+        ? new GroundCircle(toLatLng(shape.object.location_x, shape.object.location_y), { ...style, radius: shape.radius })
         : new Polygon(outlinePoints(shape).map(([x, y]) => toLatLng(x, y)), style));
     return protectionShapes(zones).flatMap(({ outlines, noDeploy }) => [
         ...outlines.map((shape) => draw(shape, { color, opacity: 1, weight: 2 })),
