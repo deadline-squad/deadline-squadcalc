@@ -727,6 +727,27 @@ export function layerGridOffset(minimap, mapTextureCorners) {
 }
 
 /**
+ * Size of the game's grid: the game's minimap, from its corners (`game`), else the image's. Outside it the game
+ * draws no line and gives no keypad.
+ * @param {{corner0: Number[], corner1: Number[], game?: {min: Number[], max: Number[]}}} minimap - SDK_data.minimap
+ * @returns {Number[]} - [width, height] in metres
+ */
+export function gridSize(minimap) {
+    const [first, second] = minimap.game ? [minimap.game.min, minimap.game.max] : [minimap.corner0, minimap.corner1];
+    return [Math.abs(second[0] - first[0]), Math.abs(second[1] - first[1])];
+}
+
+/**
+ * Same as gridSize for one gameplay layer, from its own corners
+ * @param {Array<{location_x: number, location_y: number}>} mapTextureCorners - the layer's two corners, in cm
+ * @returns {Number[]} - [width, height] in metres
+ */
+export function layerGridSize(mapTextureCorners) {
+    const [first, second] = mapTextureCorners;
+    return [Math.abs(second.location_x - first.location_x) / 100, Math.abs(second.location_y - first.location_y) / 100];
+}
+
+/**
  * How far from a FOB the next one has to be placed: the radius of the loaded layer, else the one of the map's
  * regular layers.
  * @param {{radiusExclusion: number}} map - entry of MAPS
@@ -743,6 +764,7 @@ export function initMapsProperties() {
         map.size = bounds(map.SDK_data.minimap.corner0, map.SDK_data.minimap.corner1)[0];
         map.sizeY = bounds(map.SDK_data.minimap.corner0, map.SDK_data.minimap.corner1)[1];
         map.gridOffset = gridOffset(map.SDK_data.minimap);
+        map.gridSize = gridSize(map.SDK_data.minimap);
         map.scaling = scale(
             map.SDK_data?.heightmap?.BWlevels?.[0] ?? 0,
             map.SDK_data?.heightmap?.BWlevels?.[1] ?? 0,

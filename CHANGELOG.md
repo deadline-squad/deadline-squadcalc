@@ -1,3 +1,18 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.48.0** *(2026-11-10)*
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- **The keypad under the cursor, in the markers' popups and in a weapon's *Move To* box is the game's on every layer.** It was counted from the map image's corner, while the grid lines (since 45.30.0) and the game count from the loaded layer's own corner. On the ten Seed and Skirmish layers with a minimap of their own it named a keypad up to 4.3 km away (the middle of Chora Skirmish v1 read G07-1-7, where the game says C3 - 3 - 7); on Skorpo's Invasion and RAAS layers it was 9.5 m off, and up to 1 m off on Black Coast, Goose Bay, Manicouagan, Logar, Kokan, Narva, Sumari and Fools Road. Outside the layer, where the game gives no keypad, the calculator gives none either and the box under the cursor hides.
+- **A keypad can be typed as the game prints it.** `C3-3-7` and `C3 - 3 - 7` are keypad C3, sub-keypads 3 and 7; they were read as C33-7, 30 rows further south, and the text with spaces was not understood. The calculator's own `C03-3-7` still works. The keypad calculator and the *Move To* box count from the layer's corner too, so the game's text lands where the game's point is.
+- **The last column and row have their letter and number.** The strip left after the last whole keypad was not labelled (N and 14 on Al Basrah, K and 11 over 5 m on Fallujah, W and 23 on Skorpo, a letter and a number on 24 of the 25 maps); it now is, at its middle, as in the game.
+- **On the Seed and Skirmish layers with a minimap of their own, the grid covers the layer only.** Its lines and labels ran over the rest of the map (A-J and 1-9 on Chora Skirmish v1, where the game has A-F and 1-6), with the letters along the top of the map image and the numbers along its west edge, up to 1.2 km from the layer. They now end at the layer's edges, the letters along its north edge and the numbers along its west edge.
+
+</br><img src="https://img.shields.io/badge/-%20dev%20-lightgrey">  
+- `src/js/keypad.js` (`keypadText`, `formatKeyPad`, `keypadPosition`) holds the keypad text and entry behind `squadMinimap.getKP` and `SquadCalc.getPos`, counted from `squadGrid.originOffset` and empty outside `squadGrid.areaSize`; `SquadCalc.formatKeyPad` moved there. `keypadPosition` gives NaN for a text that is not a letter, a row from 1 to 99 and sub-keypad digits from 1 to 9 (the keypad calculator then says the keypad is not valid); `A0` or `A1-0` gave a point off the grid. `squadGrid.setOrigin(offset)` is `setArea(offset, size)`, with `maps.js` `gridSize`, `layerGridSize` and `map.gridSize`.
+- Mestia's letters and numbers stay over their columns and rows, where the game's do not: its 2400 m are a whole 8 keypads, so the last slot of the game's bars is empty and the other seven letters and numbers spread over the full width, up to 279 m from their columns and rows, which would put them beside the lines they name.
+- `tests/keypad.test.mjs` and `tests/squadGrid.test.mjs` check the keypad text, the entry of the game's text, the labels and the lines against the game's at known points of eight layers (`tests/fixtures/gameKeypads.json`: Chora Skirmish v1, Mutaha Skirmish v1, Goose Bay Seed v1, Skorpo Invasion v1, Black Coast, Al Basrah, Fallujah and Mestia AAS v1).
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.47.0** *(2026-11-10)*
 
 </br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  

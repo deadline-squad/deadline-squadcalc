@@ -10,6 +10,7 @@
 import {
     LayerGroup, Util, Polyline, Marker, DivIcon, LatLngBounds
 } from "leaflet";
+import { KEYPAD } from "./keypad.js";
 
 
 /**
@@ -80,14 +81,16 @@ export default LayerGroup.extend({
     },
 
     /**
-     * Start the grid where the game starts it: its A1 corner is the north-west corner of the game's minimap,
-     * which is not always the corner of the map image (a layer with a smaller minimap such as a Skirmish, a
-     * fitted image such as Skorpo's, or just a metre of rounding). Lines and letters begin there; nothing is
-     * drawn to the north or west of it.
-     * @param {number[]} [offset] - [east, south] metres from the image's north-west corner to the game's corner
+     * Put the grid where the game puts it: over the game's minimap of the loaded layer, whose north-west corner is
+     * A1 and which is not always the map image (a layer with a smaller minimap such as a Skirmish, a fitted image
+     * such as Skorpo's, or just a metre of rounding). Lines are drawn only over it (and the image), the letters
+     * along its north edge and the numbers along its west edge; getKP and getPos count from the same corner.
+     * @param {number[]} offset - [east, south] metres from the image's north-west corner to the game's corner
+     * @param {number[]} size - [width, height] of the game's minimap in metres
      */
-    setOrigin(offset = [0, 0]) {
+    setArea(offset, size) {
         this.originOffset = offset;
+        this.areaSize = size;
         if (this.map && this.bounds) {
             this.redraw();
             this.updateLineOpacity();
@@ -179,24 +182,21 @@ export default LayerGroup.extend({
     */
     redraw() {
         
-        if (!this.bounds) return;
+        if (!this.bounds || !this.areaSize) return;
         
         // clear old grid lines
         this.clearLines();
 
         // Define and scale line's intervals
         // This handle rectangle map stretched into a rectangle
-        const kpX = (300 / 3 ** 0) * this.map.gameToMapScale;
-        const s2X = (300 / 3 ** 2) * this.map.gameToMapScale;
-
-        const kpY = (300 / 3 ** 0) * this.map.gameToMapScaleY;
-        const s2Y = (300 / 3 ** 2) * this.map.gameToMapScaleY;
+        const kpX = KEYPAD * this.map.gameToMapScale;
+        const kpY = KEYPAD * this.map.gameToMapScaleY;
 
         // for complete grid drawing we take lowest interval, as we want to draw all lines
         // whether or not they will be seen is dependant on another function setting
         // opacity based on zoom level
-        const intervalX = s2X;
-        const intervalY = s2Y;
+        const intervalX = kpX / 9;
+        const intervalY = kpY / 9;
 
         // clearing arrays
         this.kpLines = [];
@@ -204,35 +204,26 @@ export default LayerGroup.extend({
         this.s2Lines = [];
         this.labels = [];
         
-        // The game's grid starts at its own corner (setOrigin); every 9th sub2 line is a keypad line and every
-        // 3rd a sub1 line. Counting lines instead of testing multiples keeps float error from drifting.
-        const [originEast, originSouth] = this.originOffset ?? [0, 0];
+        // The game's grid covers its minimap (setArea), here the part of it on the map image; every 9th sub2 line is
+        // a keypad line and every 3rd a sub1 line. Counting lines instead of testing multiples keeps float error from
+        // drifting.
+        const [originEast, originSouth] = this.originOffset;
+        const width = this.areaSize[0] * this.map.gameToMapScale;
+        const height = this.areaSize[1] * this.map.gameToMapScaleY;
         const startX = this.bounds.getWest() + originEast * this.map.gameToMapScale;
-        const endX = this.bounds.getEast();
+        const endX = Math.min(this.bounds.getEast(), startX + width);
         const startY = this.bounds.getNorth() - originSouth * this.map.gameToMapScaleY;
-        const endY = this.bounds.getSouth();
+        const endY = Math.max(this.bounds.getSouth(), startY - height);
         const EPSILON = 1e-6;
 
-        // vertical lines: letters A, B, ... label the columns between two keypad lines
+        // vertical lines
         for (let n = 0; startX + n * intervalX <= endX + EPSILON; n++) {
             const x = startX + n * intervalX;
-            const bot = {lat: this.bounds.getSouth(), lng: x};
-            const top = {lat: this.bounds.getNorth(), lng: x};
+            const bot = {lat: endY, lng: x};
+            const top = {lat: startY, lng: x};
 
             if (n % 9 === 0) {
                 this.kpLines.push(new Polyline([bot, top], this.lineStyleKP));
-
-                if (n > 0) {
-                    this.labels.push(new Marker({lat: this.bounds.getNorth(), lng: x - (kpX / 2)}, {
-                        interactive: false,
-                        icon: new DivIcon({
-                            className: "gridText",
-                            html: (n / 9 + 9).toString(36).toUpperCase(),
-                            iconSize: [20, 20],
-                            iconAnchor: [10, 20]
-                        })
-                    }));
-                }
             } else if (n % 3 === 0) {
                 this.s1Lines.push(new Polyline([bot, top], this.lineStyleSUB1));
             } else {
@@ -240,31 +231,49 @@ export default LayerGroup.extend({
             }
         }
 
-        // horizontal lines: numbers 1, 2, ... label the rows between two keypad lines
+        // horizontal lines
         for (let n = 0; startY - n * intervalY >= endY - EPSILON; n++) {
             const y = startY - n * intervalY;
-            const left = {lat: y, lng: this.bounds.getWest()};
-            const right = {lat: y, lng: this.bounds.getEast()};
+            const left = {lat: y, lng: startX};
+            const right = {lat: y, lng: endX};
 
             if (n % 9 === 0) {
                 this.kpLines.push(new Polyline([left, right], this.lineStyleKP));
-
-                if (n > 0) {
-                    this.labels.push(new Marker({lat: y + (kpY / 2), lng: this.bounds.getWest()}, {
-                        interactive: false,
-                        icon: new DivIcon({
-                            className: "gridText",
-                            html: n / 9,
-                            iconSize: [20, 20],
-                            iconAnchor: [20, 10]
-                        })
-                    }));
-                }
             } else if (n % 3 === 0) {
                 this.s1Lines.push(new Polyline([left, right], this.lineStyleSUB1));
             } else {
                 this.s2Lines.push(new Polyline([left, right], this.lineStyleSUB2));
             }
+        }
+
+        // Letters A, B, ... above the columns and numbers 1, 2, ... left of the rows, each at the middle of its
+        // column or row. The grid's far edge is rarely a keypad line: as in the game, the strip left after the last
+        // whole keypad is labelled too, at its own middle (W_SQMapHorizontalBar/VerticalBar give it a slot that
+        // narrow). On Mestia, a whole 8 x 8 keypads, the game's empty last slot spreads its other letters and numbers
+        // up to 279 m away from their columns and rows; here they stay over them.
+        for (let column = 0; column * kpX < width - EPSILON; column++) {
+            const middle = startX + (column * kpX + Math.min((column + 1) * kpX, width)) / 2;
+            this.labels.push(new Marker({lat: startY, lng: middle}, {
+                interactive: false,
+                icon: new DivIcon({
+                    className: "gridText",
+                    html: String.fromCharCode(65 + column),
+                    iconSize: [20, 20],
+                    iconAnchor: [10, 20]
+                })
+            }));
+        }
+        for (let row = 0; row * kpY < height - EPSILON; row++) {
+            const middle = startY - (row * kpY + Math.min((row + 1) * kpY, height)) / 2;
+            this.labels.push(new Marker({lat: middle, lng: startX}, {
+                interactive: false,
+                icon: new DivIcon({
+                    className: "gridText",
+                    html: row + 1,
+                    iconSize: [20, 20],
+                    iconAnchor: [20, 10]
+                })
+            }));
         }
 
 
