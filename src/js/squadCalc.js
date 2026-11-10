@@ -311,6 +311,9 @@ export default class SquadCalc {
         // Add event listener
         this.MAP_SELECTOR.on("change", (event) => {
 
+            // A layer of the previous map still on its way is not drawn on this one
+            this.layerRequest?.abort();
+
             // Update the minimap with the selected map
             this.minimap.activeMap = MAPS.find((_, index) => index == event.target.value);
             this.minimap.clear(); 
@@ -340,8 +343,6 @@ export default class SquadCalc {
             }
         });
 
-        let abortController = null;
-
         this.LAYER_SELECTOR.on("change", (event) => {
 
             const selectedLayerText = this.LAYER_SELECTOR.find(":selected").text().replaceAll(" ", "");
@@ -350,7 +351,7 @@ export default class SquadCalc {
             // User cleared the layer selector, remove the layer and clean the URL
             if (selectedLayerText === "") {
                 this.updateUrlParams({ layer: null, team1: null, team1unit: null, team2: null, team2unit: null });
-                if (abortController) { abortController.abort(); } // Abort the ongoing fetch request
+                this.layerRequest?.abort();
                 if (this.minimap.layer) this.minimap.layer.clear();
                 this.minimap.setLayer("");
                 $(".btn-layer").hide();
@@ -386,25 +387,15 @@ export default class SquadCalc {
             }
 
             // Abort any in-progress layer fetch before starting a new one
-            if (abortController) abortController.abort();
-            abortController = new AbortController();
-            const signal = abortController.signal;
+            this.layerRequest?.abort();
+            this.layerRequest = new AbortController();
+            const signal = this.layerRequest.signal;
             this.minimap.spin(true, this.minimap.spinOptions);
+            // Set once the layer data has arrived: a failure after that is one of drawing it
+            let arrived = false;
             fetchLayerByName(event.target.value, { signal })
-                .catch(error => {
-                    if (error.name !== "AbortError") {
-                        this.openToast("error", "error", "apiError");
-                        console.error("Error fetching layer data:", error);
-                    }
-                    $("#factionsTab, #factionsButton").hide();
-                    this.minimap.spin(false);
-
-                    // Stop the chain
-                    throw error;
-                })
                 .then(layerData => {
-                    if (!layerData) return; // prevent continuing on fetch failure
-
+                    arrived = true;
                     if (this.minimap.layer) this.minimap.layer.clear();
                     this.minimap.setLayer(new SquadLayer(this.minimap, layerData, broadcast));
                     $(".btn-layer").addClass("active").show();
@@ -422,28 +413,43 @@ export default class SquadCalc {
 
                     this.layerLoaded = true;
                     $(document).trigger("layer:loaded");
-                    this.minimap.spin(false);
-                });
+                })
+                .catch(error => {
+                    $("#factionsTab, #factionsButton").hide();
+                    if (error.name === "AbortError") return;
+                    this.openToast("error", "error", arrived ? "layerError" : "apiError");
+                    console.error("Error loading the layer:", error);
+                    $(document).trigger("layer:failed");
+                })
+                .finally(() => this.minimap.spin(false));
         });
     }
 
     /**
-     * Retrieve list of available layers name from squadcalc api
+     * Retrieve list of available layers name from squadcalc api. An answer for a map that is no longer the active one
+     * is dropped; a list that cannot be read or is empty fires `layers:failed`.
      */
     loadLayers() {
         this.minimap.spin(true, this.minimap.spinOptions);
         $("#layerSelector").hide();
         this.LAYER_SELECTOR.empty();
 
-        fetchLayersByMap(this.minimap.activeMap.name).then(layers => {
+        const map = this.minimap.activeMap;
+        fetchLayersByMap(map.name).then(layers => {
+
+            // The map changed while the request was on the way: the request of the new map fills the selector
+            if (this.minimap.activeMap !== map) {
+                this.minimap.spin(false);
+                return;
+            }
 
             if (layers.length === 0) {
                 this.minimap.spin(false);
                 this.updateUrlParams({ layer: null, team1: null, team1unit: null, team2: null, team2unit: null });
+                $(document).trigger("layers:failed");
                 return;
             }
 
-            // Re-empty just in case user changed map while the request was on the way
             this.LAYER_SELECTOR.empty();
             this.LAYER_SELECTOR.append("<option value=></option>");
             layers.forEach((layer) => { this.LAYER_SELECTOR.append(`<option value=${layer.rawName}>${layer.shortName}</option>`); });
@@ -455,10 +461,12 @@ export default class SquadCalc {
             $(document).trigger("layers:loaded");
 
         }).catch(error => {
-            $("#layerSelector").hide();
             this.minimap.spin(false);
+            if (this.minimap.activeMap !== map) return;
+            $("#layerSelector").hide();
             this.openToast("error", "error", "apiError_layers");
             console.debug("Error fetching layers from API:", error);
+            $(document).trigger("layers:failed");
         });
     }
 

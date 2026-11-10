@@ -110,8 +110,8 @@ export default class SquadLayer {
 
 
     /**
-     * xxxx
-     * @return {number} - xxxx
+     * Draws the objectives of the layer's gamemode, then the layer's other assets. A gamemode whose objectives the
+     * calculator does not draw (the Training layers of Pacific Proving Grounds) gets the other assets only.
      */
     init(){
 
@@ -132,8 +132,7 @@ export default class SquadLayer {
             this.initRandomizedLayer();
             break;
         default:
-            this.clear();
-            throw new Error(`Unsupported gamemode: "${this.gamemode}"`);
+            console.debug(`[LAYER] no objectives drawn for gamemode "${this.gamemode}"`);
         }
 
         // Create Other Layer Assets

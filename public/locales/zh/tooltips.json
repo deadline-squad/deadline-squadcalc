@@ -15,6 +15,7 @@
     "error": "错误！",
     "apiError": "API 未连接..",
     "apiError_layers": "无法从API获取地图图层！",
+    "layerError": "无法绘制该图层",
     "deleteTargets": "删除所有目标",
     "bearing": "角度",
     "whereToAim": "瞄哪里",

@@ -15,6 +15,7 @@
     "error": "Erreur !",
     "apiError": "L'API n'est pas connectée..",
     "apiError_layers": "Impossible de récupérer les layers de l'API",
+    "layerError": "Impossible de dessiner le layer",
     "deleteTargets": "Supprimer les cibles et marqueurs",
     "bearing": "Direction",
     "whereToAim": "(où viser)",

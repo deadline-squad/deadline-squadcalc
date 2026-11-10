@@ -15,6 +15,7 @@
     "error": "Fehler!",
     "apiError": "API ist nicht verbunden...",
     "apiError_layers": "Layer können nicht von der API abgerufen werden",
+    "layerError": "Der Layer konnte nicht gezeichnet werden",
     "deleteTargets": "Alle Ziele und Markierungen löschen",
     "bearing": "Peilung",
     "whereToAim": "(wohin zielen)",

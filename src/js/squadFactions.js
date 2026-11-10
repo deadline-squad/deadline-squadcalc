@@ -333,22 +333,16 @@ export default class SquadFactions {
      * */
     updateMainIcon(teamKey, FACTION) {
 
-        var mainFlag;
-        var html = `
+        // A layer without main bases (the Training layers of Pacific Proving Grounds) has no label to update
+        const mainFlag = this.squadLayer.mains.find((main) => main.objectName.toLowerCase().includes(teamKey));
+        if (!mainFlag) return;
+
+        let html = `
             <span>
                 <span data-i18n="common:${teamKey}">
                     ${i18next.t(teamKey, { ns: "common" })}
                 </span>
             `;
-
-        this.squadLayer.mains.forEach((main) => {
-            if (main.objectName.toLowerCase().includes(teamKey)) {
-                mainFlag = main;
-                return;
-            }
-        });
-
-
 
         if (FACTION !== "") html += ` : <span data-i18n="factions:${FACTION}">${i18next.t(FACTION, { ns: "factions" })}</span>`;
 
