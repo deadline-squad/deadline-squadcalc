@@ -29,7 +29,10 @@ export var WEAPONS = [
         deceleration: 0,
         decelerationTime: 0,
         gravityScale: 1,
-        minElevation: [45, 88.875],
+        // The mount pitches the tube 0° to 43.8° (PitchInterval of BP_GenericDeployableMortarVehicle) above its
+        // rest, which the game's own sight puts at 45° (UMG_MortarControl turns the elevation wheel by the tube
+        // pitch + 45): 45° to 88.8°, 800 to 1578.7 mil (Squad build 26005357)
+        minElevation: [45, 88.8],
         unit: "mil",
         type: "deployables",
         angleType: "high",
@@ -40,7 +43,8 @@ export var WEAPONS = [
         muzzle: { pivotHeight: 0.0245, forward: 1.569, up: 0.002 },
         shells : [{
             name: "default",
-            minDistance: 51,
+            // The range on level ground at the top elevation
+            minDistance: 51.8,
             velocity: 110,
             moa: 50,
             explosionDamage: 350,
@@ -126,7 +130,8 @@ export var WEAPONS = [
         muzzle: { pivotHeight: 1.1789, forward: 1.6137, up: 0.0388 },
         shells : [{
             name: "default",
-            minDistance: 51,
+            // The range on level ground at the top elevation
+            minDistance: 51.8,
             velocity: 110,
             moa: 50,
             explosionDamage: 350,
@@ -158,7 +163,8 @@ export var WEAPONS = [
         projectileLifespan: 20,
         shells : [{
             name: "default",
-            minDistance: 0,
+            // The range on level ground at the lowest elevation
+            minDistance: 147.1,
             velocity: 300,
             moa: 300,
             explosionDamage: 115,
@@ -186,7 +192,8 @@ export var WEAPONS = [
         projectileLifespan: 20,
         shells : [{
             name: "default",
-            minDistance: 0,
+            // The range on level ground at the lowest elevation
+            minDistance: 985.1,
             velocity: 200,
             moa: 200,
             explosionDamage: 140,
@@ -212,10 +219,11 @@ export var WEAPONS = [
         // 76.8 cm above the mesh origin, whose tracks touch the ground 5.0 cm below it (SK_M113A3 hull skeleton,
         // SK_M121_Mortar_Tube; Squad build 26005357)
         muzzle: { pivotHeight: 0.8174, forward: 3.4618, up: 0.0035 },
+        // minDistance of both shells: the range on level ground at the top elevation
         shells : [{
             name: "impact",
             velocity: 142,
-            minDistance: 340,
+            minDistance: 358,
             moa: 40,
             explosionDamage: 400,
             explosionRadius: [0, 40],
@@ -225,7 +233,7 @@ export var WEAPONS = [
         {
             name: "nearSurface",
             velocity: 142,
-            minDistance: 340,
+            minDistance: 358,
             moa: 50,
             explosionDamage: 100,
             explosionRadius: [10, 60],
@@ -262,7 +270,10 @@ export var WEAPONS = [
         deceleration: 0,
         decelerationTime : 0,
         gravityScale: 1,
-        minElevation: [-45, 135],
+        // The gunner's display shows the pitch of the sight camera on the hull (TurretRotationValues of
+        // BTR4_GunnerReticle); the camera sits 0.1° above the turret, which pitches -5° to 45° (PitchInterval of
+        // BP_BMP1TS_Turret, the parent of BP_BTR4_Turret; Squad build 26005357)
+        minElevation: [-4.9, 45.1],
         unit: "degMin",
         type: "vehicles",
         angleType: "low",
