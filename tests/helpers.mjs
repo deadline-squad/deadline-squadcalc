@@ -18,7 +18,7 @@ export const flat = () => 0;
 export function loadWeapon(name, shellIndex = 0) {
     const entry = WEAPONS.find((candidate) => candidate.name === name);
     if (!entry) throw new Error(`no weapon ${name} in weapons.js`);
-    const weapon = new Weapon(entry.name, entry.deceleration, entry.decelerationTime, entry.gravityScale, entry.minElevation, entry.unit, entry.logo, entry.marker, entry.type, entry.angleType, entry.elevationPrecision, entry.shells, entry.heightOffset, entry.angleOffset, entry.projectileLifespan, entry.mod, entry.elevationRate, entry.heatmap, entry.acceleration, entry.accelerationTime, entry.holdElevation, entry.ballistics, entry.image, entry.muzzle, entry.maxSpeed, entry.rotationFollowsVelocity, entry.legacyBallistics);
+    const weapon = new Weapon(entry.name, entry.deceleration, entry.decelerationTime, entry.gravityScale, entry.minElevation, entry.unit, entry.logo, entry.marker, entry.type, entry.angleType, entry.elevationPrecision, entry.shells, entry.heightOffset, entry.angleOffset, entry.projectileLifespan, entry.mod, entry.elevationRate, entry.heatmap, entry.acceleration, entry.accelerationTime, entry.holdElevation, entry.ballistics, entry.image, entry.muzzle, entry.maxSpeed, entry.rotationFollowsVelocity, entry.legacyBallistics, entry.ballisticsViews);
     const shell = entry.shells[shellIndex];
     weapon.velocity = shell.velocity;
     weapon.moa = shell.moa;

@@ -289,12 +289,13 @@ export function notifyBridgeChange() {
  * Counter that changes whenever what the bridge reports changes: a target added, moved or removed, the
  * first weapon marker moved, raised or removed, the weapon or its shell switched, the heights loaded.
  * Every one of those makes the page solve the targets again into new firing solutions, so the state is
- * the weapon's name and the identity of the solutions; the counter goes up when it differs from the last
- * call's. Squad Ballistics polls it and asks for `lastTarget()` only when it changed.
+ * the weapon's name as the bridge reports it (`App.ballisticsName`: the name of another view of the same
+ * weapon is a change too) and the identity of the solutions; the counter goes up when it differs from the
+ * last call's. Squad Ballistics polls it and asks for `lastTarget()` only when it changed.
  * @returns {number} - increases by at least one per change; the same between two calls without change
  */
 export function getRevision() {
-    const weapon = App.activeWeapon?.ballistics ?? "";
+    const weapon = App.ballisticsName ?? "";
     const ids = getSolutions().map((solution) => {
         if (!solutionIds.has(solution)) solutionIds.set(solution, nextSolutionId++);
         return solutionIds.get(solution);
