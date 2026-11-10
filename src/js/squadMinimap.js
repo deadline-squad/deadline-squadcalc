@@ -1040,6 +1040,29 @@ export const squadMinimap = Map.extend({
 
     },
 
+    /**
+     * The gameplay layer loaded on the map changed: every FOB marker takes the exclusion circle of that layer
+     * @param {SquadLayer|string} layer - the loaded layer, "" when the layer was cleared
+     */
+    setLayer: function(layer) {
+        this.layer = layer;
+        const radius = this.fobExclusionSize();
+        this.activeMarkers.eachLayer((marker) => {
+            if (marker.icontype === "deployable_fob") marker.exclusionRange.setRadius(radius);
+        });
+    },
+
+
+    /**
+     * Radius of a FOB marker's exclusion circle: how far from a FOB the loaded layer lets the next one be placed,
+     * or the map's regular layers do while no layer is loaded
+     * @returns {number} - in map units
+     */
+    fobExclusionSize: function() {
+        return fobExclusionRadius(this.activeMap, this.layer?.layerData?.rawName) * this.gameToMapScale;
+    },
+
+
     createMarker(latlng, team, category, icon, uid = false) {
         let markerOptions = { icon: "", circlesOnHover: false, team: team, category: category, icontype: icon, uid: uid };
         let markerSizeSetting = App.userSettings.markerSize;
@@ -1063,7 +1086,7 @@ export const squadMinimap = Map.extend({
             markerOptions.circlesOnHover = false;
             markerOptions.circles1Size = 150 * this.gameToMapScale;
             markerOptions.circles2Color = "white";
-            markerOptions.circles2Size = fobExclusionRadius(this.activeMap, this.layer?.layerData?.rawName) * this.gameToMapScale;
+            markerOptions.circles2Size = this.fobExclusionSize();
 
             switch (team) {
             case "default":

@@ -6,6 +6,10 @@ const FOBEXCLUSIONS = {
 // Layers that play with the 300 m radius on a map whose other layers have 400 m. The game sets the radius per layer:
 // `FOBRadius` of the layer's data asset (Gameplay_Layer_Data/<layer>) names a row of DT_FOBExclusionRadius, 01_Small
 // (300 m) or the default 02_Medium (400 m); a FOB's construction radius is 150 m in both (Squad build 26005357).
+// They are the 28 Skirmish layers of those maps, 9 of their Seed layers and Al Basrah RAAS v3. The mode does not
+// decide it: Manicouagan Seed v1 and Seed v2 CL and Pacific Proving Grounds Seed v1 play with 400 m.
+// tests/fixtures/gameFobExclusion.json has the radius of each of the game's 221 layers, and tests/maps.test.mjs
+// fails when this list is not exactly the 300 m layers of the maps whose `radiusExclusion` is 400.
 export const SMALL_FOB_LAYERS = new Set([
     "AlBasrah_RAAS_v3", "AlBasrah_Seed_v1", "AlBasrah_Seed_v2", "AlBasrah_Skirmish_v1", "AlBasrah_Skirmish_v2",
     "AlBasrah_Skirmish_v3", "Anvil_Skirmish_v1", "BlackCoast_Seed_v1", "BlackCoast_Skirmish_v1", "Fallujah_Seed_v1",
