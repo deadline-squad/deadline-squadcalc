@@ -1034,8 +1034,9 @@ function findRoot(error, top, topError, direction, guess = NaN) {
  *   the arcs the weapon cannot fire); an arc not wanted is NaN
  * @param {{low: number, high: number}} [guess] - the roots of a neighbouring target (coverage, along a ray),
  *   radians, NaN for an arc without one: the root search starts around them (see the top)
- * @returns {{low: number, high: number}} - radians, physical barrel angles; NaN out of range, and for a
- *   distance that is not positive or a height that is not finite (no target to aim at)
+ * @returns {{low: number, high: number}} - radians, physical barrel angles; NaN out of range, for a target the
+ *   muzzle is not short of at that angle, and for a distance that is not positive or a height that is not finite
+ *   (no target to aim at)
  */
 export function solveElevation(shot, distance, height, peak, wanted = { low: true, high: true }, guess = {}) {
     if (!(distance > 0) || !Number.isFinite(height)) return { low: NaN, high: NaN };
@@ -1059,9 +1060,12 @@ export function solveElevation(shot, distance, height, peak, wanted = { low: tru
     if (topError < 0) return { low: NaN, high: NaN };
 
     const error = (angle) => heightAt(shot, angle, distance) - height;
+    // The projectile starts at the muzzle. heightAt extends the first phase behind it, so a root can be the barrel's
+    // own line through a target the muzzle has already passed: that is not a shot
+    const pastMuzzle = (root) => (launchPoint(shot, root).x < distance ? root : NaN);
     return {
-        low: wanted.low ? findRoot(error, top, topError, -1, guess.low) : NaN,
-        high: wanted.high ? findRoot(error, top, topError, 1, guess.high) : NaN,
+        low: wanted.low ? pastMuzzle(findRoot(error, top, topError, -1, guess.low)) : NaN,
+        high: wanted.high ? pastMuzzle(findRoot(error, top, topError, 1, guess.high)) : NaN,
     };
 }
 
