@@ -1,3 +1,13 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.46.0** *(2026-11-10)*
+
+</br><img src="https://img.shields.io/badge/-new%20features-green">  
+- **The Detailed map has a legend.** With the Detailed layer on, a *Legend* box at the bottom left opens the list of its symbols: buildings by height, walls, bridge and quay decks, paved and dirt roads, railways, trenches, shallow and deep water, contour lines, summits with their height, trees, bushes, rocks, crops and the ground covers. The colours are read from the tiles themselves (`legend` in their `meta.json`, written by `tools/maptiles/py/render.py` in the deployment repository), so the legend always matches the tiles on screen; tiles made before the legend existed, and every other layer, show no legend. Labels in all six languages.
+
+</br><img src="https://img.shields.io/badge/-%20dev%20-lightgrey">  
+- `src/js/detailedLegend.js` (`LEGEND_KEYS`, `legendRows`: the rows of the legend from a `meta.json`, malformed or unknown symbols dropped) with `tests/detailedLegend.test.mjs` (rows, and a label for every symbol in every language); `squadMinimap.js` `updateDetailedLegend`.
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.45.0** *(2026-11-10)*
 
 </br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  

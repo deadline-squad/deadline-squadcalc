@@ -23,6 +23,8 @@ import { createReliefLayer } from "./squadReliefLayer.js";
 import { layerMinimapBounds, LAYER_MINIMAPS_MANIFEST } from "./layerMinimap.js";
 import { TILE_FOLDER_SUFFIX } from "./mapLayers.js";
 import { fobExclusionRadius } from "../data/maps.js";
+import { legendRows } from "./detailedLegend.js";
+import i18next from "i18next";
 
 
 // Ctrl + double-click marks a burst for the nearest target within this distance, in meters
@@ -212,6 +214,7 @@ export const squadMinimap = Map.extend({
             this.layerChanging = true;
             this.spin(true, this.spinOptions);
         }
+        this.updateDetailedLegend(null);
 
         if (LAYERMODE in TILE_FOLDER_SUFFIX) {
             this.showDetailedLayer(request, TILE_FOLDER_SUFFIX[LAYERMODE]);
@@ -284,6 +287,7 @@ export const squadMinimap = Map.extend({
                 return;
             }
             const version = encodeURIComponent(meta.generated);
+            this.updateDetailedLegend(suffix === TILE_FOLDER_SUFFIX.detailed ? meta.legend : null);
             this.setMaxZoom(Math.max(DEFAULT_MAX_ZOOM, meta.maxNativeZoom + DETAILED_EXTRA_ZOOM));
             this.showMapImage(new TileLayer(`/maptiles/${mapName}${suffix}/{z}/{x}_{y}.webp?v=${version}`, {
                 bounds: this.imageBounds,
@@ -330,6 +334,29 @@ export const squadMinimap = Map.extend({
         const mapName = this.activeMap.mapURL.split("/").filter(Boolean).pop();
         const available = RELIEF_MAPS.includes(mapName);
         $(`.btn-${RELIEF_LAYER}`).toggle(available).data("unavailable", !available);
+    },
+
+
+    /**
+     * Fill the legend of the Detailed layer from its tiles' symbols and show it, or hide it
+     * @param {Array|null} [legend] - `legend` of the tiles' meta.json (detailedLegend.js); none hides the legend
+     */
+    updateDetailedLegend: function(legend) {
+        const rows = legendRows(legend);
+        const list = document.getElementById("detailedLegendList");
+        list.replaceChildren(...rows.map((row) => {
+            const item = document.createElement("li");
+            const swatch = document.createElement("span");
+            swatch.className = `legendSwatch legendSwatch-${row.kind}`;
+            swatch.style.background = row.colour;
+            if (row.outline) swatch.style.borderColor = row.outline;
+            const label = document.createElement("span");
+            label.setAttribute("data-i18n", `common:legend_${row.key}`);
+            label.textContent = i18next.t(`common:legend_${row.key}`);
+            item.append(swatch, label);
+            return item;
+        }));
+        $("#detailedLegend").toggle(rows.length > 0);
     },
 
 

@@ -534,3 +534,56 @@
 .positionHeatOverlay {
     image-rendering: pixelated;
 }
+
+// Legend of the Detailed layer (squadMinimap.js updateDetailedLegend): closed until asked for, its symbols in the colours of
+// the loaded tiles. Bottom left, clear of the layer menu and of the two legends in the middle; it scrolls inside itself
+// on a short screen.
+
+#detailedLegend {
+    display: none;
+    position: absolute;
+    left: 12px;
+    bottom: 12px;
+    z-index: 1;
+    max-width: min(260px, calc(100vw - 24px));
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.75);
+    color: white;
+    font-size: 0.8em;
+    summary {
+        padding: 6px 12px;
+        cursor: pointer;
+        user-select: none;
+    }
+    ul {
+        max-height: min(55vh, 420px);
+        margin: 0;
+        padding: 0 12px 8px;
+        overflow-y: auto;
+        list-style: none;
+    }
+    li {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 2px 0;
+        line-height: 1.25;
+    }
+    .legendSwatch {
+        flex: none;
+        box-sizing: border-box;
+        width: 18px;
+        height: 12px;
+        border: 1px solid transparent;
+        border-radius: 2px;
+    }
+    .legendSwatch-line {
+        height: 4px;
+        margin: 4px 0;
+    }
+    .legendSwatch-point {
+        width: 12px;
+        margin: 0 3px;
+        border-radius: 50%;
+    }
+}
