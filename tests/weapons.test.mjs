@@ -18,6 +18,21 @@ test("every property of a weapon entry is passed on by SquadCalc.loadWeapons (el
     }
 });
 
+test("a Squad Ballistics name (current, of another view, from before a rename) belongs to one weapon only", () => {
+    const owners = new Map();
+    for (const weapon of WEAPONS) {
+        const views = weapon.ballisticsViews ?? [];
+        const legacy = weapon.legacyBallistics ?? [];
+        if (views.length || legacy.length) assert.ok(weapon.ballistics, `${weapon.name}: views or old names without a ballistics name`);
+        for (const name of [weapon.ballistics, ...views, ...legacy]) {
+            if (name === undefined) continue;
+            assert.ok(typeof name === "string" && name.length > 0, `${weapon.name}: name ${name}`);
+            assert.ok(!owners.has(name), `${name}: named by ${owners.get(name)} and by ${weapon.name}`);
+            owners.set(name, weapon.name);
+        }
+    }
+});
+
 test("every weapon has shells with a velocity, a spread and an explosion that make sense", () => {
     for (const weapon of WEAPONS) {
         assert.ok(weapon.shells.length > 0, `${weapon.name}: no shells`);

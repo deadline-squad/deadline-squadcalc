@@ -7,6 +7,7 @@ import { loadLanguage } from "./localization.js";
 import { tooltip_save, createSessionTooltips, leaveSessionTooltips } from "./tooltips.js";
 import { checkApiHealth, fetchLayersByMap, fetchLayerByName } from "./squadCalcAPI.js";
 import { initWebSocket, getTargetData, getLastTarget, getRevision } from "./smcConnector.js";
+import { matchBallisticsName } from "./ballisticsNames.js";
 import { LatLng } from "leaflet";
 import SquadServersBrowser from "./squadServersBrowser.js";
 import SquadSession from "./squadSession.js";
@@ -69,6 +70,9 @@ export default class SquadCalc {
         this.userSettings = new SquadSettings(this);
         this.shortcuts = this.loadShortcuts();
         this.activeWeapon = "";
+        // Name of the active weapon in Squad Ballistics' weapons.json, as `window.squadBallistics.weapon()`
+        // gives it: the weapon's own, or the name of the view it was selected by; null if it has none
+        this.ballisticsName = null;
         this.hasMouse = matchMedia("(pointer:fine)").matches;
         this.MAP_SELECTOR = $(".dropbtn");
         this.WEAPON_SELECTOR = $(".dropbtn2");
@@ -107,8 +111,11 @@ export default class SquadCalc {
             // Counter that changes when a target, the weapon or the heights change: poll it, read
             // lastTarget() when it moved
             revision: getRevision,
-            // Name of the selected weapon in Squad Ballistics' weapons.json, null if it has none
-            weapon: () => this.activeWeapon?.ballistics ?? null,
+            // Name of the selected weapon in Squad Ballistics' weapons.json, null if it has none. Several
+            // views of a weapon there (the zoom levels of a gunner's sight) share one weapon here: after
+            // selectWeapon picked it by the name of a view, that name is given until the weapon changes,
+            // because Squad Ballistics switches to the name it reads
+            weapon: () => this.ballisticsName,
             // The weapon picked in Squad Ballistics, selected here too (fire coverage, popups)
             selectWeapon: (name) => this.selectBallisticsWeapon(name),
         };
@@ -563,7 +570,8 @@ export default class SquadCalc {
                 weapon.muzzle,
                 weapon.maxSpeed,
                 weapon.rotationFollowsVelocity,
-                weapon.legacyBallistics
+                weapon.legacyBallistics,
+                weapon.ballisticsViews
             );
         });
         
@@ -1389,6 +1397,7 @@ export default class SquadCalc {
 
         localStorage.setItem("data-weapon", WEAPON);
         this.activeWeapon = WEAPONS[WEAPON];
+        this.ballisticsName = this.activeWeapon.ballistics;
     
         if (this.activeWeapon.shells.length > 1) {
             $("#ammoSelector").show();
@@ -1420,14 +1429,18 @@ export default class SquadCalc {
     }
 
     /**
-     * Select the weapon whose Squad Ballistics name is `name`, as if picked in the weapon selector
-     * @param {string} name - weapon name in Squad Ballistics' weapons.json, or one it had before it was renamed
+     * Select the weapon whose Squad Ballistics name is `name`, as if picked in the weapon selector.
+     * `window.squadBallistics.weapon()` then gives the name `matchBallisticsName` reports for it, until
+     * the weapon changes again
+     * @param {string} name - weapon name in Squad Ballistics' weapons.json (of any view of the weapon), or
+     *   one it had before it was renamed
      * @returns {boolean} - false if no weapon here has that name (or it is hidden by the mod filter)
      */
     selectBallisticsWeapon(name) {
-        const index = WEAPONS.findIndex((weapon) => weapon.ballistics === name || weapon.legacyBallistics?.includes(name));
-        if (index === -1 || !this.WEAPON_SELECTOR.find(`option[value="${index}"]`).length) return false;
-        if (String(this.WEAPON_SELECTOR.val()) !== String(index)) this.WEAPON_SELECTOR.val(index).trigger("change");
+        const match = matchBallisticsName(WEAPONS, name);
+        if (!match || !this.WEAPON_SELECTOR.find(`option[value="${match.index}"]`).length) return false;
+        if (String(this.WEAPON_SELECTOR.val()) !== String(match.index)) this.WEAPON_SELECTOR.val(match.index).trigger("change");
+        this.ballisticsName = match.reported;
         return true;
     }
 

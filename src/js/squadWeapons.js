@@ -6,7 +6,7 @@ import { maxRange } from "./squadBallistics.js";
 const NO_GRAVITY_RANGE = 10000;
 
 export class Weapon {
-    constructor(name, deceleration, decelerationTime, gravityScale, minElevation, unit, logo, marker, type, angleType, elevationPrecision, shells = [], heightOffset = 0, angleOffset = 0, projectileLifespan = 100, mod = null, elevationRate = null, heatmap = true, acceleration = 0, accelerationTime = 0, holdElevation = null, ballistics = null, image = null, muzzle = null, maxSpeed = 0, rotationFollowsVelocity = true, legacyBallistics = []) {
+    constructor(name, deceleration, decelerationTime, gravityScale, minElevation, unit, logo, marker, type, angleType, elevationPrecision, shells = [], heightOffset = 0, angleOffset = 0, projectileLifespan = 100, mod = null, elevationRate = null, heatmap = true, acceleration = 0, accelerationTime = 0, holdElevation = null, ballistics = null, image = null, muzzle = null, maxSpeed = 0, rotationFollowsVelocity = true, legacyBallistics = [], ballisticsViews = []) {
         this.name = name;
         this.deceleration = deceleration;
         this.decelerationTime = decelerationTime;
@@ -57,6 +57,10 @@ export class Weapon {
         // Names this weapon had in Squad Ballistics before it was renamed (the RMB sights got their view in
         // the name): `selectBallisticsWeapon` still finds it by them, so an older Squad Ballistics works
         this.legacyBallistics = legacyBallistics;
+        // Names of the other views of this weapon in Squad Ballistics' weapons.json (the zoom levels of a
+        // gunner's sight, the normal view next to an optic): they differ in what its overlay draws, the
+        // firing solution is this weapon's. `selectBallisticsWeapon` finds it by them and reports them back
+        this.ballisticsViews = ballisticsViews;
     }
 
 

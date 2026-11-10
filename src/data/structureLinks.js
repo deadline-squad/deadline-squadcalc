@@ -119,6 +119,16 @@ export const SHELL_AMMO = {
     "DF_SPG_9_HEAT_INS_armoured_technical_no_optic/default": "BP_SPG9_pg9v_Heat_Proj2",
     "DF_SPG_9_FRAG_INS_armoured_technical_optic_RMB_4/default": "BP_SPG9_og9v_Frag_Proj2",
     "DF_SPG_9_FRAG_INS_armoured_technical_no_optic/default": "BP_SPG9_og9v_Frag_Proj2",
+    "DF_QLZ87_bunker_tripod_no_optic/default": "BP_35MM_Proj_QLZ87_HEDP",
+    "DF_QLZ87_CSK131_WZ551_no_optic/default": "BP_35MM_Proj_QLZ87_HEDP",
+    "DF_QLZ87_ZBL08_no_optic/default": "BP_35MM_Proj_QLZ87_HEDP",
+    "DF_2A28_Grom_BMP_1_technical_HEAT/default": "BP_SPG9_pg9v_Heat_Proj2",
+    "DF_2A28_Grom_BMP_1_technical_FRAG/default": "BP_SPG9_og9v_Frag_Proj2",
+    "DF_2A70_100mm_BMP_3_BMD_4M_FRAG_gunner_sight_14/default": "BP_Projectile_100mm_Frag",
+    "DF_Tank_HEAT_HE_T_90A_2A46M/HEAT": "BP_Projectile_125mm_HEAT",
+    "DF_Tank_HEAT_HE_T_90A_2A46M/HE": "BP_Projectile_125mm_Frag",
+    "DF_Tank_HEAT_HE_Sprut_SDM1_2A45_gunner_sight_4/HEAT": "BP_Projectile_125mm_HEAT",
+    "DF_Tank_HEAT_HE_Sprut_SDM1_2A45_gunner_sight_4/HE": "BP_Projectile_125mm_Frag",
 };
 
 export const MARKER_STRUCTURES = {
