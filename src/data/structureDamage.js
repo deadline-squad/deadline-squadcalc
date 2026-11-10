@@ -516,7 +516,7 @@ export const STRUCTURES = {
  */
 export const AMMO = {
     "BP_30mm_VOG19_Proj": {
-        weapons: ["AGS-17 · emplacement"],
+        weapons: ["AGS-17 · emplacement · optic (RMB ×2.5)"],
         damageType: "BP_BasicHeatDamageType",
         impactDamage: 60,
         explosion: { damage: 115, minimum: 0, inner: 1.5, outer: 18, falloff: 1, distanceFromImpact: 0.08 },
@@ -524,7 +524,7 @@ export const AMMO = {
         nativeDefaults: ["ExplosiveBaseDamage", "ExplosiveDamageFalloff", "bUseSecondaryExplosion"],
     },
     "BP_35MM_Proj_QLZ87_HEDP": {
-        weapons: ["QLZ87"],
+        weapons: ["QLZ87 · optic (RMB ×3)"],
         damageType: "BP_BasicHeatDamageType",
         impactDamage: 60,
         explosion: { damage: 115, minimum: 0, inner: 1, outer: 11, falloff: 1, distanceFromImpact: 0.08 },
@@ -703,7 +703,7 @@ export const AMMO = {
         secondary: null,
     },
     "BP_Projectile_115mm_HEAT": {
-        weapons: ["Tank HEAT/HE · M256 / Rh120 / 2A46 / ZPT98 / 2A20 / M68A2", "ZPL-98A 105mm (ZTD-05) · HEAT / HE"],
+        weapons: ["Tank HEAT/HE · T-62 (2A20)", "ZPL-98A 105mm (ZTD-05) · HEAT / HE"],
         damageType: "BP_BasicHeatDamageType",
         impactDamage: 1900,
         explosion: { damage: 200, minimum: 35, inner: 3.5, outer: 16, falloff: 2, distanceFromImpact: 0.15 },
@@ -711,14 +711,14 @@ export const AMMO = {
         nativeDefaults: ["bUseSecondaryExplosion"],
     },
     "BP_Projectile_120mm_AP": {
-        weapons: ["Tank AP · 2A46 / ZPT98 / 2A20 / 2A45 / KBA3", "Tank AP · L30A1 (Challenger 2) / M68A2", "Tank AP · M256 / Rh120"],
+        weapons: ["Tank AP · L30A1 (Challenger 2) / M68A2", "Tank AP · M256 / Rh120", "Tank AP · Sprut-SDM1 (2A45) · gunner sight ×4", "Tank AP · T-62 (2A20)", "Tank AP · T-64BM2 (KBA3)", "Tank AP · T-72 (2A46)", "Tank AP · T-90A (2A46M)", "Tank AP · ZTZ-99 (ZPT-98)"],
         damageType: "BP_Kinetic_DamageType",
         impactDamage: 0,
         explosion: null,
         secondary: null,
     },
     "BP_Projectile_120mm_HEAT": {
-        weapons: ["Tank HEAT/HE · M256 / Rh120 / 2A46 / ZPT98 / 2A20 / M68A2", "Tank HESH · L30A1 (Challenger 2)"],
+        weapons: ["Tank HEAT/HE · Leopard 2A6 (Rh120)", "Tank HEAT/HE · M1128 MGS (M68A2)", "Tank HEAT/HE · M1A1 / M1A2 (M256)", "Tank HESH · L30A1 (Challenger 2)"],
         damageType: "BP_BasicHeatDamageType",
         impactDamage: 1900,
         explosion: { damage: 200, minimum: 50, inner: 7, outer: 20, falloff: 2, distanceFromImpact: 0.15 },
@@ -734,7 +734,7 @@ export const AMMO = {
         nativeDefaults: ["bUseSecondaryExplosion"],
     },
     "BP_Projectile_125mm_Frag": {
-        weapons: ["Tank HEAT/HE · M256 / Rh120 / 2A46 / ZPT98 / 2A20 / M68A2", "ZPL-98A 105mm (ZTD-05) · HEAT / HE"],
+        weapons: ["Tank HEAT/HE · M60T (MG253)", "Tank HEAT/HE · T-72 (2A46)", "ZPL-98A 105mm (ZTD-05) · HEAT / HE"],
         damageType: "BP_Fragmentation_DamageType",
         impactDamage: 200,
         explosion: { damage: 300, minimum: 10, inner: 4, outer: 35, falloff: 5, distanceFromImpact: 0.2 },
@@ -742,7 +742,7 @@ export const AMMO = {
         nativeDefaults: ["bUseSecondaryExplosion"],
     },
     "BP_Projectile_125mm_HEAT": {
-        weapons: ["Tank HEAT/HE · M256 / Rh120 / 2A46 / ZPT98 / 2A20 / M68A2"],
+        weapons: ["Tank HEAT/HE · T-72 (2A46)", "Tank HEAT/HE · ZTZ-99 (ZPT-98)"],
         damageType: "BP_BasicHeatDamageType",
         impactDamage: 1900,
         explosion: { damage: 200, minimum: 35, inner: 3.5, outer: 16, falloff: 2, distanceFromImpact: 0.15 },
@@ -802,7 +802,7 @@ export const AMMO = {
         secondary: null,
     },
     "BP_Projectile_76mm_Frag": {
-        weapons: ["ZiS-3"],
+        weapons: ["ZiS-3 · optic (RMB ×4)"],
         damageType: "BP_Fragmentation_DamageType",
         impactDamage: 100,
         explosion: { damage: 200, minimum: 0, inner: 2, outer: 16, falloff: 1, distanceFromImpact: 0.08 },
@@ -810,7 +810,7 @@ export const AMMO = {
         nativeDefaults: ["bUseSecondaryExplosion"],
     },
     "BP_Projectile_76mm_HEAT": {
-        weapons: ["ZiS-3"],
+        weapons: ["ZiS-3 · optic (RMB ×4)"],
         damageType: "BP_BasicHeatDamageType",
         impactDamage: 1900,
         explosion: { damage: 200, minimum: 35, inner: 3.5, outer: 16, falloff: 2, distanceFromImpact: 0.15 },
