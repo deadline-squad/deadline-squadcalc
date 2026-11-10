@@ -22,6 +22,7 @@ import { notifyBridgeChange } from "./smcConnector.js";
 import { createReliefLayer } from "./squadReliefLayer.js";
 import { layerMinimapBounds, LAYER_MINIMAPS_MANIFEST } from "./layerMinimap.js";
 import { TILE_FOLDER_SUFFIX } from "./mapLayers.js";
+import { fobExclusionRadius } from "../data/maps.js";
 
 
 // Ctrl + double-click marks a burst for the nearest target within this distance, in meters
@@ -1047,7 +1048,7 @@ export const squadMinimap = Map.extend({
             markerOptions.circlesOnHover = false;
             markerOptions.circles1Size = 150 * this.gameToMapScale;
             markerOptions.circles2Color = "white";
-            markerOptions.circles2Size = this.activeMap.radiusExclusion * this.gameToMapScale;
+            markerOptions.circles2Size = fobExclusionRadius(this.activeMap, this.layer?.layerData?.rawName) * this.gameToMapScale;
 
             switch (team) {
             case "default":

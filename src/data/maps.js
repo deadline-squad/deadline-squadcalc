@@ -3,6 +3,21 @@ const FOBEXCLUSIONS = {
     medium: 400,
 };
 
+// Layers that play with the 300 m radius on a map whose other layers have 400 m. The game sets the radius per layer:
+// `FOBRadius` of the layer's data asset (Gameplay_Layer_Data/<layer>) names a row of DT_FOBExclusionRadius, 01_Small
+// (300 m) or the default 02_Medium (400 m); a FOB's construction radius is 150 m in both (Squad build 26005357).
+export const SMALL_FOB_LAYERS = new Set([
+    "AlBasrah_RAAS_v3", "AlBasrah_Seed_v1", "AlBasrah_Seed_v2", "AlBasrah_Skirmish_v1", "AlBasrah_Skirmish_v2",
+    "AlBasrah_Skirmish_v3", "Anvil_Skirmish_v1", "BlackCoast_Seed_v1", "BlackCoast_Skirmish_v1", "Fallujah_Seed_v1",
+    "Fallujah_Skirmish_v1", "Fallujah_Skirmish_v2", "GooseBay_Seed_v1", "GooseBay_Skirmish_v1",
+    "Gorodok_Skirmish_v1", "Harju_Seed_v1", "Harju_Skirmish_v1", "Harju_Skirmish_v2", "Kamdesh_Skirmish_v1",
+    "Kohat_Skirmish_v1", "Lashkar_Skirmish_v1", "Manicouagan_Skirmish_v1", "Manicouagan_Skirmish_v2",
+    "Manicouagan_Skirmish_v3", "Mestia_Skirmish_v1", "Mutaha_Seed_v1", "Mutaha_Skirmish_v1", "Narva_Skirmish_v1",
+    "Sanxian_Seed_v1", "Sanxian_Skirmish_v1", "Skorpo_Skirmish_v1", "Tallil_Seed_v1", "Tallil_Skirmish_v1",
+    "Tallil_Skirmish_v2", "Tallil_Skirmish_v3", "Yehorivka_Skirmish_v1", "Yehorivka_Skirmish_v1_WP",
+    "Yehorivka_Skirmish_v2",
+]);
+
 export const MAPS = [
     {   // UE5
         name: "AlBasrah",
@@ -705,6 +720,17 @@ export function layerGridOffset(minimap, mapTextureCorners) {
         Math.min(first.location_x, second.location_x) / 100 - imageMin[0],
         Math.min(first.location_y, second.location_y) / 100 - imageMin[1],
     ];
+}
+
+/**
+ * How far from a FOB the next one has to be placed: the radius of the loaded layer, else the one of the map's
+ * regular layers.
+ * @param {{radiusExclusion: number}} map - entry of MAPS
+ * @param {string} [layerName] - raw name of the loaded layer, for example "AlBasrah_RAAS_v3"
+ * @returns {number} - metres
+ */
+export function fobExclusionRadius(map, layerName) {
+    return SMALL_FOB_LAYERS.has(layerName) ? FOBEXCLUSIONS.small : map.radiusExclusion;
 }
 
 // Compute size in meters and z-scaling from SDK data for each map

@@ -6,7 +6,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { MAPS, initMapsProperties } from "../src/data/maps.js";
+import { MAPS, SMALL_FOB_LAYERS, fobExclusionRadius, initMapsProperties } from "../src/data/maps.js";
 
 const LANGUAGES = ["de", "en", "fr", "ru", "uk", "zh"];
 const locale = (language, namespace) => JSON.parse(readFileSync(new URL(`../public/locales/${language}/${namespace}.json`, import.meta.url), "utf8"));
@@ -66,5 +66,41 @@ test("the landscape origin, size and scale of every map are the game's (origin i
         for (const axis of [0, 1, 2]) {
             assert.ok(Math.abs(heightmap.scale[axis] - scale[axis]) < 1e-3, `${name}: scale ${heightmap.scale}, the game's ${scale}`);
         }
+    }
+});
+
+// FOB exclusion radius of a layer in the game: the row of DT_FOBExclusionRadius its data asset names (`FOBRadius`,
+// 02_Medium unless the asset says otherwise; Squad dedicated server build 26005357), in metres
+const GAME_FOB_EXCLUSION = [
+    ["AlBasrah", "AlBasrah_RAAS_v1", 400],
+    ["AlBasrah", "AlBasrah_RAAS_v3", 300],
+    ["AlBasrah", "AlBasrah_Skirmish_v1", 300],
+    ["Chora", "Chora_AAS_v1", 300],
+    ["Logar", "Logar_AAS_v1", 300],
+    ["Narva", "Narva_AAS_v1", 400],
+    ["Narva", "Narva_Skirmish_v1", 300],
+    ["Sanxian", "Sanxian_Seed_v1", 300],
+    ["Tallil", "Tallil_RAAS_v1", 400],
+    ["Tallil", "Tallil_Skirmish_v3", 300],
+    ["Yehorivka", "Yehorivka_AAS_v1", 400],
+    ["Yehorivka", "Yehorivka_Skirmish_v1_WP", 300],
+];
+
+test("the FOB exclusion radius is the loaded layer's, and the map's without a layer", () => {
+    for (const [mapName, layer, metres] of GAME_FOB_EXCLUSION) {
+        assert.equal(fobExclusionRadius(MAPS.find((map) => map.name === mapName), layer), metres, layer);
+    }
+    const albasrah = MAPS.find((map) => map.name === "AlBasrah");
+    assert.equal(fobExclusionRadius(albasrah), 400);
+    assert.equal(fobExclusionRadius(albasrah, "AlBasrah_Unknown_v9"), 400);
+    assert.equal(fobExclusionRadius(MAPS.find((map) => map.name === "Chora")), 300);
+});
+
+test("every layer listed with the small FOB radius belongs to a map whose regular layers have the medium one", () => {
+    assert.equal(SMALL_FOB_LAYERS.size, 38);
+    for (const layer of SMALL_FOB_LAYERS) {
+        const map = MAPS.find((candidate) => layer.startsWith(`${candidate.name}_`));
+        assert.ok(map, `${layer}: no such map`);
+        assert.equal(map.radiusExclusion, 400, layer);
     }
 });
