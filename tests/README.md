@@ -27,6 +27,7 @@ classes. `leaflet.test.mjs` imports the real Leaflet 2 package.
 - `squadVolume.test.mjs`: the load of the volume layer when the setting is switched while meta.json is being fetched (one worker, `volume:ready` once). `sha256.test.mjs`: the plain-JavaScript SHA-256 against `node:crypto`.
 - `serversSource.test.mjs`: the servers of server mode (the home feed of the Deadline game server): the map of a layer for every map, a feed older than two minutes or malformed is dropped, a missing feed gives no servers.
 - `leaflet.test.mjs`: Leaflet 2 event names (pointer, not mouse; `bubblingPointerEvents`).
+- `protectionZone.test.mjs`: the radii of a main base's protection zone, also when the layer data gives a negative radius.
 
 What needs a browser (hover, drag, clean console on a served build) is covered by
 `tools/browser_check/browser_check.mjs`, `volume_check.mjs` (the volume layer), `targets_check.mjs` (target heights, structure damage) and `heatmap_check.mjs` (the position heatmap and the damage zone with voxel cover, against the exact triangle tracer's output) in the deployment repository (Playwright and Chromium).

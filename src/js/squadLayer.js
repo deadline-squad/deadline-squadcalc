@@ -9,6 +9,7 @@ import { squadSpawnGroup } from "./squadSpawnGroup.js";
 import { squadCameraActor } from "./squadCameraActor.js";
 import { SquadVehicleSpawner } from "./squadVehicleSpawner.js";
 import { layerGridOffset } from "../data/maps.js";
+import { protectionRadii } from "./protectionZone.js";
 
 export default class SquadLayer {
 
@@ -677,8 +678,9 @@ export default class SquadLayer {
                 let latlngSphere = [location_y, location_x];
 
                 // Protection & NoDeployementZone radiis
-                let protectRadius = pZone.objects[0].sphereRadius / 100 * this.map.gameToMapScale;
-                let noDeployRadius = (pZone.objects[0].sphereRadius + pZone.deployableLockDistance) / 100 * this.map.gameToMapScale;
+                const radii = protectionRadii(pZone);
+                let protectRadius = radii.protect * this.map.gameToMapScale;
+                let noDeployRadius = radii.noDeploy * this.map.gameToMapScale;
 
                 let protectionZone = new Circle(latlngSphere, {
                     color: App.mainColor,
