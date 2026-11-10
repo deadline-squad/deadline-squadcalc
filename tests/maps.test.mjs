@@ -1,7 +1,11 @@
 /**
  * The map list (src/data/maps.js): the 25 maps whose heights are derived from the Squad dedicated server package,
- * each named once and labelled in every language. A map is picked by its name (the `?map=` URL parameter), never by
- * its position, so the list may change without breaking a saved link.
+ * each named once and labelled in every language, in a frozen order. A link picks a map by its name (the `?map=` URL
+ * parameter, SquadCalc.loadMinimap), and so does server mode (serversSource.mapNameOfLayer); a saved .squadcalc file
+ * and a session pick it by its position in MAPS: the options of the map selector are the positions,
+ * SquadCalc.getAppState stores the selected one as `activeMap` (saveMapStateToFile, the session's CREATE_SESSION and
+ * JOIN_SESSION), the map selector sends it in the session's UPDATE_MAP message, and loadMapStateFromFile and
+ * SquadSession (SESSION_JOINED, UPDATE_MAP) select the map at that position again.
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -20,6 +24,15 @@ test("25 maps, each named once and with a name in every language", () => {
         const names = locale(language, "maps");
         for (const map of MAPS) assert.ok(names[map.name], `${language}: no name for ${map.name}`);
     }
+});
+
+test("the order of the maps is frozen: a saved file and a session store the map by its position in the list", () => {
+    const frozen = JSON.parse(readFileSync(new URL("./fixtures/mapOrder.json", import.meta.url), "utf8")).names;
+    const names = MAPS.map((map) => map.name);
+    const rule = "append a new map at the end of MAPS and of tests/fixtures/mapOrder.json; never insert, move or remove an entry, the map of a saved file or a session would become another one";
+    const changed = frozen.findIndex((name, index) => names[index] !== name);
+    assert.equal(changed, -1, `entry ${changed} of MAPS is ${names[changed]}, it was ${frozen[changed]}: ${rule}`);
+    assert.equal(names.length, frozen.length, `MAPS has ${names.length - frozen.length} entries after the frozen ${frozen.length} (${names.slice(frozen.length)}): ${rule}`);
 });
 
 
