@@ -42,6 +42,7 @@ export default class SquadLayer {
             measurementOptions: {
                 minPixelDistance: 50,
                 scaling: this.map.mapToGameScale,
+                scalingY: this.map.mapToGameScaleY,
             }
         }).addTo(this.activeLayerMarkers);
 
@@ -1229,6 +1230,7 @@ export default class SquadLayer {
                 this.polyline.showMeasurements({
                     minPixelDistance: 50,
                     scaling: this.map.mapToGameScale,
+                    scalingY: this.map.mapToGameScaleY,
                 });
             }
             $(".btn-layer").addClass("active");

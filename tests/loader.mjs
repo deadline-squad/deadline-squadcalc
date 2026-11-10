@@ -7,8 +7,9 @@
  * libs/leaflet-ellipse.js extended) and the Leaflet regression tests use the real package.
  */
 // The modules that get the real Leaflet: squadGrid.test.mjs draws the grid with it, groundShapes.test.mjs and
-// protectionZone.test.mjs project the shapes sized in metres
-const REAL_LEAFLET = ["/src/js/squadGrid.js", "/src/js/groundShapes.js", "/src/js/libs/leaflet-ellipse.js"];
+// protectionZone.test.mjs project the shapes sized in metres, measurePath.test.mjs loads the measured polyline
+const REAL_LEAFLET = ["/src/js/squadGrid.js", "/src/js/groundShapes.js", "/src/js/libs/leaflet-ellipse.js",
+    "/src/js/libs/leaflet-measure-path.js"];
 
 export async function resolve(specifier, context, nextResolve) {
     const fromSource = context.parentURL?.includes("/src/");

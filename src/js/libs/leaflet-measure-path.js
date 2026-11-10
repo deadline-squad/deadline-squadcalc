@@ -8,6 +8,19 @@
 import i18next from "i18next";
 import { Marker, Polyline, Polygon, LayerGroup, Util, Layer, DomUtil, Circle } from "leaflet";
 
+/**
+ * Length in the game's metres of a segment of the map, from its extent in map units at zoom 0 (x east, y south)
+ * @param {number} dx - map units east
+ * @param {number} dy - map units south
+ * @param {number} scaling - metres per map unit east (squadMinimap.mapToGameScale)
+ * @param {number} scalingY - metres per map unit north (squadMinimap.mapToGameScaleY): the two differ where the minimap
+ *   corners are not square (Skorpo 6849 m by 6869 m), so one scale for both reads a north-south segment 0.29 % short
+ * @returns {number}
+ */
+export function segmentMetres(dx, dy, scaling, scalingY) {
+    return Math.hypot(dx * scaling, dy * scalingY);
+}
+
 (function() {
     "use strict";
 
@@ -221,6 +234,7 @@ import { Marker, Polyline, Polygon, LayerGroup, Util, Layer, DomUtil, Circle } f
                 showArea: true,
                 showTotalDistance: options.showTotalDistance,
                 scaling: options.scaling || 1,
+                scalingY: options.scalingY || options.scaling || 1,
                 lang: {
                     totalLength: "Total length",
                     totalArea: "Total area",
@@ -307,10 +321,9 @@ import { Marker, Polyline, Polygon, LayerGroup, Util, Layer, DomUtil, Circle } f
                     p1 = this._map.latLngToLayerPoint(ll1);
                     p2 = this._map.latLngToLayerPoint(ll2);
 
-                    let p3 = this._map.project(ll1, 0);
-                    let p4 = this._map.project(ll2, 0);
-                    let distMap = Math.sqrt(Math.pow(p4.x - p3.x, 2) + Math.pow(p4.y - p3.y, 2));
-                    distMap = distMap * this._measurementOptions.scaling; 
+                    const p3 = this._map.project(ll1, 0);
+                    const p4 = this._map.project(ll2, 0);
+                    const distMap = segmentMetres(p4.x - p3.x, p4.y - p3.y, this._measurementOptions.scaling, this._measurementOptions.scalingY);
 
                     pixelDist = p1.distanceTo(p2);
 
@@ -359,6 +372,7 @@ import { Marker, Polyline, Polygon, LayerGroup, Util, Layer, DomUtil, Circle } f
                 showOnHover: false,
                 showArea: true,
                 scaling: options.scaling || 1,
+                scalingY: options.scalingY || options.scaling || 1,
                 lang: {
                     totalArea: "Total area",
                 }
