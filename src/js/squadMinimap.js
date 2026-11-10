@@ -201,8 +201,7 @@ export const squadMinimap = Map.extend({
 
     /**
      * Remove the existing map image and replace it with the one of the layer selected in #mapLayerMenu:
-     * an upstream image (basemap, terrainmap, topomap) or the detailed tactical tiles of this deployment
-     * (see showDetailedLayer)
+     * the upstream basemap or a layer of this deployment (see showDetailedLayer, showReliefLayer)
      * @param {boolean} [changemap] - the map changed: also redraw the grid and the heatmap
      */
     changeLayer: function(changemap = false) {
@@ -223,7 +222,7 @@ export const squadMinimap = Map.extend({
             this.showReliefLayer(request);
         } else {
             this.setMaxZoom(DEFAULT_MAX_ZOOM);
-            this.showMapImage(this.upstreamLayer(LAYERMODE), request);
+            this.showMapImage(this.upstreamBasemap(), request);
         }
         this.updateLayerMinimap();
 
@@ -239,12 +238,11 @@ export const squadMinimap = Map.extend({
 
 
     /**
-     * Map image of an upstream layer from the SquadCalc API
-     * @param {string} layerMode - basemap, terrainmap or topomap
+     * The basemap of the SquadCalc API (the game's minimap texture of the map's regular layers)
      * @returns {TileLayer|ImageOverlay} - 256 px tiles (zoom 0..5) in high quality mode, else one image
      */
-    upstreamLayer: function(layerMode) {
-        const imagePath = `${process.env.API_URL}${this.activeMap.mapURL}${layerMode}`;
+    upstreamBasemap: function() {
+        const imagePath = `${process.env.API_URL}${this.activeMap.mapURL}basemap`;
         if (App.userSettings.highQualityImages) {
             return new TileLayer(`${imagePath}_hq/{z}_{x}_{y}.webp`, {
                 bounds: this.imageBounds,
@@ -265,7 +263,7 @@ export const squadMinimap = Map.extend({
      * /maptiles/<map><suffix>/ with their meta.json ({maxNativeZoom, generated, ...}). Without a suffix it is the
      * detailed tactical map (tools/maptiles in the deployment repository); see TILE_FOLDER_SUFFIX for the others.
      * The map may then zoom DETAILED_EXTRA_ZOOM levels past the finest tiles. A map without the tiles of a suffix
-     * shows the detailed map; a map without detailed tiles shows the upstream topographic map.
+     * shows the detailed map; a map without detailed tiles shows the upstream basemap.
      * @param {number} request - number of this layer change; a later change or map switch wins
      * @param {string} [suffix] - tile folder suffix of the layer (TILE_FOLDER_SUFFIX)
      */
@@ -282,9 +280,9 @@ export const squadMinimap = Map.extend({
                 return;
             }
             if (!meta) {
-                console.warn(`[MAP] No detailed tiles for ${mapName}, showing the topographic map`);
+                console.warn(`[MAP] No detailed tiles for ${mapName}, showing the basemap`);
                 this.setMaxZoom(DEFAULT_MAX_ZOOM);
-                this.showMapImage(this.upstreamLayer("topomap"), request);
+                this.showMapImage(this.upstreamBasemap(), request);
                 return;
             }
             const version = encodeURIComponent(meta.generated);

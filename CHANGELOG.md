@@ -1,3 +1,10 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.50.0** *(2026-11-10)*
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- **The terrain and topographic maps are gone.** Their relief shading, drawn upstream from an 8-bit heightmap, lies up to 43 m off the ground (Skorpo 43 m, Jensen 24 m, Narva 10 m, Tallil 7 m, nine maps over 3 m), which no placement of the image can fix. The relief map, rendered from the game's landscape, shows the terrain on the world, finer, on every map; the Detailed map has the contour lines. A link with `type=topomap` or `type=terrainmap` opens the default map.
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.49.0** *(2026-11-10)*
 
 </br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  

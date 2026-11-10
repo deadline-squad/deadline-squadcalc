@@ -1,7 +1,5 @@
 {
     "basemode": "Базова карта",
-    "terrainmode": "Теренна карта",
-    "topographicmode": "Топографічна карта",
     "standardhdmode": "HD-карта · рендер із файлів гри",
     "detailedmode": "Детальна карта",
     "detailedcolourmode": "Детальна карта · кольори гри",

@@ -9,7 +9,7 @@
 export const DEFAULT_LAYER = "standard-hd";
 
 /** Layers in the order the toggle shortcut cycles through them */
-export const LAYER_ORDER = ["standard-hd", "detailed", "detailed-colour", "relief", "topomap", "terrainmap", "basemap"];
+export const LAYER_ORDER = ["standard-hd", "detailed", "detailed-colour", "relief", "basemap"];
 
 /** Tile folder suffix of the layers served from `/maptiles/<map><suffix>/` with a meta.json */
 export const TILE_FOLDER_SUFFIX = { "standard-hd": "-hd", "detailed": "", "detailed-colour": "-colour" };

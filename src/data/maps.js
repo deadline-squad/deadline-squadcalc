@@ -601,8 +601,7 @@ export const MAPS = [
     },
     // Custom Map Template
     //   * Create the necessary folders in /public/ and point mapURL to it
-    //   * squadcalc will look at the folder looking for basemap/terrainmap/topomap .webp
-    //   * You can also tile your images by using basemap/terrainmap/topomap folders
+    //   * squadcalc will look at the folder looking for basemap.webp, and for its basemap_hq tiles in high quality mode
     // { 
     //     name: `CustomMap #1`,
     //     mapURL: `/img/maps/customMap1/`, 

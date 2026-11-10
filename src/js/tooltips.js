@@ -267,17 +267,6 @@ tippy(".btn-basemap", {
         );
     },
 });
-tippy(".btn-terrainmap", {
-    ...commonMapMenuToolipsSettings,
-    onShow(tip) {
-        tip.setContent(
-            `
-            <div>${i18next.t("tooltips:terrainmode")}</div>
-            <div class="tooltipsubtext">${App.formatShortcutHTML(App.shortcuts.toggleMap)}</div>
-            `
-        );
-    },
-});
 tippy(".btn-detailed", {
     ...commonMapMenuToolipsSettings,
     onShow(tip) {
@@ -317,17 +306,6 @@ tippy(".btn-relief", {
         tip.setContent(
             `
             <div>${i18next.t("tooltips:reliefmode")}</div>
-            <div class="tooltipsubtext">${App.formatShortcutHTML(App.shortcuts.toggleMap)}</div>
-            `
-        );
-    },
-});
-tippy(".btn-topomap", {
-    ...commonMapMenuToolipsSettings,
-    onShow(tip) {
-        tip.setContent(
-            `
-            <div>${i18next.t("tooltips:topographicmode")}</div>
             <div class="tooltipsubtext">${App.formatShortcutHTML(App.shortcuts.toggleMap)}</div>
             `
         );

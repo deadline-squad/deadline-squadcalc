@@ -1,7 +1,5 @@
 {
     "basemode": "基础地图",
-    "terrainmode": "地势图",
-    "topographicmode": "地形图",
     "standardhdmode": "高清地图 · 由游戏资源渲染",
     "detailedmode": "详细地图",
     "detailedcolourmode": "详细地图 · 游戏配色",
