@@ -1,3 +1,10 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.39.0** *(2026-11-10)*
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- **The loading spinner over the map stops when the map has loaded.** A layer change that came while another was still under way left the spinner turning with nothing left to load: two quick clicks in the layer menu, the layer shortcut pressed twice, a map switched during a layer change, and the page itself on a slow connection (it draws the map image again 0.8 s after it appears, and the first image was then still waiting for its `meta.json`). The change that was overtaken never ended its turn of the spinner, and a tile layer taken off the map before its last tile arrived reports no load at all. A layer change in progress now holds one turn of the spinner, whatever number of changes it replaced, and the map image of the last one ends it, also when that image fails to load and when the map is dragged out of view so that there is no tile to load. The image of a replaced change no longer stays under the new one: every earlier image is removed once a later one has loaded.
+
+</br><img src="https://img.shields.io/badge/-%20dev%20-lightgrey">  
+- `squadMinimap.js`: `changeLayer` starts the spinner once per change in progress (`layerChanging`) and `showMapImage` ends it for the latest request; `mapImages` lists the images on the map so that a later one removes all before it. `smcConnector.js` no longer stops the spinner by hand before its layer change. `tools/browser_check/browser_check.mjs` in the deployment repository checks the spinner and the number of map images after a superseded change, a tile layer replaced while it loaded, an image that failed and a layer with no tile in view.
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.38.0** *(2026-11-10)*
 
 </br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  

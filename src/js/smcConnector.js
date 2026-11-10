@@ -63,7 +63,6 @@ async function setupWebSockets() {
             if ($(".btn-hd").hasClass("active")) {
                 App.userSettings.highQualityImages = false;
                 $(".btn-hd").removeClass("active");
-                App.minimap.spin(false);
                 App.minimap.changeLayer();
             }
             $(".btn-hd").prop("disabled", true);

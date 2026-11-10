@@ -111,6 +111,10 @@ export const squadMinimap = Map.extend({
         // Requests for the detailed tiles' meta.json by tile folder, and the number of the latest layer change
         this.detailedTiles = {};
         this.layerRequest = 0;
+        // A layer change is in progress and holds one spin of the spinner, whatever number of changes it superseded
+        this.layerChanging = false;
+        // Map images on the map, oldest first: those before an image are removed once it loaded
+        this.mapImages = [];
         // The minimap of the loaded gameplay layer when it has one of its own (layerMinimap.js): its source, the
         // image on the map, the manifest request and the number of the latest update
         this.layerMinimapSource = null;
@@ -200,19 +204,22 @@ export const squadMinimap = Map.extend({
      */
     changeLayer: function(changemap = false) {
         const LAYERMODE = $("#mapLayerMenu .active").attr("value");
-        const OLDLAYER = this.activeLayer;
         const request = ++this.layerRequest;
 
-        // Show spinner
-        this.spin(true, this.spinOptions);
+        // Show spinner: a change that supersedes one still in progress takes its spin over, and the map image of
+        // the latest change ends it (showMapImage)
+        if (!this.layerChanging) {
+            this.layerChanging = true;
+            this.spin(true, this.spinOptions);
+        }
 
         if (LAYERMODE in TILE_FOLDER_SUFFIX) {
-            this.showDetailedLayer(OLDLAYER, request, TILE_FOLDER_SUFFIX[LAYERMODE]);
+            this.showDetailedLayer(request, TILE_FOLDER_SUFFIX[LAYERMODE]);
         } else if (LAYERMODE === RELIEF_LAYER) {
-            this.showReliefLayer(OLDLAYER, request);
+            this.showReliefLayer(request);
         } else {
             this.setMaxZoom(DEFAULT_MAX_ZOOM);
-            this.showMapImage(this.upstreamLayer(LAYERMODE), OLDLAYER);
+            this.showMapImage(this.upstreamLayer(LAYERMODE), request);
         }
         this.updateLayerMinimap();
 
@@ -255,11 +262,10 @@ export const squadMinimap = Map.extend({
      * detailed tactical map (tools/maptiles in the deployment repository); see TILE_FOLDER_SUFFIX for the others.
      * The map may then zoom DETAILED_EXTRA_ZOOM levels past the finest tiles. A map without the tiles of a suffix
      * shows the detailed map; a map without detailed tiles shows the upstream topographic map.
-     * @param {TileLayer|ImageOverlay} [oldLayer] - layer to remove once the new one loaded
      * @param {number} request - number of this layer change; a later change or map switch wins
      * @param {string} [suffix] - tile folder suffix of the layer (TILE_FOLDER_SUFFIX)
      */
-    showDetailedLayer: function(oldLayer, request, suffix = "") {
+    showDetailedLayer: function(request, suffix = "") {
         const mapName = this.activeMap.mapURL.split("/").filter(Boolean).pop();
         const available = suffix !== TILE_FOLDER_SUFFIX[COLOUR_LAYER] || COLOUR_MAPS.includes(mapName);
         (available ? this.detailedMeta(mapName + suffix) : Promise.resolve(null)).then((meta) => {
@@ -268,13 +274,13 @@ export const squadMinimap = Map.extend({
                 console.warn(`[MAP] No ${mapName}${suffix} tiles, showing the detailed map`);
                 $("#mapLayerMenu").find(".layers").removeClass("active");
                 $(".btn-detailed").addClass("active");
-                this.showDetailedLayer(oldLayer, request);
+                this.showDetailedLayer(request);
                 return;
             }
             if (!meta) {
                 console.warn(`[MAP] No detailed tiles for ${mapName}, showing the topographic map`);
                 this.setMaxZoom(DEFAULT_MAX_ZOOM);
-                this.showMapImage(this.upstreamLayer("topomap"), oldLayer);
+                this.showMapImage(this.upstreamLayer("topomap"), request);
                 return;
             }
             const version = encodeURIComponent(meta.generated);
@@ -285,7 +291,7 @@ export const squadMinimap = Map.extend({
                 maxNativeZoom: meta.maxNativeZoom,
                 edgeBufferTiles: 1,
                 tileSize: meta.tileSize,
-            }), oldLayer);
+            }), request);
         });
     },
 
@@ -294,17 +300,16 @@ export const squadMinimap = Map.extend({
      * Show the shaded relief of the active map, read from its PMTiles archive (squadReliefLayer.js; the archive and
      * the PMTiles reader are downloaded now, not before). A map without an archive, or an archive that cannot be
      * read, shows the detailed map.
-     * @param {TileLayer|ImageOverlay} [oldLayer] - layer to remove once the new one loaded
      * @param {number} request - number of this layer change; a later change or map switch wins
      */
-    showReliefLayer: function(oldLayer, request) {
+    showReliefLayer: function(request) {
         const mapName = this.activeMap.mapURL.split("/").filter(Boolean).pop();
         const fallback = (reason) => {
             if (request !== this.layerRequest) return;
             console.warn(`[MAP] No relief for ${mapName} (${reason}), showing the detailed map`);
             $("#mapLayerMenu").find(".layers").removeClass("active");
             $(".btn-detailed").addClass("active");
-            this.showDetailedLayer(oldLayer, request);
+            this.showDetailedLayer(request);
         };
         if (!RELIEF_MAPS.includes(mapName)) {
             fallback("no archive");
@@ -313,7 +318,7 @@ export const squadMinimap = Map.extend({
         createReliefLayer(`/maptiles/relief/${mapName}.pmtiles`, this.imageBounds).then((layer) => {
             if (request !== this.layerRequest) return;
             this.setMaxZoom(Math.max(DEFAULT_MAX_ZOOM, layer.options.maxNativeZoom + DETAILED_EXTRA_ZOOM));
-            this.showMapImage(layer, oldLayer);
+            this.showMapImage(layer, request);
         }).catch((error) => fallback(error.message));
     },
 
@@ -415,35 +420,45 @@ export const squadMinimap = Map.extend({
 
 
     /**
-     * Add a map image under the markers and remove the previous one once it loaded; a single image fades in
+     * Add a map image under the markers. Once it loaded, or failed to, the images before it are removed and the
+     * spinner of the layer change stops, unless a later change took the spinner over. A single image fades in.
      * @param {TileLayer|ImageOverlay} layer - new map image
-     * @param {TileLayer|ImageOverlay} [oldLayer] - previous map image
+     * @param {number} request - number of the layer change that shows it
      */
-    showMapImage: function(layer, oldLayer) {
+    showMapImage: function(layer, request) {
         this.activeLayer = layer;
+        this.mapImages.push(layer);
         layer.addTo(this.layerGroup);
         const tiled = layer instanceof TileLayer;
         if (!tiled) $(layer.getElement()).css("opacity", 0);
 
+        const shown = () => {
+            // An image a later one removed while it loaded is no longer listed: a single image still gets its
+            // load event then, a tile layer never does (Leaflet drops the tiles of a layer off the map)
+            const index = this.mapImages.indexOf(layer);
+            if (index < 0) return;
+            this.mapImages.splice(0, index).forEach((previous) => previous.remove());
+            if (request !== this.layerRequest || !this.layerChanging) return;
+            this.layerChanging = false;
+            this.spin(false);
+        };
+
         layer.once("load", () => {
             if (tiled) {
-                if (oldLayer) oldLayer.remove();
-                this.spin(false);
+                shown();
+                return;
             }
-            else {
-                // Animate the opacity of the new layer
-                $(layer.getElement()).fadeTo(700, 1, () => {
-                    if (oldLayer) oldLayer.remove();
-                    this.spin(false);
-                });
-            }
+            // Animate the opacity of the new layer
+            $(layer.getElement()).fadeTo(700, 1, shown);
         });
 
         layer.once("error", (e) => {
             console.error("Error loading", e.sourceTarget._url);
-            if (oldLayer) oldLayer.remove();
-            this.spin(false);
+            shown();
         });
+
+        // No tile of the layer is in view (the map was dragged away): Leaflet requests none and fires no load event
+        if (tiled && !layer.isLoading()) shown();
     },
 
 
