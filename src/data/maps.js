@@ -3,6 +3,21 @@ const FOBEXCLUSIONS = {
     medium: 400,
 };
 
+// Layers that play with the 300 m radius on a map whose other layers have 400 m. The game sets the radius per layer:
+// `FOBRadius` of the layer's data asset (Gameplay_Layer_Data/<layer>) names a row of DT_FOBExclusionRadius, 01_Small
+// (300 m) or the default 02_Medium (400 m); a FOB's construction radius is 150 m in both (Squad build 26005357).
+export const SMALL_FOB_LAYERS = new Set([
+    "AlBasrah_RAAS_v3", "AlBasrah_Seed_v1", "AlBasrah_Seed_v2", "AlBasrah_Skirmish_v1", "AlBasrah_Skirmish_v2",
+    "AlBasrah_Skirmish_v3", "Anvil_Skirmish_v1", "BlackCoast_Seed_v1", "BlackCoast_Skirmish_v1", "Fallujah_Seed_v1",
+    "Fallujah_Skirmish_v1", "Fallujah_Skirmish_v2", "GooseBay_Seed_v1", "GooseBay_Skirmish_v1",
+    "Gorodok_Skirmish_v1", "Harju_Seed_v1", "Harju_Skirmish_v1", "Harju_Skirmish_v2", "Kamdesh_Skirmish_v1",
+    "Kohat_Skirmish_v1", "Lashkar_Skirmish_v1", "Manicouagan_Skirmish_v1", "Manicouagan_Skirmish_v2",
+    "Manicouagan_Skirmish_v3", "Mestia_Skirmish_v1", "Mutaha_Seed_v1", "Mutaha_Skirmish_v1", "Narva_Skirmish_v1",
+    "Sanxian_Seed_v1", "Sanxian_Skirmish_v1", "Skorpo_Skirmish_v1", "Tallil_Seed_v1", "Tallil_Skirmish_v1",
+    "Tallil_Skirmish_v2", "Tallil_Skirmish_v3", "Yehorivka_Skirmish_v1", "Yehorivka_Skirmish_v1_WP",
+    "Yehorivka_Skirmish_v2",
+]);
+
 export const MAPS = [
     {   // UE5
         name: "AlBasrah",
@@ -82,7 +97,7 @@ export const MAPS = [
                 game: { min: [-2464.0, -2664.0], max: [1599.9, 1400.0] },
             },
             heightmap: {
-                origin: [-2464, -2664],
+                origin: [-2464, -1902],
                 size: [8129, 4827],
                 scale: [0.5, 0.5, 4],
                 BWlevels: [1209, 1369]
@@ -193,7 +208,7 @@ export const MAPS = [
             },
             heightmap: {
                 origin: [-2016, -2016],
-                size: [4032, 4032],
+                size: [4033, 4033],
                 scale: [1, 1, 1],
                 BWlevels: [1349, 3241]
             },
@@ -281,7 +296,7 @@ export const MAPS = [
                 game: { min: [-1076.35, -1075.67], max: [1420.14, 1420.14] },
             },
             heightmap: {
-                origin: [-1334, -1715],
+                origin: [-1333, -1714],
                 size: [6097, 7367],
                 scale: [0.5, 0.5, 1],
                 BWlevels: [100, 264]
@@ -369,7 +384,7 @@ export const MAPS = [
                 game: { min: [-1200.0, -1100.0], max: [1200.0, 1300.0] },
             },
             heightmap: {
-                origin: [-1545, -1260],
+                origin: [-1545, -1162],
                 size: [3061, 2551],
                 scale: [1, 1, 1.2],
                 BWlevels: [2479, 5898]
@@ -413,8 +428,8 @@ export const MAPS = [
                 game: { min: [-1389.71, -1402.07], max: [1410.29, 1397.93] },
             },
             heightmap: {
-                origin: [-2016, -2016],
-                size: [4033, 4033],
+                origin: [-2032, -2032],
+                size: [4065, 4065],
                 scale: [1, 1, 1],
                 BWlevels: [4940, 5523]
             },
@@ -526,7 +541,7 @@ export const MAPS = [
                 game: { min: [-639.74, -447.28], max: [660.34, 852.97] },
             },
             heightmap: {
-                origin: [-683, -373],
+                origin: [-682, -372],
                 size: [1427, 1055],
                 scale: [1, 1, 0.75],
                 BWlevels: [1375, 1854]
@@ -548,7 +563,7 @@ export const MAPS = [
                 game: { min: [-2340.0, -2340.0], max: [2340.0, 2340.0] },
             },
             heightmap: {
-                origin: [-2287, -2287], // SDK is wrong, this is deduced instead
+                origin: [-2286, -2286], // the first landscape components lie 254 m before the actor's location (-2032)
                 size: [4573, 4573],
                 scale: [1, 1, 1.25],
                 BWlevels: [3689, 4111]
@@ -705,6 +720,17 @@ export function layerGridOffset(minimap, mapTextureCorners) {
         Math.min(first.location_x, second.location_x) / 100 - imageMin[0],
         Math.min(first.location_y, second.location_y) / 100 - imageMin[1],
     ];
+}
+
+/**
+ * How far from a FOB the next one has to be placed: the radius of the loaded layer, else the one of the map's
+ * regular layers.
+ * @param {{radiusExclusion: number}} map - entry of MAPS
+ * @param {string} [layerName] - raw name of the loaded layer, for example "AlBasrah_RAAS_v3"
+ * @returns {number} - metres
+ */
+export function fobExclusionRadius(map, layerName) {
+    return SMALL_FOB_LAYERS.has(layerName) ? FOBEXCLUSIONS.small : map.radiusExclusion;
 }
 
 // Compute size in meters and z-scaling from SDK data for each map

@@ -13,9 +13,9 @@ classes. `leaflet.test.mjs` imports the real Leaflet 2 package.
 - `squadDamage.test.mjs`: damage falloff, cover, hit probability, rounds needed, and `damageField` with the objects of the volume layer as cover (the blocked-between-clearances callback, the landscape still covering, the impact height).
 - `squadHeightmaps.test.mjs`: height interpolation (the game's triangle rule), edges, height path.
 - `structureDamage.test.mjs`: damage of shells to player-built structures (the native rules of ASQDeployable::TakeDamage on a made-up wall: direct-hit multiplier, no direct-radial multiplier, minimum-damage floor, only-direct near miss, exact damage-type class, burst distance; and the game data for the mortar round and HEAT against the FOB radio and a HAB, `structureOutcome`, and the links of `src/data/structureLinks.js` to the shells of `weapons.js`).
-- `weapons.test.mjs`: invariants of the `weapons.js` data (among them: a Squad Ballistics name, current, of another view or from before a rename, belongs to one weapon only).
+- `weapons.test.mjs`: invariants of the `weapons.js` data (among them: a Squad Ballistics name, current, of another view or from before a rename, belongs to one weapon only); the elevation ranges of the artillery weapons against the pitch ranges of their mounts in the game, their minimum distances against the range at the mount's stop, and the range circles of the mortar and hell cannon markers.
 - `ballisticsNames.test.mjs`: the weapon a Squad Ballistics name selects through `window.squadBallistics.selectWeapon` and the name reported back (`ballisticsNames.js`): its own name, the name of another view of it, a name from before a rename, with the weapons of `weapons.js`.
-- `maps.test.mjs`: the map list (25 maps, each named once and in six languages). `squadVolume.test.mjs` also checks that a `meta.json` without a `volume` entry starts no worker and keeps the heightmap.
+- `maps.test.mjs`: the map list (25 maps, each named once and in six languages), the landscape origin, size and scale of every map against the game's level data, and the FOB exclusion radius of a layer (`fobExclusionRadius`). `squadVolume.test.mjs` also checks that a `meta.json` without a `volume` entry starts no worker and keeps the heightmap.
 - `hitProbability.test.mjs`: the hit probability of direct-fire weapons from a muzzle above the ground against a simulation of the game's cone (#19).
 - `volumeTerrain.test.mjs`: the `TER1` landscape file of the volume layer (decoding, the game's triangle rule, holes).
 - `targetHeights.test.mjs`: the heights a vertical ray offers (floor, ceiling, roof, window, doorway) from the solids it crosses.
@@ -27,6 +27,7 @@ classes. `leaflet.test.mjs` imports the real Leaflet 2 package.
 - `squadVolume.test.mjs`: the load of the volume layer when the setting is switched while meta.json is being fetched (one worker, `volume:ready` once). `sha256.test.mjs`: the plain-JavaScript SHA-256 against `node:crypto`.
 - `serversSource.test.mjs`: the servers of server mode (the home feed of the Deadline game server): the map of a layer for every map, a feed older than two minutes or malformed is dropped, a missing feed gives no servers.
 - `leaflet.test.mjs`: Leaflet 2 event names (pointer, not mouse; `bubblingPointerEvents`).
+- `protectionZone.test.mjs`: the radii of a main base's protection zone, also when the layer data gives a negative radius.
 
 What needs a browser (hover, drag, clean console on a served build) is covered by
 `tools/browser_check/browser_check.mjs`, `volume_check.mjs` (the volume layer), `targets_check.mjs` (target heights, structure damage) and `heatmap_check.mjs` (the position heatmap and the damage zone with voxel cover, against the exact triangle tracer's output) in the deployment repository (Playwright and Chromium).

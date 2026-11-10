@@ -2,6 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { WEAPONS, WEAPONSTYPE } from "../src/data/weapons.js";
+import { heightAt, maxRange } from "../src/js/squadBallistics.js";
+import { loadWeapon } from "./helpers.mjs";
 
 test("weapons are named once and have a known type", () => {
     const names = WEAPONS.map((weapon) => weapon.name);
@@ -87,5 +89,82 @@ test("a direct-fire weapon carries the lifespan of its projectile, not the defau
     }
     for (const [name, seconds] of GAME_LIFESPAN) {
         assert.equal(WEAPONS.find((weapon) => weapon.name === name).projectileLifespan, seconds, name);
+    }
+});
+
+
+// Pitch range of the mount of each artillery weapon and what the game adds to it for the angle the gunner reads
+// (Squad build 26005357, the cooked Blueprints, skeletons and sight widgets of the dedicated server):
+//   - Mortar: PitchInterval of BP_GenericDeployableMortarVehicle; UMG_MortarControl turns the elevation wheel by
+//     the tube pitch + 45.
+//   - UB-32: PitchInterval of BP_GenericDeployableTripodVehicle, which BP_EmplacedUB32_Tripod keeps; the display
+//     (Emplaced_UB-32_GunnerAngleDisplay) shows the mount's pitch.
+//   - HellCannon: PitchInterval of BP_Emplaced_HellCannon_Base; UMG_HellCannon_HUD shows the mount's pitch + 40.
+//   - Tech.Mortar: PitchInterval of BP_Technical_MortarTurret; UMG_MortarHUD_Technical shows the mount's pitch + 40.
+//   - Tech.UB-32: PitchInterval of BP_Technical_Turret_UB32; UB-32_GunnerAngleDisplay shows the mount's pitch.
+//   - BM-21Grad: PitchInterval of PitchMovement in BP_BM21Grad_Turret_INS; the rail rests 14.2 degrees up (socket
+//     Attach_Muzzle on the bone pitch_swivel of SKEL_BM21_Launcher) and BM21_GunnerReticle shows the socket's pitch.
+//   - M1064M121: PitchInterval of BP_M1064A3_MortarTurret on a tube that rests at 50 degrees.
+//   - BTR4-AGS: PitchInterval of BP_BMP1TS_Turret (the parent of BP_BTR4_Turret); BTR4_GunnerReticle shows the
+//     pitch of the sight camera on the hull, and the camera (FirstPersonCamera) sits 0.1 degree above the turret.
+const GAME_MOUNTS = [
+    ["Mortar", [0, 43.8], 45],
+    ["UB-32", [-25, 35], 0],
+    ["HellCannon", [-30, 50], 40],
+    ["Tech.Mortar", [0, 43.8], 40],
+    ["Tech.UB-32", [0, 50], 0],
+    ["BM-21Grad", [0, 40.8], 14.2],
+    ["M1064M121", [0, 35], 50],
+    ["BTR4-AGS", [-5, 45], 0.1],
+];
+
+test("the elevation range of an artillery weapon is the pitch range of its mount in the game plus the sight's offset", () => {
+    for (const [name, [lowest, highest], offset] of GAME_MOUNTS) {
+        const [low, high] = WEAPONS.find((weapon) => weapon.name === name).minElevation;
+        assert.ok(Math.abs(low - (lowest + offset)) < 1e-9, `${name}: lowest elevation ${low}, the game's ${lowest + offset}`);
+        assert.ok(Math.abs(high - (highest + offset)) < 1e-9, `${name}: highest elevation ${high}, the game's ${highest + offset}`);
+    }
+});
+
+/**
+ * Where a shot fired at `degrees` comes down on level ground
+ * @param {import("../src/js/squadBallistics.js").Shot} shot
+ * @param {number} degrees - elevation of the barrel
+ * @returns {number} - meters from the weapon
+ */
+function levelRange(shot, degrees) {
+    const angle = degrees * Math.PI / 180;
+    let near = 0;
+    let far = maxRange(shot) * 1.001;
+    for (let i = 0; i < 60; i++) {
+        const middle = (near + far) / 2;
+        if (heightAt(shot, angle, middle) > 0) near = middle;
+        else far = middle;
+    }
+    return near;
+}
+
+// Weapons that cannot be laid on every angle of their arc: a mortar's tube stops below the vertical, a rocket
+// launcher's rail above the horizontal. Nearer than the shot at that stop, level ground cannot be hit.
+const LIMITED_BY_MOUNT = ["Mortar", "Tech.Mortar", "M1064M121", "BM-21Grad", "Tech.UB-32"];
+
+test("the minimum distance of a weapon stopped by its mount is the range on level ground at that stop", () => {
+    for (const name of LIMITED_BY_MOUNT) {
+        const entry = WEAPONS.find((weapon) => weapon.name === name);
+        const stop = (entry.angleType === "high" ? entry.minElevation[1] : entry.minElevation[0]) + (entry.angleOffset || 0);
+        for (let i = 0; i < entry.shells.length; i++) {
+            const { weapon, shell } = loadWeapon(name, i);
+            const range = levelRange(weapon.getShot(9.8 * entry.gravityScale), stop);
+            assert.ok(Math.abs(shell.minDistance - range) <= 0.05, `${name}/${shell.name}: minDistance ${shell.minDistance}, ${range.toFixed(2)} m at ${stop} degrees`);
+        }
+    }
+});
+
+test("the range circle of a mortar or hell cannon marker is the longest shot of that weapon on level ground", () => {
+    const source = readFileSync(new URL("../src/js/squadMinimap.js", import.meta.url), "utf8");
+    for (const [icon, name] of [["deployable_mortars", "Mortar"], ["deployable_hellcannon", "HellCannon"]]) {
+        const range = Number(source.match(new RegExp(`icon === "${icon}"\\) range = (\\d+);`))[1]);
+        const { weapon } = loadWeapon(name);
+        assert.equal(range, Math.round(maxRange(weapon.getShot(9.8))), `${icon}: ${range} m`);
     }
 });

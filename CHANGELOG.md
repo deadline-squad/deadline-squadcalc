@@ -1,3 +1,20 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.38.0** *(2026-11-10)*
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- **The mortar no longer offers shots its tube cannot be laid on.** In the game the mount pitches the tube 0° to 43.8° above its rest at 45° (`PitchInterval` of `BP_GenericDeployableMortarVehicle`; the sight `UMG_MortarControl` turns its elevation wheel by the tube pitch + 45), so the top elevation is 88.8° (1578.7 mil), not 88.875° (1580 mil): a target between 48.5 m and 51.8 m on level ground got a solution the game cannot fire. The minimum-distance circle follows the mount: 51.8 m for the mortar and the technical's mortar (it was 51 m) and 358 m for the M1064's M121 (it was 340 m; its tube stops at 85°). Two launchers that had no circle get one: 985 m for the BM-21, whose rail cannot go below 14.2°, and 147 m for the technical's UB-32, whose pod cannot go below 0°.
+- **BTR-4 AGS: elevations the turret cannot reach are refused.** The entry accepted -45° to 135° on the gunner's display; the turret pitches -5° to 45° and the display reads 0.1° above it (`PitchInterval` of `BP_BMP1TS_Turret`, `BTR4_GunnerReticle`), so the range is -4.9° to 45.1°.
+- The range circle of a hell cannon marker is 924 m, the weapon's longest shot on level ground (it was 923 m).
+- **The FOB exclusion circle follows the loaded layer.** The game sets the distance between two FOBs per layer (`FOBRadius` of the layer's data asset, a row of `DT_FOBExclusionRadius`), not per map: 38 layers play with 300 m on a map whose other layers have 400 m, every Skirmish and Seed layer of those maps and Al Basrah RAAS v3. With such a layer loaded a FOB marker draws the 300 m circle.
+- **Goose Bay AAS v1 and RAAS v1: the protection zone of the first main base has its real size.** The zone's actor has a negative scale in the level (-1.58), and the layer data carries its radius as -236 m, so the zone and the no-deploy circle around it were computed from a negative radius (-236 m and -86 m). The game takes the size of the scale: 236 m for the zone and 386 m for deployables.
+
+</br><img src="https://img.shields.io/badge/-%20dev%20-lightgrey">  
+- Every value above is read from the Squad dedicated server build 26005357. `tests/weapons.test.mjs` holds the pitch range of the mount of the eight artillery weapons and what the game's sight adds to it, and checks the elevation ranges against them, the minimum distances against the range at the mount's stop, and the marker circles against the weapons' longest shot.
+- `SDK_data.heightmap` of seven maps described a landscape the game does not have: Chora's origin lay 762 m north of the landscape's, Mestia's 98 m, Narva's was 16 m off and 32 vertices short, Harju's one vertex short, Kokan's, Sumari's and Tallil's a metre off. These fields only feed `npm run mapinfo`, no height or firing solution used them; `tests/maps.test.mjs` now checks origin, size and scale of the 25 maps against the game's level data.
+- `fobExclusionRadius` and `SMALL_FOB_LAYERS` in `src/data/maps.js`, with tests.
+- `src/js/protectionZone.js` (`protectionRadii`) with `tests/protectionZone.test.mjs`.
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.37.0** *(2026-11-10)*
 
 </br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
