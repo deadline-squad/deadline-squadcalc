@@ -5,15 +5,20 @@ import { serverBrowserTooltips } from "./tooltips.js";
 import Fuse from "fuse.js";
 import { canFollow, fetchServers, followDecision } from "./serversSource.js";
 
+// Namespace of the one-shot handlers of a layer switch (`switchLayer`), so that leaving server mode drops them
+const SWITCH_EVENTS = ".serverSwitch";
+
 export default class SquadServersBrowser {
 
     constructor() {
         this.serversData = null;
         this.filteredData = null;
         // Server mode (App.initServerMode, App.leaveServerMode): the id of the server the page follows, or is about
-        // to follow while the feed is read; the layer the page has opened for it; the timer of syncWithServer
+        // to follow while the feed is read; the layer the page has opened for it, and the one it is opening; the
+        // timer of syncWithServer
         this.selectedServer = null;
         this.selectedLayer = null;
+        this.switchingTo = null;
         this.syncInterval = null;
     }
 
@@ -47,7 +52,6 @@ export default class SquadServersBrowser {
         }
         if (action === "switch") {
             console.debug(`[SERVER] ${server.attributes.name}: layer ${this.selectedLayer} -> ${server.attributes.details.map}`);
-            this.selectedLayer = server.attributes.details.map;
             this.switchLayer(server);
         }
         return true;
@@ -323,17 +327,23 @@ export default class SquadServersBrowser {
 
     /**
      * Switches the map, the layer and the factions to what a server plays. The feed has no unit of a team, so the
-     * units stay the factions' default ones.
+     * units stay the factions' default ones. `selectedLayer` becomes the server's layer once its factions are set;
+     * until then a later read of the feed restarts the switch only for another layer, and `cancelSwitch` stops it.
      * @param {object} server - a home server the calculator can show (`canFollow`)
      */
     switchLayer(server) {
         const { mapName, team1, team2 } = server;
         const layer = server.attributes.details.map;
+        if (this.switchingTo === layer) return;
+        this.cancelSwitch();
+        this.switchingTo = layer;
         const mapIndex = MAPS.findIndex(m => m.name.toLowerCase() === mapName.toLowerCase());
         const currentMapIndex = parseInt(App.MAP_SELECTOR.val());
         const currentLayer = App.LAYER_SELECTOR.val();
 
         const applyFactions = () => {
+            this.switchingTo = null;
+            this.selectedLayer = layer;
             App.FACTION1_SELECTOR.val(team1).trigger($.Event("change", { broadcast: false }));
             App.FACTION2_SELECTOR.val(team2).trigger($.Event("change", { broadcast: false }));
             // Strip any team params that default faction loading may have written
@@ -344,11 +354,11 @@ export default class SquadServersBrowser {
 
         const setLayerAndFactions = () => {
             if (!App.LAYER_SELECTOR.find(`option[value="${layer}"]`).length) {
-                $(document).one("layers:loaded", setLayerAndFactions);
+                $(document).one(`layers:loaded${SWITCH_EVENTS}`, setLayerAndFactions);
                 return;
             }
             App.LAYER_SELECTOR.val(layer).trigger($.Event("change", { broadcast: true }));
-            $(document).one("layer:loaded", applyFactions);
+            $(document).one(`layer:loaded${SWITCH_EVENTS}`, applyFactions);
         };
 
         $("#serversInformation")[0].close();
@@ -362,7 +372,7 @@ export default class SquadServersBrowser {
         // Map needs to change — loadLayers() fires layers:loaded
         if (currentMapIndex !== mapIndex) {
             App.MAP_SELECTOR.val(mapIndex).trigger($.Event("change", { broadcast: true }));
-            $(document).one("layers:loaded", setLayerAndFactions);
+            $(document).one(`layers:loaded${SWITCH_EVENTS}`, setLayerAndFactions);
             return;
         }
 
@@ -371,8 +381,17 @@ export default class SquadServersBrowser {
         if (layersReady) {
             setLayerAndFactions();
         } else {
-            $(document).one("layers:loaded", setLayerAndFactions);
+            $(document).one(`layers:loaded${SWITCH_EVENTS}`, setLayerAndFactions);
         }
+    }
+
+
+    /**
+     * Stops a layer switch under way (`switchLayer`): what the page has loaded so far stays, nothing more is opened.
+     */
+    cancelSwitch() {
+        $(document).off(SWITCH_EVENTS);
+        this.switchingTo = null;
     }
 
 

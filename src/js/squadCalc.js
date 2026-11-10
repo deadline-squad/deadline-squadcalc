@@ -159,6 +159,7 @@ export default class SquadCalc {
             this.squadServersBrowser.init();
         }
         const browser = this.squadServersBrowser;
+        browser.cancelSwitch();
         browser.selectedServer = serverId;
         browser.selectedLayer = null;
 
@@ -195,14 +196,16 @@ export default class SquadCalc {
     }
 
     /**
-     * Leaves server mode: the page stops following the server and shows none as followed (the sync timer, the
-     * `server` URL parameter, the choice of the menu's dropdown, the row of the servers list, the `#servers` button).
+     * Leaves server mode: the page stops following the server, a layer switch under way included, and shows none as
+     * followed (the sync timer, the `server` URL parameter, the choice of the menu's dropdown, the row of the servers
+     * list, the `#servers` button).
      * @param {string|null} [reason] - when the page leaves by itself, the `tooltips` key of what to tell the user
      *   (`followDecision`); null when the user leaves
      */
     leaveServerMode(reason = null) {
         const browser = this.squadServersBrowser;
         if (browser) {
+            browser.cancelSwitch();
             clearInterval(browser.syncInterval);
             browser.syncInterval = null;
             browser.selectedServer = null;
