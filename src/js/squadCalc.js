@@ -28,6 +28,7 @@ import { serverBrowserTooltips, settingsTooltips } from "./tooltips.js";
 import { MapDrawing, MapArrow, MapCircle, MapRectangle } from "./squadShapes.js";
 import { DEFAULT_LAYER, LAYER_ORDER, urlTypeOf } from "./mapLayers.js";
 import { HOME_FEED_PERIOD_MS, canFollow, fetchServers } from "./serversSource.js";
+import { formatKeyPad, keypadPosition } from "./keypad.js";
 
 
 
@@ -1490,8 +1491,8 @@ export default class SquadCalc {
         let startB = TARGET_LOC[0].selectionStart;
 
         // format keypads
-        MORTAR_LOC.val(this.formatKeyPad(a));
-        TARGET_LOC.val(this.formatKeyPad(b));
+        MORTAR_LOC.val(formatKeyPad(a));
+        TARGET_LOC.val(formatKeyPad(b));
 
         // If keypads are imprecises, do nothing
         if (a.length < 3 || b.length < 3) {
@@ -1638,30 +1639,6 @@ export default class SquadCalc {
     }
 
     /**
-     * Format keypad input, setting text to uppercase and adding dashes
-     * @param {string} text - keypad string to be formatted
-     * @returns {string} formatted string
-     */
-    formatKeyPad(text) {
-        const TEXTPARTS = [];
-
-        // If empty string, return
-        if (text.length === 0) { return; }
-
-        const TEXTND = text.toUpperCase().split("-").join("");
-        TEXTPARTS.push(TEXTND.slice(0, 3));
-
-        // iteration through sub-keypads
-        let i = 3;
-        while (i < TEXTND.length) {
-            TEXTPARTS.push(TEXTND.slice(i, i + 1));
-            i += 1;
-        }
-
-        return TEXTPARTS.join("-");
-    }
-
-    /**
      * Remove a saved keypad
      *  * @param {object} a - saved calcs to remove
      */
@@ -1671,7 +1648,7 @@ export default class SquadCalc {
     }
 
     /**
-     * Set the cursor at the correct position after formatKeyPad() messed with the inputs by reformating its values
+     * Set the cursor at the correct position after formatKeyPad() (keypad.js) messed with the inputs by reformating its values
      * @param {string} startA - cursor position on mortar
      * @param {string} startB - cursor position on target
      * @param {string} a - previous mortar coord before reformating
@@ -1783,50 +1760,16 @@ export default class SquadCalc {
 
 
     /**
-     * Returns the latlng coordinates based on the given keypad string.
-     * Supports unlimited amount of sub-keypads.
-     * Throws error if keypad string is too short or parsing results in invalid latlng coordinates.
-     * @param {string} kp - keypad coordinates, e.g. "A02-3-5-2"
-     * @returns {LatLng} converted coordinates
+     * Where a keypad text points: the centre of its deepest sub-keypad, counted from the corner of the game's grid of
+     * the loaded layer (squadGrid.setArea) as the game counts it. Reads the game's text ("C3 - 3 - 7") and the
+     * calculator's ("C03-3-7"), with any number of sub-keypads.
+     * @param {string} kp - keypad text, e.g. "A02-3-5-2"
+     * @returns {{lat: number, lng: number}} - metres east (lat) and south (lng) of the map image's north-west corner;
+     * NaN for a text that is not a keypad
      */
     getPos(kp) {
-        const FORMATTED_KEYPAD = this.formatKeyPad(kp);
-        const PARTS = FORMATTED_KEYPAD.split("-");
-        let interval;
-        let lat = 0;
-        let lng = 0;
-        let i = 0;
-
-        while (i < PARTS.length) {
-            if (i === 0) {
-                // special case, i.e. letter + number combo
-                const LETTERCODE = PARTS[i].charCodeAt(0);
-                const LETTERINDEX = LETTERCODE - 65;
-                if (PARTS[i].charCodeAt(0) < 65) { return { lat: NaN, lng: NaN }; }
-                const KEYPADNB = Number(PARTS[i].slice(1)) - 1;
-                lat += 300 * LETTERINDEX;
-                lng += 300 * KEYPADNB;
-
-            } else {
-                // opposite of calculations in getKP()
-                const SUB = Number(PARTS[i]);
-                if (Number.isNaN(SUB)) console.debug(`invalid keypad string: ${FORMATTED_KEYPAD}`);
-                const subX = (SUB - 1) % 3;
-                const subY = 2 - (Math.ceil(SUB / 3) - 1);
-
-                interval = 300 / 3 ** i;
-                lat += interval * subX;
-                lng += interval * subY;
-            }
-            i += 1;
-        }
-
-        // at the end, add half of last interval, so it points to the center of the deepest sub-keypad
-        interval = 300 / 3 ** (i - 1);
-        lat += interval / 2;
-        lng += interval / 2;
-
-        return { lat: lat, lng: lng };
+        const { east, south } = keypadPosition(kp, this.minimap.grid.originOffset);
+        return { lat: east, lng: south };
     }
 
     getAppState() {

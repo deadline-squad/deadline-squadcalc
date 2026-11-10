@@ -1,0 +1,154 @@
+{
+    "source": "Squad dedicated server build 26005357 (the same in client build 26234431): MapTextureCornerZero/One of each layer's SQWorldSettings (game, metres), the text USQMapConversions::MapLocationToGridCoordinateString gives 1 m inside each corner and at the middle of the layer (points: world metres, +X east, +Y south) and the letter and number bars of W_SQMapHorizontalBar/VerticalBar (labels: 1..ceil(N), slot weight 1, the last Fraction(N), centres in world metres), the number of lines W_SQMapGridLines tiles over the layer, at Min + k x 300 m / 3^level up to Max (lines: x for the lines running north to south, y for the others; keypad lines, then the other 100 m and 33.3 m lines); mapTextureCorners: the layer API (https://squadcalc.app/api/get/layer?name=<layer>, read on 2026-11-10), centimetres",
+    "layers": [
+        {
+            "layer": "Chora_Skirmish_v1",
+            "map": "Chora",
+            "mapTextureCorners": [{"location_x": -145684.21875, "location_y": -144201.390625}, {"location_x": 16315.7890625, "location_y": 17798.626953125}],
+            "game": {"min": [-1456.8422, -1442.0139], "max": [163.15789, 177.98627]},
+            "points": [
+                {"at": [-1455.8422, -1441.0139], "text": "A1 - 7 - 7"},
+                {"at": [162.1579, -1441.0139], "text": "F1 - 8 - 7"},
+                {"at": [-1455.8422, 176.9863], "text": "A6 - 4 - 7"},
+                {"at": [162.1579, 176.9863], "text": "F6 - 5 - 7"},
+                {"at": [-646.3422, -631.5138], "text": "C3 - 3 - 7"},
+                {"at": [-1451.3422, -1436.5139], "text": "A1 - 7 - 7"}
+            ],
+            "labels": {
+                "columns": [{"text": "A", "at": -1306.8422}, {"text": "B", "at": -1006.8422}, {"text": "C", "at": -706.8422}, {"text": "D", "at": -406.8422}, {"text": "E", "at": -106.8423}, {"text": "F", "at": 103.1578}],
+                "rows": [{"text": "1", "at": -1292.0139}, {"text": "2", "at": -992.0139}, {"text": "3", "at": -692.0139}, {"text": "4", "at": -392.0139}, {"text": "5", "at": -92.0139}, {"text": "6", "at": 117.9862}]
+            },
+            "lines": {"x": [6, 11, 32], "y": [6, 11, 32]}
+        },
+        {
+            "layer": "Mutaha_Skirmish_v1",
+            "map": "Mutaha",
+            "mapTextureCorners": [{"location_x": -84000, "location_y": 71000}, {"location_x": 54000, "location_y": -67000}],
+            "game": {"min": [-840, -670], "max": [540, 710]},
+            "points": [
+                {"at": [-839, -669], "text": "A1 - 7 - 7"},
+                {"at": [539, -669], "text": "E1 - 8 - 9"},
+                {"at": [-839, 709], "text": "A5 - 4 - 1"},
+                {"at": [539, 709], "text": "E5 - 5 - 3"},
+                {"at": [-149.5, 20.5], "text": "C3 - 7 - 3"},
+                {"at": [-834.5, -664.5], "text": "A1 - 7 - 7"}
+            ],
+            "labels": {
+                "columns": [{"text": "A", "at": -690.0}, {"text": "B", "at": -390.0}, {"text": "C", "at": -90.0}, {"text": "D", "at": 210.0}, {"text": "E", "at": 450.0}],
+                "rows": [{"text": "1", "at": -520.0}, {"text": "2", "at": -220.0}, {"text": "3", "at": 80.0}, {"text": "4", "at": 380.0}, {"text": "5", "at": 620.0}]
+            },
+            "lines": {"x": [5, 9, 28], "y": [5, 9, 28]}
+        },
+        {
+            "layer": "Skorpo_Invasion_v1",
+            "map": "Skorpo",
+            "mapTextureCorners": [{"location_x": 324850, "location_y": 357608}, {"location_x": -360150, "location_y": -329300}],
+            "game": {"min": [-3601.5, -3293], "max": [3248.5, 3576.08]},
+            "points": [
+                {"at": [-3600.5, -3292], "text": "A1 - 7 - 7"},
+                {"at": [3247.5, -3292], "text": "W1 - 9 - 8"},
+                {"at": [-3600.5, 3575.08], "text": "A23 - 1 - 1"},
+                {"at": [3247.5, 3575.08], "text": "W23 - 3 - 2"},
+                {"at": [-176, 142.04], "text": "L12 - 5 - 4"},
+                {"at": [-3574, -3287.5], "text": "A1 - 7 - 7"}
+            ],
+            "labels": {
+                "columns": [{"text": "A", "at": -3451.5}, {"text": "B", "at": -3151.5}, {"text": "C", "at": -2851.5}, {"text": "D", "at": -2551.5}, {"text": "E", "at": -2251.5}, {"text": "F", "at": -1951.5}, {"text": "G", "at": -1651.5}, {"text": "H", "at": -1351.5}, {"text": "I", "at": -1051.5}, {"text": "J", "at": -751.5}, {"text": "K", "at": -451.5}, {"text": "L", "at": -151.5}, {"text": "M", "at": 148.5}, {"text": "N", "at": 448.5}, {"text": "O", "at": 748.5}, {"text": "P", "at": 1048.5}, {"text": "Q", "at": 1348.5}, {"text": "R", "at": 1648.5}, {"text": "S", "at": 1948.5}, {"text": "T", "at": 2248.5}, {"text": "U", "at": 2548.5}, {"text": "V", "at": 2848.5}, {"text": "W", "at": 3123.5}],
+                "rows": [{"text": "1", "at": -3143.0}, {"text": "2", "at": -2843.0}, {"text": "3", "at": -2543.0}, {"text": "4", "at": -2243.0}, {"text": "5", "at": -1943.0}, {"text": "6", "at": -1643.0}, {"text": "7", "at": -1343.0}, {"text": "8", "at": -1043.0}, {"text": "9", "at": -743.0}, {"text": "10", "at": -443.0}, {"text": "11", "at": -143.0}, {"text": "12", "at": 157.0}, {"text": "13", "at": 457.0}, {"text": "14", "at": 757.0}, {"text": "15", "at": 1057.0}, {"text": "16", "at": 1357.0}, {"text": "17", "at": 1657.0}, {"text": "18", "at": 1957.0}, {"text": "19", "at": 2257.0}, {"text": "20", "at": 2557.0}, {"text": "21", "at": 2857.0}, {"text": "22", "at": 3157.0}, {"text": "23", "at": 3441.54}]
+            },
+            "lines": {"x": [23, 46, 137], "y": [23, 46, 138]}
+        },
+        {
+            "layer": "AlBasrah_AAS_v1",
+            "map": "AlBasrah",
+            "mapTextureCorners": [{"location_x": -200000, "location_y": -200000}, {"location_x": 200000, "location_y": 200000}],
+            "game": {"min": [-2000, -2000], "max": [2000, 2000]},
+            "points": [
+                {"at": [-1999, -1999], "text": "A1 - 7 - 7"},
+                {"at": [1999, -1999], "text": "N1 - 7 - 9"},
+                {"at": [-1999, 1999], "text": "A14 - 7 - 1"},
+                {"at": [1999, 1999], "text": "N14 - 7 - 3"},
+                {"at": [0.5, 0.5], "text": "G7 - 3 - 7"}
+            ],
+            "labels": {
+                "columns": [{"text": "A", "at": -1850.0}, {"text": "B", "at": -1550.0}, {"text": "C", "at": -1250.0}, {"text": "D", "at": -950.0}, {"text": "E", "at": -650.0}, {"text": "F", "at": -350.0}, {"text": "G", "at": -50.0}, {"text": "H", "at": 250.0}, {"text": "I", "at": 550.0}, {"text": "J", "at": 850.0}, {"text": "K", "at": 1150.0}, {"text": "L", "at": 1450.0}, {"text": "M", "at": 1750.0}, {"text": "N", "at": 1950.0}],
+                "rows": [{"text": "1", "at": -1850.0}, {"text": "2", "at": -1550.0}, {"text": "3", "at": -1250.0}, {"text": "4", "at": -950.0}, {"text": "5", "at": -650.0}, {"text": "6", "at": -350.0}, {"text": "7", "at": -50.0}, {"text": "8", "at": 250.0}, {"text": "9", "at": 550.0}, {"text": "10", "at": 850.0}, {"text": "11", "at": 1150.0}, {"text": "12", "at": 1450.0}, {"text": "13", "at": 1750.0}, {"text": "14", "at": 1950.0}]
+            },
+            "lines": {"x": [14, 27, 80], "y": [14, 27, 80]}
+        },
+        {
+            "layer": "BlackCoast_AAS_v1",
+            "map": "BlackCoast",
+            "mapTextureCorners": [{"location_x": -229999.515625, "location_y": -212746.78125}, {"location_x": 229998.46875, "location_y": 247251.0625}],
+            "game": {"min": [-2299.9952, -2127.4678], "max": [2299.9847, 2472.5106]},
+            "points": [
+                {"at": [-2298.9952, -2126.4678], "text": "A1 - 7 - 7"},
+                {"at": [2298.9847, -2126.4678], "text": "P1 - 7 - 9"},
+                {"at": [-2298.9952, 2471.5106], "text": "A16 - 7 - 1"},
+                {"at": [2298.9847, 2471.5106], "text": "P16 - 7 - 3"},
+                {"at": [0.4948, 173.0214], "text": "H8 - 3 - 7"},
+                {"at": [-1832.4952, -2121.9678], "text": "B1 - 8 - 9"}
+            ],
+            "labels": {
+                "columns": [{"text": "A", "at": -2149.9952}, {"text": "B", "at": -1849.9952}, {"text": "C", "at": -1549.9952}, {"text": "D", "at": -1249.9952}, {"text": "E", "at": -949.9952}, {"text": "F", "at": -649.9952}, {"text": "G", "at": -349.9952}, {"text": "H", "at": -49.9952}, {"text": "I", "at": 250.0047}, {"text": "J", "at": 550.0047}, {"text": "K", "at": 850.0047}, {"text": "L", "at": 1150.0047}, {"text": "M", "at": 1450.0047}, {"text": "N", "at": 1750.0047}, {"text": "O", "at": 2050.0047}, {"text": "P", "at": 2249.9947}],
+                "rows": [{"text": "1", "at": -1977.4678}, {"text": "2", "at": -1677.4678}, {"text": "3", "at": -1377.4678}, {"text": "4", "at": -1077.4678}, {"text": "5", "at": -777.4678}, {"text": "6", "at": -477.4678}, {"text": "7", "at": -177.4678}, {"text": "8", "at": 122.5322}, {"text": "9", "at": 422.5322}, {"text": "10", "at": 722.5322}, {"text": "11", "at": 1022.5322}, {"text": "12", "at": 1322.5322}, {"text": "13", "at": 1622.5322}, {"text": "14", "at": 1922.5322}, {"text": "15", "at": 2222.5322}, {"text": "16", "at": 2422.5214}]
+            },
+            "lines": {"x": [16, 30, 92], "y": [16, 30, 92]}
+        },
+        {
+            "layer": "GooseBay_Seed_v1",
+            "map": "GooseBay",
+            "mapTextureCorners": [{"location_x": -68029.203125, "location_y": 102270.953125}, {"location_x": 31969.0859375, "location_y": 202268.84375}],
+            "game": {"min": [-680.292, 1022.7095], "max": [319.69086, 2022.6884]},
+            "points": [
+                {"at": [-679.292, 1023.7095], "text": "A1 - 7 - 7"},
+                {"at": [318.6909, 1023.7095], "text": "D1 - 7 - 9"},
+                {"at": [-679.292, 2021.6884], "text": "A4 - 7 - 1"},
+                {"at": [318.6909, 2021.6884], "text": "D4 - 7 - 3"},
+                {"at": [-179.8006, 1523.1989], "text": "B2 - 3 - 7"},
+                {"at": [-674.792, 1028.2095], "text": "A1 - 7 - 7"}
+            ],
+            "labels": {
+                "columns": [{"text": "A", "at": -530.292}, {"text": "B", "at": -230.292}, {"text": "C", "at": 69.708}, {"text": "D", "at": 269.6994}],
+                "rows": [{"text": "1", "at": 1172.7095}, {"text": "2", "at": 1472.7095}, {"text": "3", "at": 1772.7095}, {"text": "4", "at": 1972.6989}]
+            },
+            "lines": {"x": [4, 6, 20], "y": [4, 6, 20]}
+        },
+        {
+            "layer": "Fallujah_AAS_v1",
+            "map": "Fallujah",
+            "mapTextureCorners": [{"location_x": -131500, "location_y": -154500}, {"location_x": 169000, "location_y": 146000}],
+            "game": {"min": [-1315, -1545], "max": [1690, 1460]},
+            "points": [
+                {"at": [-1314, -1544], "text": "A1 - 7 - 7"},
+                {"at": [1689, -1544], "text": "K1 - 7 - 7"},
+                {"at": [-1314, 1459], "text": "A11 - 7 - 7"},
+                {"at": [1689, 1459], "text": "K11 - 7 - 7"},
+                {"at": [188, -42], "text": "F6 - 7 - 7"}
+            ],
+            "labels": {
+                "columns": [{"text": "A", "at": -1165.0}, {"text": "B", "at": -865.0}, {"text": "C", "at": -565.0}, {"text": "D", "at": -265.0}, {"text": "E", "at": 35.0}, {"text": "F", "at": 335.0}, {"text": "G", "at": 635.0}, {"text": "H", "at": 935.0}, {"text": "I", "at": 1235.0}, {"text": "J", "at": 1535.0}, {"text": "K", "at": 1687.5}],
+                "rows": [{"text": "1", "at": -1395.0}, {"text": "2", "at": -1095.0}, {"text": "3", "at": -795.0}, {"text": "4", "at": -495.0}, {"text": "5", "at": -195.0}, {"text": "6", "at": 105.0}, {"text": "7", "at": 405.0}, {"text": "8", "at": 705.0}, {"text": "9", "at": 1005.0}, {"text": "10", "at": 1305.0}, {"text": "11", "at": 1457.5}]
+            },
+            "lines": {"x": [11, 20, 60], "y": [11, 20, 60]}
+        },
+        {
+            "layer": "Mestia_AAS_v1",
+            "map": "Mestia",
+            "mapTextureCorners": [{"location_x": 120000, "location_y": 130000}, {"location_x": -120000, "location_y": -110000}],
+            "game": {"min": [-1200, -1100], "max": [1200, 1300]},
+            "points": [
+                {"at": [-1199, -1099], "text": "A1 - 7 - 7"},
+                {"at": [1199, -1099], "text": "H1 - 9 - 9"},
+                {"at": [-1199, 1299], "text": "A8 - 1 - 1"},
+                {"at": [1199, 1299], "text": "H8 - 3 - 3"},
+                {"at": [0.5, 100.5], "text": "E5 - 7 - 7"}
+            ],
+            "labels": {
+                "columns": [{"text": "A", "at": -1028.5714}, {"text": "B", "at": -685.7143}, {"text": "C", "at": -342.8571}, {"text": "D", "at": 0.0}, {"text": "E", "at": 342.8571}, {"text": "F", "at": 685.7143}, {"text": "G", "at": 1028.5714}, {"text": "H", "at": 1200.0}],
+                "rows": [{"text": "1", "at": -928.5714}, {"text": "2", "at": -585.7143}, {"text": "3", "at": -242.8571}, {"text": "4", "at": 100.0}, {"text": "5", "at": 442.8571}, {"text": "6", "at": 785.7143}, {"text": "7", "at": 1128.5714}, {"text": "8", "at": 1300.0}]
+            },
+            "lines": {"x": [9, 16, 48], "y": [9, 16, 48]}
+        }
+    ]
+}
