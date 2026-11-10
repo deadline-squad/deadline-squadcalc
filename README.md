@@ -311,14 +311,14 @@
   </div>
 
   ### Base map :
-  The classic, straight from the game base map.  
+  The classic, straight from the game base map, drawn over the part of the world the game's texture shows (the game's own
+  corners; on Skorpo the rectangle its texture was measured to show on the level data). On a Seed or Skirmish layer with a
+  minimap of its own, that finer picture is drawn over the layer's corners, as the game takes them from the layer's data.
 
-  ### Terrain map :
-  Base map enhanced with bumpmap from SDK's heightmap. Add a better comprehension of terrain.  
-  Also known as "why the fuck is it not the default ingame map?"
-
-  ### Topographic map :
-  A mix of bump map, contour map with a touch of hypsometric colors for a complete understanding of map reliefs.
+  ### Relief map :
+  Shaded relief of the game's heights (multi-directional hillshade with a sky-view factor) in the map's own frame: measured
+  against the same shading of the heights it lies within 0.25 m on every map. It replaces the terrain and topographic maps of
+  the upstream API, whose relief shading lies up to 43 m off the ground.
 
 </details>
 

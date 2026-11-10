@@ -693,7 +693,7 @@ export default class SquadSettings {
 
     getButtonToggleDefinitions() {
         return [
-            { key: "settings-btn-layers",  sharedContainer: "#mapBtnLayers",  buttons: ".btn-standard-hd, .btn-detailed, .btn-detailed-colour, .btn-relief, .btn-topomap, .btn-terrainmap, .btn-basemap", default: true },
+            { key: "settings-btn-layers",  sharedContainer: "#mapBtnLayers",  buttons: ".btn-standard-hd, .btn-detailed, .btn-detailed-colour, .btn-relief, .btn-basemap", default: true },
             { key: "settings-btn-hd",      sharedContainer: null,             buttons: ".btn-hd",                                   default: true },
             { key: "settings-btn-legacy",  sharedContainer: "#mapBtnMain",    buttons: ".btn-legacy",                                default: false },
             { key: "settings-btn-helpmap", sharedContainer: "#mapBtnMain",    buttons: ".btn-helpmap",                               default: false },

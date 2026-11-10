@@ -20,7 +20,8 @@ import "./libs/leaflet-spin.js";
 import "./libs/leaflet-imageoverlay-rotated.js";
 import { notifyBridgeChange } from "./smcConnector.js";
 import { createReliefLayer } from "./squadReliefLayer.js";
-import { layerMinimapBounds, LAYER_MINIMAPS_MANIFEST } from "./layerMinimap.js";
+import { LAYER_MINIMAPS_MANIFEST, rectangleBounds, upstreamImageRectangle, upstreamTileTransform } from "./mapImages.js";
+import { StretchedTileLayer } from "./stretchedTileLayer.js";
 import { TILE_FOLDER_SUFFIX } from "./mapLayers.js";
 import { fobExclusionRadius } from "../data/maps.js";
 import { keypadText } from "./keypad.js";
@@ -118,9 +119,9 @@ export const squadMinimap = Map.extend({
         this.layerChanging = false;
         // Map images on the map, oldest first: those before an image are removed once it loaded
         this.mapImages = [];
-        // The minimap of the loaded gameplay layer when it has one of its own (layerMinimap.js): its source, the
+        // The minimap of the loaded gameplay layer when it has one of its own (mapImages.js): the layer's raw name, the
         // image on the map, the manifest request and the number of the latest update
-        this.layerMinimapSource = null;
+        this.layerMinimapLayer = null;
         this.layerMinimapImage = null;
         this.layerMinimapManifestRequest = null;
         this.layerMinimapUpdate = 0;
@@ -201,8 +202,7 @@ export const squadMinimap = Map.extend({
 
     /**
      * Remove the existing map image and replace it with the one of the layer selected in #mapLayerMenu:
-     * an upstream image (basemap, terrainmap, topomap) or the detailed tactical tiles of this deployment
-     * (see showDetailedLayer)
+     * the upstream basemap or a layer of this deployment (see showDetailedLayer, showReliefLayer)
      * @param {boolean} [changemap] - the map changed: also redraw the grid and the heatmap
      */
     changeLayer: function(changemap = false) {
@@ -223,7 +223,7 @@ export const squadMinimap = Map.extend({
             this.showReliefLayer(request);
         } else {
             this.setMaxZoom(DEFAULT_MAX_ZOOM);
-            this.showMapImage(this.upstreamLayer(LAYERMODE), request);
+            this.showMapImage(this.upstreamBasemap(), request);
         }
         this.updateLayerMinimap();
 
@@ -239,24 +239,25 @@ export const squadMinimap = Map.extend({
 
 
     /**
-     * Map image of an upstream layer from the SquadCalc API
-     * @param {string} layerMode - basemap, terrainmap or topomap
+     * The basemap of the SquadCalc API (the game's minimap texture of the map's regular layers), drawn over the world
+     * rectangle the texture shows (mapImages.js upstreamImageRectangle): the game's own corners, not the rounded image
+     * corners, and on Skorpo the rectangle measured on the world
      * @returns {TileLayer|ImageOverlay} - 256 px tiles (zoom 0..5) in high quality mode, else one image
      */
-    upstreamLayer: function(layerMode) {
-        const imagePath = `${process.env.API_URL}${this.activeMap.mapURL}${layerMode}`;
+    upstreamBasemap: function() {
+        const imagePath = `${process.env.API_URL}${this.activeMap.mapURL}basemap`;
+        const minimap = this.activeMap.SDK_data.minimap;
         if (App.userSettings.highQualityImages) {
-            return new TileLayer(`${imagePath}_hq/{z}_{x}_{y}.webp`, {
-                bounds: this.imageBounds,
-                minNativeZoom: 0,
-                maxNativeZoom : 5,
-                edgeBufferTiles: 4,
-                tileSize: 256,
-            });
+            const url = `${imagePath}_hq/{z}_{x}_{y}.webp`;
+            const options = { bounds: this.imageBounds, minNativeZoom: 0, maxNativeZoom: 5, edgeBufferTiles: 4, tileSize: 256 };
+            // The tiles are cut on the image corners; where the texture shows another rectangle they are stretched onto it
+            const transform = upstreamTileTransform(minimap, this.pixelSize);
+            return transform ? new StretchedTileLayer(url, { ...options, transform }) : new TileLayer(url, options);
         }
+        const bounds = rectangleBounds(minimap, upstreamImageRectangle(minimap), this.gameToMapScale, this.gameToMapScaleY);
         // Decoded off the main thread: the 4096 px webp blocked it for 230-710 ms when the browser decoded
         // it as the image joined the page
-        return new ImageOverlay(`${imagePath}.webp`, this.imageBounds, { decoding: "async" });
+        return new ImageOverlay(`${imagePath}.webp`, bounds, { decoding: "async" });
     },
 
 
@@ -265,7 +266,7 @@ export const squadMinimap = Map.extend({
      * /maptiles/<map><suffix>/ with their meta.json ({maxNativeZoom, generated, ...}). Without a suffix it is the
      * detailed tactical map (tools/maptiles in the deployment repository); see TILE_FOLDER_SUFFIX for the others.
      * The map may then zoom DETAILED_EXTRA_ZOOM levels past the finest tiles. A map without the tiles of a suffix
-     * shows the detailed map; a map without detailed tiles shows the upstream topographic map.
+     * shows the detailed map; a map without detailed tiles shows the upstream basemap.
      * @param {number} request - number of this layer change; a later change or map switch wins
      * @param {string} [suffix] - tile folder suffix of the layer (TILE_FOLDER_SUFFIX)
      */
@@ -282,9 +283,9 @@ export const squadMinimap = Map.extend({
                 return;
             }
             if (!meta) {
-                console.warn(`[MAP] No detailed tiles for ${mapName}, showing the topographic map`);
+                console.warn(`[MAP] No detailed tiles for ${mapName}, showing the basemap`);
                 this.setMaxZoom(DEFAULT_MAX_ZOOM);
-                this.showMapImage(this.upstreamLayer("topomap"), request);
+                this.showMapImage(this.upstreamBasemap(), request);
                 return;
             }
             const version = encodeURIComponent(meta.generated);
@@ -387,7 +388,7 @@ export const squadMinimap = Map.extend({
 
 
     /**
-     * Manifest of the layer minimaps this deployment serves (layerMinimap.js), requested once
+     * Manifest of the layer minimaps this deployment serves (mapImages.js), requested once
      * @returns {Promise<object|null>} - the parsed manifest, null when there is none
      */
     layerMinimapManifest: function() {
@@ -402,11 +403,10 @@ export const squadMinimap = Map.extend({
 
     /**
      * A gameplay layer was loaded: show its own minimap when it has one
-     * @param {object} layerData - layer data of the API ({mapTexture, mapTextureCorners})
+     * @param {object} layerData - layer data of the API ({rawName})
      */
     setLayerMinimap: function(layerData) {
-        const { mapTexture, mapTextureCorners } = layerData;
-        this.layerMinimapSource = mapTexture && mapTextureCorners ? { texture: mapTexture, corners: mapTextureCorners } : null;
+        this.layerMinimapLayer = layerData.rawName ?? null;
         this.updateLayerMinimap();
     },
 
@@ -415,27 +415,29 @@ export const squadMinimap = Map.extend({
      * The layer was cleared or the map changed: back to the image of the whole map
      */
     clearLayerMinimap: function() {
-        this.layerMinimapSource = null;
+        this.layerMinimapLayer = null;
         this.updateLayerMinimap();
     },
 
 
     /**
      * Put the own minimap of the loaded layer above the map image: the game draws that texture, 4096 px over a part of
-     * the map, so it is finer than the image of the whole map. Only above the upstream basemap, the other layers are
-     * other drawings of the whole map. A texture the manifest does not list (most layers use the map's own) shows nothing.
+     * the map, so it is finer than the image of the whole map. The manifest gives the layer's texture and corners as
+     * the game takes them (the layer's data asset over its level). Only above the upstream basemap, the other layers
+     * are other drawings of the whole map. A layer the manifest does not list (most layers show the map's own texture)
+     * shows nothing.
      */
     updateLayerMinimap: function() {
-        const source = this.layerMinimapSource;
+        const layer = this.layerMinimapLayer;
         const update = ++this.layerMinimapUpdate;
         this.layerMinimapImage?.remove();
         this.layerMinimapImage = null;
-        if (!source || $("#mapLayerMenu .active").attr("value") !== "basemap") return;
+        if (!layer || $("#mapLayerMenu .active").attr("value") !== "basemap") return;
 
         this.layerMinimapManifest().then((manifest) => {
-            const entry = manifest?.textures?.[source.texture];
+            const entry = manifest?.layers?.[layer];
             if (!entry || update !== this.layerMinimapUpdate) return;
-            const bounds = layerMinimapBounds(this.activeMap.SDK_data.minimap, source.corners, this.gameToMapScale, this.gameToMapScaleY);
+            const bounds = rectangleBounds(this.activeMap.SDK_data.minimap, entry, this.gameToMapScale, this.gameToMapScaleY);
             const image = new ImageOverlay(`/maptiles/${entry.folder}/0/0_0.webp?v=${encodeURIComponent(manifest.generated)}`, bounds, {
                 decoding: "async",
                 zIndex: 2,

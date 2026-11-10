@@ -521,6 +521,14 @@ export const MAPS = [
                 corner1: [3238, 3576],
                 // The game's own corners (MapTextureCorner0/1 of the layers' SQWorldSettings, build 26005357), in metres
                 game: { min: [-3601.5, -3293.0], max: [3248.5, 3576.08] },
+                // The world rectangle the game's texture (the upstream basemap and its HQ tiles) shows, 6868.8 m wide: the
+                // texture's edges registered on the level data (objects, crowns and roads, 33 windows of 8 x 8 over the map:
+                // within 0.08 m at its edges, 0.24 m at its worst corner) and, independently, its own shading on the ground (34
+                // windows: 0.44 and 0.57 m west at the west and east edges, so no scale is left). Its east edge lies 9.2 m east
+                // of the game's minimap and 19.7 m east of corner1. The page draws those images over it (mapImages.js), where
+                // the world is; the game draws them over its corners, features 9.6 m east of the world at the west edge and
+                // 9.2 m west of it at the east edge.
+                image: { min: [-3611.1, -3291.8], max: [3257.7, 3575.8] },
             },
             heightmap: {
                 origin: [-4138, -2142],
@@ -601,8 +609,7 @@ export const MAPS = [
     },
     // Custom Map Template
     //   * Create the necessary folders in /public/ and point mapURL to it
-    //   * squadcalc will look at the folder looking for basemap/terrainmap/topomap .webp
-    //   * You can also tile your images by using basemap/terrainmap/topomap folders
+    //   * squadcalc will look at the folder looking for basemap.webp, and for its basemap_hq tiles in high quality mode
     // { 
     //     name: `CustomMap #1`,
     //     mapURL: `/img/maps/customMap1/`, 
