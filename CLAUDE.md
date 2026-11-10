@@ -63,6 +63,8 @@ App.sanitize(str); // HTML escape utility (static method)
 ```
 `loadWeapons()` in `squadCalc.js` replaces every plain object with `new Weapon(...)`. **Any new property in `weapons.js` must also be added to the `Weapon` constructor in `squadWeapons.js`** — otherwise it is silently dropped.
 
+The selected weapon is stored by its index in `WEAPONS` (localStorage `data-weapon`, saved `.squadcalc` files, sessions): **append a new entry, never insert, move or remove one**. `tests/weapons.test.mjs` freezes the order with `tests/fixtures/weaponOrder.json` and requires a text for every weapon name, and for the shell names of a weapon with several shells, in the six `weapons.json`.
+
 ### Modded weapons
 - `type: "modded"` kept for legacy compat; filtering now uses `mod:` property
 - Current mods: `SuperMod`, `InfiniteWarefare`, `SteelDivision`, `SquadAdminTools`

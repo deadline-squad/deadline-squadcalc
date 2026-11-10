@@ -11,6 +11,30 @@ test("weapons are named once and have a known type", () => {
     for (const weapon of WEAPONS) assert.ok([...WEAPONSTYPE, "modded"].includes(weapon.type), `${weapon.name}: type ${weapon.type}`);
 });
 
+test("the order of the weapons is frozen: the selected weapon is stored by its position in the list", () => {
+    const frozen = JSON.parse(readFileSync(new URL("./fixtures/weaponOrder.json", import.meta.url), "utf8")).names;
+    const names = WEAPONS.map((weapon) => weapon.name);
+    const rule = "append a new weapon at the end of WEAPONS and of tests/fixtures/weaponOrder.json; never insert, move or remove an entry, the weapon a user saved would become another one";
+    const changed = frozen.findIndex((name, index) => names[index] !== name);
+    assert.equal(changed, -1, `entry ${changed} of WEAPONS is ${names[changed]}, it was ${frozen[changed]}: ${rule}`);
+    assert.equal(names.length, frozen.length, `WEAPONS has ${names.length - frozen.length} entries after the frozen ${frozen.length} (${names.slice(frozen.length)}): ${rule}`);
+});
+
+test("every name the weapon and ammunition selectors show has its text in each language", () => {
+    // The selectors read `weapons:<name>` (SquadCalc.loadWeapons, _rebuildModdedWeapons, changeWeapon): the name of a
+    // group, of a weapon and, for a weapon with more than one shell, of the shell. There is no fallback language,
+    // so a name without its key is shown as the key
+    const shown = new Set([...WEAPONSTYPE, ...WEAPONS.map((weapon) => weapon.name)]);
+    for (const weapon of WEAPONS) {
+        if (weapon.shells.length > 1) weapon.shells.forEach((shell) => shown.add(shell.name));
+    }
+    for (const language of ["de", "en", "fr", "ru", "uk", "zh"]) {
+        const texts = JSON.parse(readFileSync(new URL(`../public/locales/${language}/weapons.json`, import.meta.url), "utf8"));
+        const missing = [...shown].filter((name) => typeof texts[name] !== "string" || texts[name] === "");
+        assert.deepEqual(missing, [], `public/locales/${language}/weapons.json has no text for ${missing.join(", ")}`);
+    }
+});
+
 test("every property of a weapon entry is passed on by SquadCalc.loadWeapons (else the Weapon drops it)", () => {
     const source = readFileSync(new URL("../src/js/squadCalc.js", import.meta.url), "utf8");
     const loader = source.slice(source.indexOf("loadWeapons()"));
