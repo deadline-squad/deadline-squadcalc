@@ -159,6 +159,13 @@ tippy("span[data-i18n='settings:showBearing']", {
     },
 });
 
+tippy("span[data-i18n='settings:showDistance']", {
+    ...commonToolipsSettings,
+    onShow(tip) {
+        tip.setContent(i18next.t("tooltips:markerDistance"));
+    },
+});
+
 tippy("span[data-i18n='settings:capZoneOnHover']", {
     ...commonToolipsSettings,
     onShow(tip) {
@@ -539,6 +546,18 @@ tippy(".infBearingTooltip", {
     delay: [500, 0],
     onShow(tip) {
         tip.setContent(i18next.t("tooltips:compassCut"));
+    },
+});
+
+tippy(".infDistanceTooltip", {
+    animation: "fade",
+    placement: "top",
+    touch: false,
+    appendTo: targetDialog,
+    theme: "infTooltips",
+    delay: [500, 0],
+    onShow(tip) {
+        tip.setContent(i18next.t("tooltips:markerDistance"));
     },
 });
 
