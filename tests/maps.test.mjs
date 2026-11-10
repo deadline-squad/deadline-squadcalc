@@ -26,7 +26,8 @@ test("25 maps, each named once and with a name in every language", () => {
 // The landscape of each map in the game (Squad dedicated server build 26005357): the north-west corner of its
 // collision components in metres, its size in vertices and the scale of its actor in metres per vertex and per
 // height unit. Fallujah is the union of its six streaming proxies. Skorpo's landscape is turned by 2.006 degrees
-// about its actor, so its origin is the actor's location.
+// about its actor; its origin is, as on every other map, the first vertex of its components (508 x 1524 quads from the
+// actor), so that origin and size describe one rectangle.
 const GAME_LANDSCAPES = [
     ["AlBasrah", [-2040.01, -2040.0], [4081, 4081], [1.0, 1.0, 1.0]],
     ["Anvil", [-2040.0, -2040.0], [4081, 4081], [0.75, 0.75, 0.45]],
@@ -49,7 +50,7 @@ const GAME_LANDSCAPES = [
     ["Narva", [-2032.0, -2032.0], [4065, 4065], [1.0, 1.0, 1.0]],
     ["Pacific", [-2016.0, -2016.0], [4033, 4033], [1.0, 1.0, 0.28]],
     ["Sanxian", [-2040.0, -2040.0], [4081, 4081], [1.0, 1.0, 1.0]],
-    ["Skorpo", [-4811.27, -3947.92], [7113, 5081], [1.2, 1.2, 3.5]],
+    ["Skorpo", [-4138.02, -2141.58], [7113, 5081], [1.2, 1.2, 3.5]],
     ["Sumari", [-682.01, -371.99], [1427, 1055], [1.0, 1.0, 0.75]],
     ["Tallil", [-2285.91, -2285.77], [4573, 4573], [1.0, 1.0, 1.25]],
     ["Yehorivka", [-3301.97, -3302.0], [6351, 6351], [1.0, 1.0, 4.0]],

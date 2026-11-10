@@ -523,7 +523,7 @@ export const MAPS = [
                 game: { min: [-3601.5, -3293.0], max: [3248.5, 3576.08] },
             },
             heightmap: {
-                origin: [-4811, -3947],
+                origin: [-4138, -2142],
                 size: [7113, 5081],
                 scale: [1.2, 1.2, 3.5],
                 BWlevels: [952, 4074]

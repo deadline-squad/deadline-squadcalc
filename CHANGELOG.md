@@ -7,6 +7,7 @@
 </br><img src="https://img.shields.io/badge/-%20dev%20-lightgrey">  
 - The one-shot handlers of `SquadServersBrowser.switchLayer` carry the namespace `.serverSwitch`; `cancelSwitch` removes them, and `leaveServerMode` and `initServerMode` call it. `switchingTo` holds the layer being opened, so a read of the feed during the switch does not start it again.
 - `npm run locales` (`scripts/check-locales.mjs`) also fails on a Ukrainian text that is Russian left untranslated: one with a letter only Russian has (ы, э, ъ, ё), or one of three or more words that is the Russian text word for word.
+- `SDK_data.heightmap.origin` of Skorpo is the first vertex of its landscape components, [-4138, -2142], as on the other 24 maps, so that `origin` and `size` describe one rectangle; it was the location of the turned landscape actor. No calculation reads the field (open item O9 of `docs/game-data-audit.md` in the deployment repository).
 
 </br></br><!-- CHANGELOG SPLIT MARKER -->
 
