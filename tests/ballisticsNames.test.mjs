@@ -3,11 +3,17 @@ import assert from "node:assert/strict";
 import { WEAPONS } from "../src/data/weapons.js";
 import { matchBallisticsName } from "../src/js/ballisticsNames.js";
 
-// A made-up catalogue: a weapon Squad Ballistics does not have, one with two more views and an old name,
-// one with a name only
+// A made-up catalogue: a weapon Squad Ballistics does not have, one with two more views, an old name and an
+// old name of one of those views, one with a name only
 const CATALOGUE = [
     { name: "Mortar", ballistics: null },
-    { name: "DF_Gun", ballistics: "Gun", ballisticsViews: ["Gun · gunner sight ×6", "Gun · gunner sight ×12"], legacyBallistics: ["Gun / Other gun"] },
+    {
+        name: "DF_Gun",
+        ballistics: "Gun",
+        ballisticsViews: ["Gun · gunner sight ×6", "Gun · gunner sight ×12"],
+        legacyBallistics: ["Gun / Other gun"],
+        legacyBallisticsViews: { "Gun / Other gun · gunner sight ×12": "Gun · gunner sight ×12" },
+    },
     { name: "DF_Launcher", ballistics: "Launcher" },
 ];
 
@@ -25,8 +31,12 @@ test("a name from before a rename finds the weapon and is reported as its curren
     assert.deepEqual(matchBallisticsName(CATALOGUE, "Gun / Other gun"), { index: 1, reported: "Gun" });
 });
 
-test("an unknown name, a part of a name and a value that is no name find nothing", () => {
-    for (const name of ["no such weapon", "Gun · gunner sight", "gun", "", null, undefined, 1]) {
+test("a name a view had before a rename finds the weapon and is reported as the view's current name", () => {
+    assert.deepEqual(matchBallisticsName(CATALOGUE, "Gun / Other gun · gunner sight ×12"), { index: 1, reported: "Gun · gunner sight ×12" });
+});
+
+test("an unknown name, a part of a name, a property every object has and a value that is no name find nothing", () => {
+    for (const name of ["no such weapon", "Gun · gunner sight", "gun", "", "constructor", "toString", "__proto__", null, undefined, 1]) {
         assert.equal(matchBallisticsName(CATALOGUE, name), null, String(name));
     }
 });
@@ -60,5 +70,17 @@ test("weapons.js: the names of the entries Squad Ballistics split still select t
         const index = WEAPONS.findIndex((weapon) => weapon.name === entry);
         assert.deepEqual(matchBallisticsName(WEAPONS, old), { index, reported: current }, old);
         assert.deepEqual(matchBallisticsName(WEAPONS, current), { index, reported: current }, current);
+    }
+});
+
+test("weapons.js: the names the ×12 zoom of the T-72's sight had in Squad Ballistics 1.6.4 select the T-72 and report that zoom", () => {
+    const renamed = [
+        ["Tank AP · T-72 / T-90 (2A46) · gunner sight ×12", "DF_Tank_AP_2A46_ZPT98_2A20_2A45_KBA3", "Tank AP · T-72 (2A46) · gunner sight ×12"],
+        ["Tank HEAT/HE · T-72 / T-90 (2A46) · gunner sight ×12", "DF_Tank_HEAT_HE_M256_Rh120_2A46_ZPT98_2A20_M68A2", "Tank HEAT/HE · T-72 (2A46) · gunner sight ×12"],
+    ];
+    for (const [old, entry, view] of renamed) {
+        const index = WEAPONS.findIndex((weapon) => weapon.name === entry);
+        assert.deepEqual(matchBallisticsName(WEAPONS, old), { index, reported: view }, old);
+        assert.deepEqual(matchBallisticsName(WEAPONS, view), { index, reported: view }, view);
     }
 });

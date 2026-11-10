@@ -6,7 +6,7 @@ import { maxRange } from "./squadBallistics.js";
 const NO_GRAVITY_RANGE = 10000;
 
 export class Weapon {
-    constructor(name, deceleration, decelerationTime, gravityScale, minElevation, unit, logo, marker, type, angleType, elevationPrecision, shells = [], heightOffset = 0, angleOffset = 0, projectileLifespan = 100, mod = null, elevationRate = null, heatmap = true, acceleration = 0, accelerationTime = 0, holdElevation = null, ballistics = null, image = null, muzzle = null, maxSpeed = 0, rotationFollowsVelocity = true, legacyBallistics = [], ballisticsViews = []) {
+    constructor(name, deceleration, decelerationTime, gravityScale, minElevation, unit, logo, marker, type, angleType, elevationPrecision, shells = [], heightOffset = 0, angleOffset = 0, projectileLifespan = 100, mod = null, elevationRate = null, heatmap = true, acceleration = 0, accelerationTime = 0, holdElevation = null, ballistics = null, image = null, muzzle = null, maxSpeed = 0, rotationFollowsVelocity = true, legacyBallistics = [], ballisticsViews = [], legacyBallisticsViews = {}) {
         this.name = name;
         this.deceleration = deceleration;
         this.decelerationTime = decelerationTime;
@@ -61,6 +61,9 @@ export class Weapon {
         // gunner's sight, the normal view next to an optic): they differ in what its overlay draws, the
         // firing solution is this weapon's. `selectBallisticsWeapon` finds it by them and reports them back
         this.ballisticsViews = ballisticsViews;
+        // Names those views had in Squad Ballistics before they were renamed, old name -> the view's name:
+        // `selectBallisticsWeapon` finds this weapon by an old one and reports the view
+        this.legacyBallisticsViews = legacyBallisticsViews;
     }
 
 

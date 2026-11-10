@@ -571,7 +571,8 @@ export default class SquadCalc {
                 weapon.maxSpeed,
                 weapon.rotationFollowsVelocity,
                 weapon.legacyBallistics,
-                weapon.ballisticsViews
+                weapon.ballisticsViews,
+                weapon.legacyBallisticsViews
             );
         });
         
