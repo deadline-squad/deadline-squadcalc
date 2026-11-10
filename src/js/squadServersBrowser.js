@@ -328,7 +328,8 @@ export default class SquadServersBrowser {
     /**
      * Switches the map, the layer and the factions to what a server plays. The feed has no unit of a team, so the
      * units stay the factions' default ones. `selectedLayer` becomes the server's layer once its factions are set;
-     * until then a later read of the feed restarts the switch only for another layer, and `cancelSwitch` stops it.
+     * until then a later read of the feed restarts the switch only for another layer, and `cancelSwitch` stops it. A
+     * switch whose list of layers or layer cannot be loaded ends there, so the next read of the feed starts it again.
      * @param {object} server - a home server the calculator can show (`canFollow`)
      */
     switchLayer(server) {
@@ -339,10 +340,11 @@ export default class SquadServersBrowser {
         this.switchingTo = layer;
         const mapIndex = MAPS.findIndex(m => m.name.toLowerCase() === mapName.toLowerCase());
         const currentMapIndex = parseInt(App.MAP_SELECTOR.val());
-        const currentLayer = App.LAYER_SELECTOR.val();
+        // The layer drawn, not the selector's choice: a choice whose layer failed to load is not shown
+        const currentLayer = App.minimap.layer?.layerData?.rawName;
 
         const applyFactions = () => {
-            this.switchingTo = null;
+            this.cancelSwitch();
             this.selectedLayer = layer;
             App.FACTION1_SELECTOR.val(team1).trigger($.Event("change", { broadcast: false }));
             App.FACTION2_SELECTOR.val(team2).trigger($.Event("change", { broadcast: false }));
@@ -362,6 +364,7 @@ export default class SquadServersBrowser {
         };
 
         $("#serversInformation")[0].close();
+        $(document).one(`layers:failed${SWITCH_EVENTS} layer:failed${SWITCH_EVENTS}`, () => this.cancelSwitch());
 
         // Already on the right map and layer — factions only
         if (currentMapIndex === mapIndex && currentLayer === layer) {
