@@ -25,12 +25,21 @@ test("a Squad Ballistics name (current, of another view, from before a rename) b
     for (const weapon of WEAPONS) {
         const views = weapon.ballisticsViews ?? [];
         const legacy = weapon.legacyBallistics ?? [];
+        const renamedViews = Object.keys(weapon.legacyBallisticsViews ?? {});
         if (views.length || legacy.length) assert.ok(weapon.ballistics, `${weapon.name}: views or old names without a ballistics name`);
-        for (const name of [weapon.ballistics, ...views, ...legacy]) {
+        for (const name of [weapon.ballistics, ...views, ...legacy, ...renamedViews]) {
             if (name === undefined) continue;
             assert.ok(typeof name === "string" && name.length > 0, `${weapon.name}: name ${name}`);
             assert.ok(!owners.has(name), `${name}: named by ${owners.get(name)} and by ${weapon.name}`);
             owners.set(name, weapon.name);
+        }
+    }
+});
+
+test("the old name of a view stands for a view of the same weapon", () => {
+    for (const weapon of WEAPONS) {
+        for (const [old, view] of Object.entries(weapon.legacyBallisticsViews ?? {})) {
+            assert.ok(weapon.ballisticsViews?.includes(view), `${weapon.name}: ${old} stands for ${view}, which is not one of its views`);
         }
     }
 });
