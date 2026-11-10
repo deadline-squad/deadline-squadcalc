@@ -9,7 +9,7 @@ checkout without `node_modules` they stop with `ERR_MODULE_NOT_FOUND`. The pure 
 with `stubs/app.mjs` (gravity and the active weapon) and, for modules in `src/`, Leaflet with empty
 classes. `leaflet.test.mjs` imports the real Leaflet 2 package.
 
-- `squadBallistics.test.mjs`: elevation roots, range, and that the solved elevation lands the shot of every kind of weapon.
+- `squadBallistics.test.mjs`: elevation roots, range, that the solved elevation lands the shot of every kind of weapon, and that a target the muzzle is not short of has no elevation on any weapon whose muzzle is ahead of its pivot.
 - `squadDamage.test.mjs`: damage falloff, cover, hit probability, rounds needed, and `damageField` with the objects of the volume layer as cover (the blocked-between-clearances callback, the landscape still covering, the impact height).
 - `squadHeightmaps.test.mjs`: height interpolation (the game's triangle rule), edges, height path.
 - `structureDamage.test.mjs`: damage of shells to player-built structures (the native rules of ASQDeployable::TakeDamage on a made-up wall: direct-hit multiplier, no direct-radial multiplier, minimum-damage floor, only-direct near miss, exact damage-type class, burst distance; and the game data for the mortar round and HEAT against the FOB radio and a HAB, `structureOutcome`, and the links of `src/data/structureLinks.js` to the shells of `weapons.js`).

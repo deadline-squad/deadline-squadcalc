@@ -1,3 +1,13 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.40.0** *(2026-11-10)*
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- **No firing solution for a target the muzzle has already passed.** The projectile starts at the muzzle, which stands ahead of the weapon's pivot (0.6 m on a tripod MK19, 1.6 m on a mortar, 5.1 m on a tank gun). For a target nearer than that, at a height the mount can be laid on, the calculator answered with the angle at which the barrel's own line runs through the target and a flight time of 0 s: 82 of the 145 weapons, 1452 of 2050 sampled targets. Such a target now has no solution on that arc, as in Squad Ballistics 1.7.2 (#31)
+
+</br><img src="https://img.shields.io/badge/-%20dev%20-lightgrey">  
+- `solveElevation` (`squadBallistics.js`) returns NaN for a root whose `launchPoint` is not short of the target, so the firing solution, the fire coverage and the position heatmap agree on it; `tests/squadBallistics.test.mjs` checks every weapon whose muzzle is ahead of its pivot. Solutions at 40 m and beyond are identical (`tools/direct_fire/solution_bench.mjs`: 0 differing of 40 per weapon) and so are the coverage cells (`coverage_bench.mjs --compare`: 0 differing cells on seven weapons). `tools/direct_fire/compare.py` of the deployment repository now solves targets inside the barrel's length: 0 mismatches of 32 652 here, 696 on 45.39.0.
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.39.0** *(2026-11-10)*
 
 </br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
