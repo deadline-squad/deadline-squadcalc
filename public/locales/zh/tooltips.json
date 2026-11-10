@@ -19,6 +19,7 @@
     "deleteTargets": "删除所有目标",
     "bearing": "角度",
     "whereToAim": "瞄哪里",
+    "compassCut": "游戏中的指南针会舍去十分位：从 45.0° 到 45.9° 都显示 045。十分位表示在这一度之内瞄向哪里。",
     "elevation": "密位",
     "howFar": "打多远",
     "save": "保存",

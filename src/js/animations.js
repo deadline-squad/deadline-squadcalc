@@ -103,27 +103,32 @@ function render(particles, ctx, width, height) {
 }
 
 
-export function animateCalc(goal, duration, destination) {
-    // Ensure target is a number
+/**
+ * Count the number an element shows up or down to a new value
+ * @param {number|string} goal - the new value
+ * @param {number} duration - in ms
+ * @param {string} destination - id of the element
+ * @param {function(number): string} [format] - HTML of a value, on the way and at the end; without it the values on
+ *     the way have as many decimals as the goal (none or one) and the goal itself is shown at the end
+ */
+export function animateCalc(goal, duration, destination, format) {
     const element = $(`#${destination}`);
-    let target = element.html();
-    target = isNaN(element.html()) ? 0 : Number(element.html());
-
-    const increment = Math.abs(goal - target) / (duration / 16);
-
-    // If goal is an integer, intermediate values will be integers too
-    const decimalPlaces = Number.isInteger(Number(goal)) ? 0 : 1;
+    // The value shown now, read from the text (the markup of a format aside): 0 when it is no number ("xxx")
+    const start = Number(element.text()) || 0;
+    const end = Number(goal);
+    const increment = Math.abs(end - start) / (duration / 16);
+    const render = format ?? ((value) => value.toFixed(Number.isInteger(end) ? 0 : 1));
 
     function updateCount(current) {
-        element.text(current.toFixed(decimalPlaces));
+        element.html(render(current));
 
         // Determine the animation direction
-        if ((target < goal && current < goal) || (target > goal && current > goal)) {
-            requestAnimationFrame(() => updateCount(target < goal ? current + increment : current - increment));
+        if ((start < end && current < end) || (start > end && current > end)) {
+            requestAnimationFrame(() => updateCount(start < end ? current + increment : current - increment));
         } else {
-            element.text(goal);
+            element.html(format ? format(end) : goal);
         }
     }
 
-    updateCount(target);
+    updateCount(start);
 }

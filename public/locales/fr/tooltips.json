@@ -19,6 +19,7 @@
     "deleteTargets": "Supprimer les cibles et marqueurs",
     "bearing": "Direction",
     "whereToAim": "(où viser)",
+    "compassCut": "La boussole du jeu tronque le dixième : elle affiche 045 de 45.0° à 45.9°. Le dixième indique où viser dans ce degré.",
     "elevation": "Elévation",
     "howFar": "(A quelle distance ça tirera)",
     "save": "Sauvegarder",

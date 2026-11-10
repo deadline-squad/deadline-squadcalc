@@ -19,6 +19,7 @@
     "deleteTargets": "Delete every targets and markers",
     "bearing": "Bearing",
     "whereToAim": "(where to aim)",
+    "compassCut": "The game's compass cuts off the tenth: it shows 045 from 45.0° to 45.9°. The tenth says where in that degree to aim.",
     "elevation": "elevation",
     "howFar": "(how far it will shoot)",
     "save": "Save",

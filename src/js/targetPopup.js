@@ -4,6 +4,7 @@
  */
 import { App } from "../app.js";
 import i18next from "i18next";
+import { compassHTML, compassText } from "./compass.js";
 
 /**
  * Popup line of the height the user chose for the target
@@ -141,10 +142,10 @@ export function popupContent(firingSolution, angleType, { formatRounds, targetLi
     content += formatRounds(shownArcs);
     content += targetLines;
 
-    if (App.userSettings.showBearing) content += `<br><span class=bearingUiCalc>${BEARING.toFixed(1)}<span data-i18n="common:°">${i18next.t("common:°")}</span></span>`;
+    if (App.userSettings.showBearing) content += `<br><span class=bearingUiCalc>${compassHTML(BEARING)}<span data-i18n="common:°">${i18next.t("common:°")}</span></span>`;
     if (App.userSettings.showTimeOfFlight) content += `<br><span class=bearingUiCalc>${timeOfFlight}</span>`;
     if (App.userSettings.showDistance) content += `<br><span class=bearingUiCalc>${DIST.toFixed(0)}<span data-i18n="common:m">${i18next.t("common:m")}</span></span>`;
     if (App.userSettings.showHeight) content += `<br><span class=bearingUiCalc>${heightDiff}<span data-i18n="common:m">${i18next.t("common:m")}</span></span>`;
     const elevationLabel = i18next.t(App.activeWeapon.elevationRate ? "common:holdTime" : "common:elevation");
-    return [content, `${elevationLabel}: ${elevationText} - ${i18next.t("common:bearing")}: ${BEARING.toFixed(1)}°`];
+    return [content, `${elevationLabel}: ${elevationText} - ${i18next.t("common:bearing")}: ${compassText(BEARING)}°`];
 }

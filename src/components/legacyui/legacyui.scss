@@ -186,3 +186,8 @@
     letter-spacing: 0.05rem;
     font-weight: normal;
 }
+
+.compassTenth {
+    // The tenth after the three digits a bearing shows on the game's compass (compass.js): finer than the compass reads
+    font-size: 0.8em;
+}

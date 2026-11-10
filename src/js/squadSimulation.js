@@ -1,5 +1,6 @@
 import { App } from "../app.js";
 import i18next from "i18next";
+import { compassHTML } from "./compass.js";
 
 export default class Simulation {
 
@@ -54,7 +55,7 @@ export default class Simulation {
      * Populate the simulation table with info
      */
     buildTables(){
-        this.div.find(".infBearing").first().text(this.firingSolution.bearing.toFixed(1)+i18next.t("common:°"));
+        this.div.find(".infBearing").first().html(compassHTML(this.firingSolution.bearing)+i18next.t("common:°"));
         this.div.find(".infDistance").first().text(this.firingSolution.distance.toFixed(1)+i18next.t("common:m"));
         this.div.find(".infWHeight").first().text(this.firingSolution.weaponHeight.toFixed(1)+i18next.t("common:m"));
         this.div.find(".infTHeight").first().text(this.firingSolution.targetHeight.toFixed(1)+i18next.t("common:m"));

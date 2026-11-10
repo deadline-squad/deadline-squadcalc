@@ -152,6 +152,13 @@ tippy("span[data-i18n='settings:lastDigits']", {
     },
 });
 
+tippy("span[data-i18n='settings:showBearing']", {
+    ...commonToolipsSettings,
+    onShow(tip) {
+        tip.setContent(i18next.t("tooltips:compassCut"));
+    },
+});
+
 tippy("span[data-i18n='settings:capZoneOnHover']", {
     ...commonToolipsSettings,
     onShow(tip) {
@@ -224,7 +231,7 @@ tippy("#bearingNum", {
     touch: false,
     theme: "results",
     onShow(tip) {
-        tip.setContent(`${i18next.t("tooltips:bearing")}</br><span class=tooltipsubtext>${i18next.t("tooltips:whereToAim")}</span>`);
+        tip.setContent(`${i18next.t("tooltips:bearing")}</br><span class=tooltipsubtext>${i18next.t("tooltips:whereToAim")}</span></br><span class=tooltipsubtext>${i18next.t("tooltips:compassCut")}</span>`);
     },
 });
 
@@ -520,6 +527,18 @@ tippy(".infSpreadTooltip", {
     delay: [500, 0],
     onShow(tip) {
         tip.setContent(i18next.t("tooltips:spreadDesc"));
+    },
+});
+
+tippy(".infBearingTooltip", {
+    animation: "fade",
+    placement: "top",
+    touch: false,
+    appendTo: targetDialog,
+    theme: "infTooltips",
+    delay: [500, 0],
+    onShow(tip) {
+        tip.setContent(i18next.t("tooltips:compassCut"));
     },
 });
 

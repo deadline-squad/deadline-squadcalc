@@ -1,3 +1,14 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.49.0** *(2026-11-10)*
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- **The bearing reads as the game's compass shows it.** The plain HUD compass cuts the bearing to a whole degree: it shows 045 for every bearing from 45.0 to 45.9 (native USQCompassMK2 of the server build 26005357). The calculator showed 45.7, which a player turned to as 046: the shot went up to 1.5 degrees off, half a degree on average (8.7 m sideways at 1 km). The bearing now reads 045.7: the three digits are what the compass shows when it points exactly at the target, and the smaller tenth after them says where in that degree to aim (the deployable mortar's view shows the tenth). The tenth is rounded as the compass's precise mode rounds it but stays within the compass's degree (45.96 reads 045.9: the plain compass shows 046 only from 46.0), and exactly north reads 360.0, as in the game. So it reads in the panel, the calculation popups, the target dialog and the saved and copied calculations. The help of the bearing (in the panel, in the target dialog and on the *Bearing* setting) says that the game's compass cuts off the tenth. The bearing sent to SquadMortarOverlay and to Squad Ballistics is unchanged.
+- **Ukrainian: the bearing is «Азимут».** It was «Підшипник», a ball bearing.
+
+</br><img src="https://img.shields.io/badge/-%20dev%20-lightgrey">  
+- `src/js/compass.js` (`compassReading`, `compassText`, `compassHTML`) gives the compass reading of a bearing; `tests/compass.test.mjs` checks it against the native code (the cut, the padding, north as 360, tiny negative bearings) and `tests/targetPopup.test.mjs` the popup's line and summary. `animateCalc` takes a format for the HTML of the values it counts through.
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.48.0** *(2026-11-10)*
 
 </br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  

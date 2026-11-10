@@ -19,6 +19,7 @@
     "deleteTargets": "Alle Ziele und Markierungen löschen",
     "bearing": "Peilung",
     "whereToAim": "(wohin zielen)",
+    "compassCut": "Der Kompass im Spiel schneidet das Zehntel ab: Er zeigt 045 von 45.0° bis 45.9°. Das Zehntel sagt, wohin innerhalb dieses Grads zu zielen ist.",
     "elevation": "Elevation",
     "howFar": "(wie weit geschossen wird)",
     "save": "Speichern",
