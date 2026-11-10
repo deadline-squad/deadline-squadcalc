@@ -65,6 +65,9 @@ App.sanitize(str); // HTML escape utility (static method)
 
 The selected weapon is stored by its index in `WEAPONS` (localStorage `data-weapon`, saved `.squadcalc` files, sessions): **append a new entry, never insert, move or remove one**. `tests/weapons.test.mjs` freezes the order with `tests/fixtures/weaponOrder.json` and requires a text for every weapon name, and for the shell names of a weapon with several shells, in the six `weapons.json`.
 
+### Maps list
+The selected map is stored by its index in `MAPS` (`src/data/maps.js`): the map selector's option values, `activeMap` of `getAppState` in saved `.squadcalc` files and sessions, the session's `UPDATE_MAP` message; only links (`?map=`) and server mode go by its name. **Append a new map, never insert, move or remove one**. `tests/maps.test.mjs` freezes the order with `tests/fixtures/mapOrder.json`.
+
 ### Modded weapons
 - `type: "modded"` kept for legacy compat; filtering now uses `mod:` property
 - Current mods: `SuperMod`, `InfiniteWarefare`, `SteelDivision`, `SquadAdminTools`

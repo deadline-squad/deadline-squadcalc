@@ -1,0 +1,30 @@
+{
+    "note": "The names of MAPS (src/data/maps.js) in the order of the list. A saved .squadcalc file and a session store the map by its position (SquadCalc.getAppState activeMap, the UPDATE_MAP message of a session), so a new map is appended here and there, and no entry is inserted, moved or removed",
+    "names": [
+        "AlBasrah",
+        "Anvil",
+        "BlackCoast",
+        "Chora",
+        "Fallujah",
+        "FoolsRoad",
+        "GooseBay",
+        "Gorodok",
+        "Harju",
+        "Jensen",
+        "Kamdesh",
+        "Kohat",
+        "Kokan",
+        "Lashkar",
+        "Logar",
+        "Manicouagan",
+        "Mestia",
+        "Mutaha",
+        "Narva",
+        "Pacific",
+        "Sanxian",
+        "Skorpo",
+        "Sumari",
+        "Tallil",
+        "Yehorivka"
+    ]
+}
