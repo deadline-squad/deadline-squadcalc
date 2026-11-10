@@ -1,8 +1,9 @@
 /**
  * Module resolution hook for the tests: SquadCalc's pure modules import `../app.js` (the whole UI) and
- * the coverage module imports Leaflet at load time. The first is replaced by a stub holding what the
- * pure modules read from App (gravity, active weapon); Leaflet is replaced by empty classes, because the
- * pure functions under test never use it (the Leaflet regression tests import the real package).
+ * the coverage and protection zone modules import Leaflet at load time. The first is replaced by a stub holding
+ * what the pure modules read from App (gravity, active weapon); Leaflet is replaced by the classes of
+ * stubs/leaflet.mjs: empty ones, and a circle and a polygon that keep what they were made with, which the tests of
+ * the protection zones read (the Leaflet regression tests import the real package).
  */
 export async function resolve(specifier, context, nextResolve) {
     const fromSource = context.parentURL?.includes("/src/");

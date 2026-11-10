@@ -1,5 +1,5 @@
 
-import { DivIcon, Marker, Circle, LayerGroup, Polyline, Polygon, Rectangle, FeatureGroup } from "leaflet";
+import { DivIcon, Marker, Circle, LayerGroup, Polyline, Polygon, FeatureGroup } from "leaflet";
 import { SquadObjective } from "./squadObjective.js";
 import { App } from "../app.js";
 import "./libs/leaflet-measure-path.js";
@@ -9,7 +9,7 @@ import { squadSpawnGroup } from "./squadSpawnGroup.js";
 import { squadCameraActor } from "./squadCameraActor.js";
 import { SquadVehicleSpawner } from "./squadVehicleSpawner.js";
 import { layerGridOffset } from "../data/maps.js";
-import { protectionShapes } from "./protectionZone.js";
+import { protectionZoneLayers } from "./protectionZone.js";
 
 export default class SquadLayer {
 
@@ -609,89 +609,12 @@ export default class SquadLayer {
     
 
     /**
-     * Create protection zones and no construction zones: the shapes `protectionShapes` gives for the layer's zones
-     * @param {Array} this.layerData.mapAssets.protectionZones - Array of protection zones
+     * Put the protection zones of the layer on the map: the outlines and no-deploy areas `protectionZoneLayers` gives
+     * for `mapAssets.protectionZones`, kept in `mainZones.rectangles` for the settings that show or hide them
      */
     createProtectionZones() {
-        const PZONECOLOR = App.mainColor;
-
-        // Creating protectionZones + noConstructionZones
-        protectionShapes(this.layerData.mapAssets.protectionZones).forEach(({ zone: pZone, shape, protect, noDeploy }) => {
-
-            // Center of the protection zone
-            let [location_y, location_x] = this.convertToLatLng(pZone.objects[0].location_x, pZone.objects[0].location_y);
-
-            // Protection Zone is a Rectangle
-            if (shape === "box") {
-
-                // Radiis
-                let protectRadiusX = protect[0] * -this.map.gameToMapScale;
-                let protectRadiusY = protect[1] * -this.map.gameToMapScaleY;
-
-                let nodeploRadiusX = noDeploy[0] * -this.map.gameToMapScale;
-                let nodeploRadiusY = noDeploy[1] * -this.map.gameToMapScaleY;
-
-                // Bounds
-                let protectNWCorner = [(location_y + protectRadiusY) , (location_x + protectRadiusX)];
-                let protectSECorner = [(location_y - protectRadiusY), (location_x - protectRadiusX)];
-                let protectBounds = [protectNWCorner, protectSECorner];
-
-                let noDeployNWCorner = [(location_y + nodeploRadiusY) , (location_x + nodeploRadiusX)];
-                let noDeploySECorner = [(location_y - nodeploRadiusY), (location_x - nodeploRadiusX)];
-                let noDeployBounds = [noDeployNWCorner, noDeploySECorner];
-
-                let protectionZone = new Rectangle(protectBounds, {
-                    color: PZONECOLOR,
-                    opacity: 1,
-                    weight: 2,
-                }).addTo(this.activeLayerMarkers);
-
-                let noDeployZone = new Rectangle(noDeployBounds, {
-                    color: PZONECOLOR,
-                    dashArray: "10,20",
-                    opacity: 1,
-                    weight: 1,
-                }).addTo(this.activeLayerMarkers);
-
-                if (pZone.objects[0].boxExtent.rotation_z != 0){
-                    this.rotateRectangle(protectionZone, pZone.objects[0].boxExtent.rotation_z);
-                    this.rotateRectangle(noDeployZone, pZone.objects[0].boxExtent.rotation_z);
-                }
-
-                this.mainZones.rectangles.push(protectionZone);
-                this.mainZones.rectangles.push(noDeployZone);
-                return;
-            }
-
-            // Protection is a Sphere
-            if (shape === "circle") {
-
-                // Center of the protection zone
-                let latlngSphere = [location_y, location_x];
-
-                // Protection & NoDeployementZone radiis
-                let protectRadius = protect * this.map.gameToMapScale;
-                let noDeployRadius = noDeploy * this.map.gameToMapScale;
-
-                let protectionZone = new Circle(latlngSphere, {
-                    color: App.mainColor,
-                    opacity: 1,
-                    weight: 2,
-                    radius: protectRadius,
-                }).addTo(this.activeLayerMarkers);
-
-                let noDeployZone = new Circle(latlngSphere, {
-                    color: App.mainColor,
-                    dashArray: "10,20",
-                    opacity: 1,
-                    weight: 1,
-                    radius: noDeployRadius,
-                }).addTo(this.activeLayerMarkers);
-
-                this.mainZones.rectangles.push(protectionZone);
-                this.mainZones.rectangles.push(noDeployZone);
-            }
-
+        protectionZoneLayers(this.layerData.mapAssets.protectionZones, (x, y) => this.convertToLatLng(x, y), this.map.gameToMapScale, App.mainColor).forEach((zone) => {
+            this.mainZones.rectangles.push(zone.addTo(this.activeLayerMarkers));
         });
     }
 
