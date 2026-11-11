@@ -499,13 +499,13 @@ export const squadTargetMarker = squadMarker.extend({
 
     /**
      * Heights around a point, for squadDamage.js: `(east, north)` meters from `center` -> meters.
-     * Flat ground without the precise game heightmap: the 8-bit one (steps up to 2 m) would make cover up.
+     * Flat ground until the heightmap loaded, and where it failed to load.
      * @param {LatLng} center
      * @returns {function(number, number): number}
      */
     heightAround: function(center) {
         const heightmap = this.map.heightmap;
-        if (!heightmap?.precise) return () => 0;
+        if (!heightmap?.ready) return () => 0;
         return (east, north) => heightmap.getHeight(this.map.fromMeters(center, east, north));
     },
 
@@ -523,14 +523,14 @@ export const squadTargetMarker = squadMarker.extend({
 
     /**
      * Draw where a round on the target kills, wounds, or is stopped by cover (squadDamage.damageField),
-     * inside the damage circles. Needs the precise heightmap; recomputed only when the target, the
+     * inside the damage circles. Needs the heightmap; recomputed only when the target, the
      * shell or the map changed, and hidden while the target is dragged. A zone seen before is drawn from
      * the cache at once; a new one is queued and drawn when its turn comes (processCoverQueue). With the
      * volume layer on (squadVolume.js) the cover is its objects instead of the heightmap and the round lands at
      * the target's height: the layer's worker computes the zone (coverZone), the queue is the fallback.
      */
     updateCoverZone: function() {
-        if (!this.showsExplosion() || this.isDragging || !this.map.heightmap?.precise) {
+        if (!this.showsExplosion() || this.isDragging || !this.map.heightmap?.ready) {
             this.removeCoverZone();
             return;
         }
@@ -658,7 +658,7 @@ export const squadTargetMarker = squadMarker.extend({
         const { lateral, along } = firingSolution.getHitSpread(arc);
         const explosion = App.activeWeapon.explosion;
         const center = this.getLatLng();
-        const key = [this.map.activeMap.name, center.lat, center.lng, JSON.stringify(explosion), lateral, along, firingSolution.bearing, this.map.heightmap?.precise].join("|");
+        const key = [this.map.activeMap.name, center.lat, center.lng, JSON.stringify(explosion), lateral, along, firingSolution.bearing, Boolean(this.map.heightmap?.ready)].join("|");
         let probabilities = hitProbabilities.get(key);
         if (!probabilities) probabilities = hitProbability(this.heightAround(center), explosion, lateral, along, firingSolution.bearing);
         remember(hitProbabilities, key, probabilities);

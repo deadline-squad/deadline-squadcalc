@@ -3,8 +3,10 @@ import { App } from "../app.js";
 
 /**
  * Squad Heightmap
- * Load an heightmap in memory and calculate heights for given LatLng Points.
- * The PNG is fetched and decoded in a worker (heightmapWorker.js) so a map switch does not freeze the page.
+ * Load the heightmap of a map in memory and give the height of the game's collision at LatLng points.
+ * The heightmap of this deployment (/heightmaps/<map>/: 16-bit levels and meta.json, built from the game's landscape
+ * collision fused with its static meshes and SquadHeight's buildings, tools/heightmaps in the deployment repository) is
+ * fetched and decoded in a worker (heightmapWorker.js) so a map switch does not freeze the page.
  * Events on `document` once the heights of the active map are known (never for a heightmap a map
  * switch replaced meanwhile):
  *   - `heightmapPNG:loaded` when they loaded;
@@ -12,8 +14,6 @@ import { App } from "../app.js";
  *     to place their markers).
  * A failed load shows an error toast and sets `failed`: heights are then 0 everywhere, and the firing
  * solutions say they have no height data (SquadFiringSolution.hasHeightData).
- * When the network kept dropping the precise heightmap (the worker tries each request again first),
- * the 8-bit one is used and a warning toast says the heights are coarse.
  * @class squadHeightmap
  */
 export default class SquadHeightmap {
@@ -32,50 +32,38 @@ export default class SquadHeightmap {
         this.rowsPerUnit = 0;
         // Meters between two samples (1 on most maps, 0.5 on Chora and Kokan); 0 until a heightmap loaded
         this.resolution = 0;
-        // Whether `jsonPng` holds the precise game heightmap (mm steps), not the 8-bit one (up to 2 m steps)
-        this.precise = false;
-        // Whether both heightmaps failed to load: every height is 0
+        // Whether the heights loaded (`heightmapPNG:loaded`), or failed to load: every height is then 0
+        this.ready = false;
         this.failed = false;
         this.worker = null;
-        this.loadHeightmapPNG(`${process.env.API_URL}${this.map.activeMap.mapURL}heightmap.png`);
+        this.load();
     }
 
 
     /**
-     * Load the heights in the worker.
-     * Prefers the precise heightmap served by this deployment in /heightmaps/<map>/ (16-bit grayscale
-     * heightmap.png and its meta.json; built from the game's landscape collision fused with SquadHeight's
-     * buildings, tools/heightmaps in the deployment repository; same minimap bounds as the 8-bit one)
-     * and falls back to `url`, SquadCalc's 8-bit-per-channel R/B images: height = (255 + r - b) * scale[2].
-     * @param {string} url - URL of the 8-bit R/B PNG file
+     * Load the heights of the active map in the worker, from /heightmaps/<map>/ of this deployment
      * @returns {void} - `jsonPng` holds the heights once `heightmapPNG:loaded` fired; it stays empty on failure
      */
-    loadHeightmapPNG(url) {
-        const heightmapPNG = this.map.activeMap.SDK_data.heightmapPNG;
-        if (!heightmapPNG) return;
-
+    load() {
         const mapName = this.map.activeMap.mapURL.split("/").filter(Boolean).pop();
+        const base = new URL(`/heightmaps/${mapName}/`, window.location.origin).href;
         this.worker = new Worker(new URL("./heightmapWorker.js", import.meta.url));
         this.worker.onmessage = ({ data }) => this.receive(data);
-        this.worker.onerror = (event) => this.receive({ error: event.message, url });
-        this.worker.postMessage({
-            preciseBase: new URL(`/heightmaps/${mapName}/`, window.location.origin).href,
-            fallbackUrl: url,
-            fallbackScale: heightmapPNG.scale[2],
-        });
+        this.worker.onerror = (event) => this.receive({ error: event.message, url: base });
+        this.worker.postMessage({ base });
     }
 
 
     /**
      * Store the worker's result and announce it
-     * @param {{levels: Uint16Array, width: number, height: number, step: number, resolution?: number, precise: boolean, preciseLost: boolean, url: string}|{error: string, url: string}} data
+     * @param {{levels: Uint16Array, width: number, height: number, step: number, resolution: number, url: string}|{error: string, url: string}} data
      */
     receive(data) {
         this.dispose();
         if (this.map.heightmap !== this) return;
 
         if (data.error) {
-            console.error("[HEIGHTMAP] Failed to load PNG heightmap:", data.url);
+            console.error("[HEIGHTMAP] Failed to load the heightmap:", data.url);
             console.error("[HEIGHTMAP]   -> ", data.error);
             this.failed = true;
             App.openToast("error", "heightmapFailed", "heightmapFailedDesc");
@@ -87,18 +75,13 @@ export default class SquadHeightmap {
             this.step = data.step;
             // The grid has one sample per `resolution` meters (meta.json resolution_m, 1 unless the map is built
             // finer) from the minimap's min corner to its max corner included (width = map size X / resolution
-            // + 1, height = size Y / resolution + 1: tools/heightmaps meta.json, and SquadCalc's 8-bit PNGs
-            // alike, one meter), so its last sample sits on the map's edge, pixelSize units away; the unit
-            // counts below follow from the grid, whatever its resolution
+            // + 1, height = size Y / resolution + 1, tools/heightmaps meta.json), so its last sample sits on the
+            // map's edge, pixelSize units away; the unit counts below follow from the grid, whatever its resolution
             this.resolution = data.resolution > 0 ? data.resolution : 1;
             this.colsPerUnit = (width - 1) / this.map.pixelSize;
             this.rowsPerUnit = (height - 1) / this.map.pixelSize;
-            this.precise = data.precise;
+            this.ready = true;
             console.debug(`[HEIGHTMAP] Loaded ${data.url} precision: ${(data.step * 100).toFixed(1)}cm`);
-            if (data.preciseLost) {
-                console.warn("[HEIGHTMAP] The precise heightmap could not be downloaded, using the 8-bit one:", data.url);
-                App.openToast("warning", "heightmapCoarse", "heightmapCoarseDesc");
-            }
             $(document).trigger("heightmapPNG:loaded");
         }
         $(document).trigger("heightmap:loaded");

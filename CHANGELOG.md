@@ -1,3 +1,15 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.51.0** *(2026-11-11)*
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- **No coarse heights any more.** When the heightmap could not be downloaded, the page used upstream's 8-bit heightmap instead: up to 19 cm off at the median and up to a metre at the 99th percentile (Skorpo's levels are 2.09 m apart), and on Black Coast 5.7 m off at the median, an image of another version of the map. A heightmap that cannot be loaded (after four tries over about 7 s) now says so, as when a map has none ("No height data"), and the solutions assume flat ground, until the page is reloaded.
+
+</br><img src="https://img.shields.io/badge/-%20dev%20-lightgrey">  
+- `heightmapWorker.js` takes `{base}` and reads only the heightmap of `/heightmaps/<map>/`; `ready` replaces `precise`.
+- `SDK_data.heightmapPNG`, `heightmap.BWlevels`, `npm run mapinfo`, the `fast-png` dependency and the service worker's cache of the 8-bit images (`map-heightmaps`, deleted on activation) are gone with the fallback, and so are the texts `heightmapCoarse` and `heightmapCoarseDesc`.
+- `tests/squadHeightmaps.test.mjs` reads heightmaps through `receive`, and a failed load.
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.50.0** *(2026-11-10)*
 
 </br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  

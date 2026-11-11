@@ -1,6 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import SquadHeightmap from "../src/js/squadHeightmaps.js";
+import { App } from "./stubs/app.mjs";
+
+// The jQuery events the heightmap announces on `document`, and the toasts it shows
+const events = [];
+globalThis.document = {};
+globalThis.$ = () => ({ trigger: (name) => events.push(name) });
+const toasts = [];
+App.openToast = (...toast) => toasts.push(toast);
 
 /** A heightmap with the given rows of levels, one sample per map unit, without the worker that loads it */
 function heightmapOf(rows, step = 1) {
@@ -46,6 +54,28 @@ test("outside the heightmap by more than half a sample the height is 0, within i
     assert.equal(heightmap.getHeight(at(1.4, 1)), 5);
     assert.equal(heightmap.getHeight(at(0, -0.6)), 0);
     assert.equal(heightmap.getHeight(at(2, 0)), 0);
+});
+
+test("a loaded heightmap is ready and announced; a failed one shows its toast and every height is 0", () => {
+    // As the worker hands them over (receive): 256 map units across, so one sample per map unit with 257 samples
+    const received = (data) => {
+        const heightmap = Object.create(SquadHeightmap.prototype);
+        Object.assign(heightmap, { map: { pixelSize: 256 }, jsonPng: [], step: 0, ready: false, failed: false, worker: null });
+        heightmap.map.heightmap = heightmap;
+        heightmap.receive(data);
+        return heightmap;
+    };
+    events.length = 0;
+    const loaded = received({ levels: new Uint16Array(257 * 257).fill(1), width: 257, height: 257, step: 1, resolution: 1, url: "test" });
+    assert.equal(loaded.ready, true);
+    assert.equal(loaded.getHeight(at(3, 4)), 1);
+    assert.deepEqual(events, ["heightmapPNG:loaded", "heightmap:loaded"]);
+
+    events.length = 0;
+    const failed = received({ error: "no heightmap at /heightmaps/test/", url: "/heightmaps/test/meta.json" });
+    assert.deepEqual([failed.ready, failed.failed, failed.getHeight(at(0, 0))], [false, true, 0]);
+    assert.deepEqual(events, ["heightmap:loaded"]);
+    assert.deepEqual(toasts, [["error", "heightmapFailed", "heightmapFailedDesc"]]);
 });
 
 test("before a heightmap loaded every height is 0", () => {

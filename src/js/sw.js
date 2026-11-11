@@ -8,6 +8,8 @@ self.skipWaiting();
 clientsClaim();
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
+// SquadCalc's 8-bit heightmaps (API /img/maps/<map>/heightmap.png) are no longer read: drop what earlier versions cached
+self.addEventListener("activate", (event) => event.waitUntil(caches.delete("map-heightmaps")));
 
 
 // Cache key of a file whose URL carries a query that does not change its content (?map=, ?server=,
@@ -140,22 +142,6 @@ registerRoute(
         plugins: [
             new ExpirationPlugin({
                 maxEntries: 300,
-                maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
-                purgeOnQuotaError: true,
-            }),
-        ],
-    })
-);
-
-
-// Cache binary heightmaps for 30 days with StaleWhileRevalidate
-registerRoute(
-    ({ url }) => url.pathname.includes("/maps/") && url.pathname.endsWith("heightmap.png"),
-    new StaleWhileRevalidate ({
-        cacheName: "map-heightmaps",
-        plugins: [
-            new ExpirationPlugin({
-                maxEntries: 30,
                 maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
                 purgeOnQuotaError: true,
             }),
