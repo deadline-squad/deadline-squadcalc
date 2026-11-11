@@ -1,12 +1,17 @@
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.51.0** *(2026-11-11)*
 
 </br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- **On bare ground the height is the game's on every map, within the heightmap's 16-bit step.** The heightmap's samples are now the vertices of the map's own landscape, read along the game's triangles. They were a sample every metre from the minimap's corner, which on 18 maps lies between the vertices (up to 49 cm off on Jensen, at 0.75 m spacing on Anvil, 1.2 m and turned by 2 degrees on Skorpo), so the page read a resampled landscape: at the game's vertices up to 3.44 m off on Black Coast, 2.38 m on Anvil, 1.89 m on Kohat, 1.56 m on Fools Road and 1.32 m on Skorpo, now within 0.82 cm on every map (Skorpo's step is 1.6 cm; 0.05 to 0.39 cm on the others). On Fallujah two of the six streaming parts of its landscape disagree at 30 of the vertices they share, by up to 37.5 cm: the game's own ground steps there, and next to those vertices one side is still off by up to that much. The heightmap files (`/heightmaps/<map>/`) are rebuilt on the vertices; their `meta.json` says where the samples lie (`origin_m`, `resolution_m`, `yaw_deg`).
+- **The heightmap the page reads first keeps its full precision.** Its WebP form was rounded to 1 cm steps (up to 5 mm off; Skorpo and Chora kept theirs); it now holds the same 16-bit levels as the PNG, 1.0 to 16.2 mm a step. The WebP files take 263 MB for the 25 maps, 43 % more, and still 78 % of the PNG.
 - **No coarse heights any more.** When the heightmap could not be downloaded, the page used upstream's 8-bit heightmap instead: up to 19 cm off at the median and up to a metre at the 99th percentile (Skorpo's levels are 2.09 m apart), and on Black Coast 5.7 m off at the median, an image of another version of the map. A heightmap that cannot be loaded (after four tries over about 7 s) now says so, as when a map has none ("No height data"), and the solutions assume flat ground, until the page is reloaded.
+- The ground under the objects of the volume layer (`terrain.bin`) lies on the same vertices.
 
 </br><img src="https://img.shields.io/badge/-%20dev%20-lightgrey">  
-- `heightmapWorker.js` takes `{base}` and reads only the heightmap of `/heightmaps/<map>/`; `ready` replaces `precise`.
+- `heightmapWorker.js` takes `{base}` and returns the levels with `lattice` (`gridLattice`: the samples' origin, spacing and yaw from `meta.json`; a heightmap without `origin_m` starts at the bounds' corner as before) and `bounds`; `squadHeightmaps.receive` turns them into `toGrid`, an affine map from a LatLng to the samples' (col, row), which `getHeight` and the height path read. `ready` replaces `precise`.
+- `volumeTerrain.js` reads `terrain.bin` TER2 (56-byte header: origin, spacing, yaw), and still TER1.
 - `SDK_data.heightmapPNG`, `heightmap.BWlevels`, `npm run mapinfo`, the `fast-png` dependency and the service worker's cache of the 8-bit images (`map-heightmaps`, deleted on activation) are gone with the fallback, and so are the texts `heightmapCoarse` and `heightmapCoarseDesc`.
-- `tests/squadHeightmaps.test.mjs` reads heightmaps through `receive`, and a failed load.
+- `tests/squadHeightmaps.test.mjs` reads heightmaps through `receive`: samples off the minimap corner (Goose Bay), 0.75 m apart (Anvil), turned (Skorpo), a failed load; `tests/volumeTerrain.test.mjs` TER2 and TER1.
+- The deployment repository's `tools/browser_check/heightmap_native.mjs` checks the page's heights at the game's landscape vertices and between them on Skorpo, Anvil, Chora, Goose Bay, Jensen, Black Coast, Kohat, Logar and Fallujah.
 
 </br></br><!-- CHANGELOG SPLIT MARKER -->
 

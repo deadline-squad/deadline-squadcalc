@@ -225,8 +225,9 @@ Unit tests: `src/voxel.rs` (hand-made scenes; 5 000 random segments against a sl
 
 `src/js/volumeWorker.js` loads `public/engine/` (`npm run build:engine` builds the module and copies `index.mjs`,
 `pkg/squad_engine.js` and `pkg/squad_engine_bg.wasm` there; the page builds and runs without it) and, for the active map, the
-two files that `tools/volumetric/py/publish_volume.py` put next to the 1 m heightmap: `volume.vcol` (this section's
-`VCOL1`) and `terrain.bin` (`TER1`, landscape-only heights with the landscape holes, `src/js/volumeTerrain.js`). It starts
+two files that `tools/volumetric/py/publish_volume.py` put next to the heightmap: `volume.vcol` (this section's
+`VCOL1`) and `terrain.bin` (`TER2`, landscape-only heights with the landscape holes on the heightmap's grid of the landscape's
+vertices, `src/js/volumeTerrain.js`; the `TER1` files of the heightmaps before it are read too). It starts
 only when the user turned the *Object volumes in the line of fire* setting on and `meta.json` has a `volume` entry
 (file names, sizes, sha256, grid); a map without the entry, a missing engine or a failed download keeps the heightmap.
 The page's heights count from the heightmap's lowest level (`meta.json` `z_min_m`), the files hold the game's Z.
@@ -320,7 +321,7 @@ the map like the coverage), the computation runs in the volume worker (`heatInit
 
 * **Positions** lie on rays from the target (at least 360, at most 1440, neighbours about two cells apart at the edge),
   every `cell = max(2 m, range / 160)` metres; the range is the weapon's, at most 2000 m (the ballistic ranges of the
-  weapons reach tens of kilometres). The landscape profile of a ray (TER1 heights, sampled every 1 to 3 m) is read once for
+  weapons reach tens of kilometres). The landscape profile of a ray (TER2 heights, sampled every 1 to 3 m) is read once for
   all its positions.
 * **The shot** is the weapon's low trajectory from the muzzle of a shooter standing at the position (shouldered, 1.5 m,
   unless the weapon has a muzzle model or a height offset), solved exactly like `SquadFiringSolution` and the fire

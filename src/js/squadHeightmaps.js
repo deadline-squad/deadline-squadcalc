@@ -24,13 +24,14 @@ export default class SquadHeightmap {
      */
     constructor(map) {
         this.map = map;
-        // One Uint16Array of integer levels per image row (views into one buffer); height = level * step
+        // One Uint16Array of integer levels per sample row (views into one buffer); height = level * step
         this.jsonPng = [];
         this.step = 0;
-        // Heightmap pixels per map unit along each axis (see receive)
-        this.colsPerUnit = 0;
-        this.rowsPerUnit = 0;
-        // Meters between two samples (1 on most maps, 0.5 on Chora and Kokan); 0 until a heightmap loaded
+        // Fractional (col, row) of the samples at a LatLng (see receive): col = col + lng * colLng + lat * colLat, row
+        // likewise; null until a heightmap loaded
+        this.toGrid = null;
+        // Meters between two samples (the landscape's vertex spacing: 1 m on most maps, 0.5 m on Chora and Kokan, 0.75 m
+        // on Anvil, 1.2 m on Skorpo); 0 until a heightmap loaded
         this.resolution = 0;
         // Whether the heights loaded (`heightmapPNG:loaded`), or failed to load: every height is then 0
         this.ready = false;
@@ -56,7 +57,9 @@ export default class SquadHeightmap {
 
     /**
      * Store the worker's result and announce it
-     * @param {{levels: Uint16Array, width: number, height: number, step: number, resolution: number, url: string}|{error: string, url: string}} data
+     * @param {{levels: Uint16Array, width: number, height: number, step: number, url: string,
+     *   lattice: {originX: number, originY: number, resolution: number, yawDeg: number},
+     *   bounds: {min_x: number, max_x: number, min_y: number, max_y: number}}|{error: string, url: string}} data
      */
     receive(data) {
         this.dispose();
@@ -68,18 +71,27 @@ export default class SquadHeightmap {
             this.failed = true;
             App.openToast("error", "heightmapFailed", "heightmapFailedDesc");
         } else {
-            const { levels, width, height } = data;
+            const { levels, width, height, lattice, bounds } = data;
             const rows = [];
             for (let y = 0; y < height; y++) rows.push(levels.subarray(y * width, (y + 1) * width));
             this.jsonPng = rows;
             this.step = data.step;
-            // The grid has one sample per `resolution` meters (meta.json resolution_m, 1 unless the map is built
-            // finer) from the minimap's min corner to its max corner included (width = map size X / resolution
-            // + 1, height = size Y / resolution + 1, tools/heightmaps meta.json), so its last sample sits on the
-            // map's edge, pixelSize units away; the unit counts below follow from the grid, whatever its resolution
-            this.resolution = data.resolution > 0 ? data.resolution : 1;
-            this.colsPerUnit = (width - 1) / this.map.pixelSize;
-            this.rowsPerUnit = (height - 1) / this.map.pixelSize;
+            this.resolution = lattice.resolution;
+            // The map spans the minimap bounds: a LatLng is at world x = min_x + lng * size_x / pixelSize,
+            // y = min_y - lat * size_y / pixelSize. Sample (col, row) lies at the lattice's origin + col * resolution
+            // along its X axis (world X turned by yaw) + row * resolution along its Y axis (worker's gridLattice), so the
+            // sample coordinates are an affine function of the LatLng
+            const yaw = lattice.yawDeg * Math.PI / 180;
+            const cos = Math.cos(yaw) / lattice.resolution;
+            const sin = Math.sin(yaw) / lattice.resolution;
+            const perLng = (bounds.max_x - bounds.min_x) / this.map.pixelSize;
+            const perLat = -(bounds.max_y - bounds.min_y) / this.map.pixelSize;
+            const dx = bounds.min_x - lattice.originX;
+            const dy = bounds.min_y - lattice.originY;
+            this.toGrid = {
+                col: cos * dx + sin * dy, colLng: cos * perLng, colLat: sin * perLat,
+                row: cos * dy - sin * dx, rowLng: -sin * perLng, rowLat: cos * perLat,
+            };
             this.ready = true;
             console.debug(`[HEIGHTMAP] Loaded ${data.url} precision: ${(data.step * 100).toFixed(1)}cm`);
             $(document).trigger("heightmapPNG:loaded");
@@ -102,9 +114,9 @@ export default class SquadHeightmap {
      * is two triangles split along the diagonal from its (row, col) corner to its (row + 1, col + 1)
      * corner, the split of the game's landscape collision (found with positions the game server logged:
      * tools/heightmaps/py/audit_ground_truth.py in the deployment repository), and the height is
-     * interpolated on the triangle the point is in (row = -lat, col = lng, each scaled to the grid of
-     * its axis). Bilinear interpolation differs from it by the quad's twist times fy * (1 - fx), up to
-     * a quarter of the twist at the quad's centre (1.1 m on the steepest Al Basrah quad).
+     * interpolated on the triangle the point is in. The samples are the landscape's own vertices, so on bare
+     * ground this is the game's collision exactly. Bilinear interpolation differs from it by the quad's twist times
+     * fy * (1 - fx), up to a quarter of the twist at the quad's centre (1.1 m on the steepest Al Basrah quad).
      * https://github.com/sh4rkman/SquadCalc/wiki/Deducing-Altitude
      * @param {LatLng} latlng - LatLng Point
      * @returns {number} - height in meters; 0 more than half a sample outside the heightmap or before
@@ -112,11 +124,12 @@ export default class SquadHeightmap {
      */
     getHeight(latlng) {
         const rows = this.jsonPng.length;
-        if (!rows || !this.colsPerUnit) return 0;
+        const grid = this.toGrid;
+        if (!rows || !grid) return 0;
         const cols = this.jsonPng[0].length;
 
-        let row = latlng.lat * -this.rowsPerUnit;
-        let col = latlng.lng * this.colsPerUnit;
+        let row = grid.row + latlng.lng * grid.rowLng + latlng.lat * grid.rowLat;
+        let col = grid.col + latlng.lng * grid.colLng + latlng.lat * grid.colLat;
         if (!(row >= -0.5 && row <= rows - 0.5 && col >= -0.5 && col <= cols - 0.5)) return 0;
         row = Math.min(Math.max(row, 0), rows - 1);
         col = Math.min(Math.max(col, 0), cols - 1);
