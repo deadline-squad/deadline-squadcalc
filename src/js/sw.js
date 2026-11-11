@@ -73,8 +73,9 @@ registerRoute(
 
 // Precise heightmaps of this deployment (/heightmaps/<map>/, src/js/heightmapWorker.js). meta.json names the
 // files and says which version they are, so it comes from the network first (the last copy offline); the heavy
-// file is requested as ?v=<generated of meta.json>, so a URL never changes content and a cached one is
-// served first. At most 8 maps are kept (about 7 MB each as WebP), the least recently used one goes first
+// files (the heightmap and its detail where objects stand) are requested as ?v=<generated of meta.json>, so a URL
+// never changes content and a cached one is served first. At most 16 files are kept (8 maps, about 11 MB each),
+// the least recently used one goes first
 registerRoute(
     ({ url }) => /^\/heightmaps\/[^/]+\/meta\.json$/.test(url.pathname),
     new NetworkFirst({
@@ -86,12 +87,12 @@ registerRoute(
     })
 );
 registerRoute(
-    ({ url }) => /^\/heightmaps\/[^/]+\/heightmap\.(webp|png)$/.test(url.pathname) && url.searchParams.has("v"),
+    ({ url }) => /^\/heightmaps\/[^/]+\/heightmap\.(webp|png|detail\.bin)$/.test(url.pathname) && url.searchParams.has("v"),
     new CacheFirst({
         cacheName: "precise-heightmaps",
         plugins: [
             new ExpirationPlugin({
-                maxEntries: 8,
+                maxEntries: 16,
                 maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
                 purgeOnQuotaError: true,
             }),

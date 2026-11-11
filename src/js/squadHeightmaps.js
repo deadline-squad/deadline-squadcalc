@@ -1,12 +1,14 @@
 import { App } from "../app.js";
+import { detailLevel } from "./heightmapDetail.js";
 
 
 /**
  * Squad Heightmap
  * Load the heightmap of a map in memory and give the height of the game's collision at LatLng points.
  * The heightmap of this deployment (/heightmaps/<map>/: 16-bit levels and meta.json, built from the game's landscape
- * collision fused with its static meshes and SquadHeight's buildings, tools/heightmaps in the deployment repository) is
- * fetched and decoded in a worker (heightmapWorker.js) so a map switch does not freeze the page.
+ * collision fused with its static meshes and SquadHeight's buildings, tools/heightmaps in the deployment repository, and
+ * the finer grid where objects stand, heightmapDetail.js) is fetched and decoded in a worker (heightmapWorker.js) so a map
+ * switch does not freeze the page.
  * Events on `document` once the heights of the active map are known (never for a heightmap a map
  * switch replaced meanwhile):
  *   - `heightmapPNG:loaded` when they loaded;
@@ -33,6 +35,8 @@ export default class SquadHeightmap {
         // Meters between two samples (the landscape's vertex spacing: 1 m on most maps, 0.5 m on Chora and Kokan, 0.75 m
         // on Anvil, 1.2 m on Skorpo); 0 until a heightmap loaded
         this.resolution = 0;
+        // The finer grid on the quads where objects stand (heightmapDetail.js), null where the map has none
+        this.detail = null;
         // Whether the heights loaded (`heightmapPNG:loaded`), or failed to load: every height is then 0
         this.ready = false;
         this.failed = false;
@@ -59,7 +63,8 @@ export default class SquadHeightmap {
      * Store the worker's result and announce it
      * @param {{levels: Uint16Array, width: number, height: number, step: number, url: string,
      *   lattice: {originX: number, originY: number, resolution: number, yawDeg: number},
-     *   bounds: {min_x: number, max_x: number, min_y: number, max_y: number}}|{error: string, url: string}} data
+     *   bounds: {min_x: number, max_x: number, min_y: number, max_y: number},
+     *   detail?: import("./heightmapDetail.js").HeightmapDetail|null, detailError?: string}|{error: string, url: string}} data
      */
     receive(data) {
         this.dispose();
@@ -77,6 +82,8 @@ export default class SquadHeightmap {
             this.jsonPng = rows;
             this.step = data.step;
             this.resolution = lattice.resolution;
+            this.detail = data.detail ?? null;
+            if (data.detailError) console.warn("[HEIGHTMAP] Heights without the detail where objects stand:", data.detailError);
             // The map spans the minimap bounds: a LatLng is at world x = min_x + lng * size_x / pixelSize,
             // y = min_y - lat * size_y / pixelSize. Sample (col, row) lies at the lattice's origin + col * resolution
             // along its X axis (world X turned by yaw) + row * resolution along its Y axis (worker's gridLattice), so the
@@ -116,7 +123,8 @@ export default class SquadHeightmap {
      * tools/heightmaps/py/audit_ground_truth.py in the deployment repository), and the height is
      * interpolated on the triangle the point is in. The samples are the landscape's own vertices, so on bare
      * ground this is the game's collision exactly. Bilinear interpolation differs from it by the quad's twist times
-     * fy * (1 - fx), up to a quarter of the twist at the quad's centre (1.1 m on the steepest Al Basrah quad).
+     * fy * (1 - fx), up to a quarter of the twist at the quad's centre (1.1 m on the steepest Al Basrah quad). A quad that
+     * has detail (next to a wall or a roof edge, heightmapDetail.js) is read the same way on its sub-grid.
      * https://github.com/sh4rkman/SquadCalc/wiki/Deducing-Altitude
      * @param {LatLng} latlng - LatLng Point
      * @returns {number} - height in meters; 0 more than half a sample outside the heightmap or before
@@ -140,6 +148,8 @@ export default class SquadHeightmap {
         const colWeight = col - col0;
         const top = this.jsonPng[row0];
         const bottom = this.jsonPng[row0 + 1];
+        const fine = this.detail ? detailLevel(this.detail, row0, col0, rowWeight, colWeight, top, bottom) : null;
+        if (fine !== null) return fine * this.step;
         const corner = top[col0];
         const level = colWeight >= rowWeight
             ? corner + (top[col0 + 1] - corner) * colWeight + (bottom[col0 + 1] - top[col0 + 1]) * rowWeight

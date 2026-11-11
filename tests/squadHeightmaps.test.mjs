@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import SquadHeightmap from "../src/js/squadHeightmaps.js";
+import { decodeDetail } from "../src/js/heightmapDetail.js";
 import { App } from "./stubs/app.mjs";
 
 // The jQuery events the heightmap announces on `document`, and the toasts it shows
@@ -17,18 +18,48 @@ const BOUNDS = { min_x: 0, max_x: 256, min_y: 0, max_y: 256 };
 /**
  * A heightmap of the given rows of levels as the worker hands it over (receive), without the worker
  * @param {number[][]} rows
- * @param {{step?: number, lattice?: object, bounds?: object}} [options] - `lattice` as the worker's gridLattice: where
- *   sample (0, 0) lies, the metres between samples and the yaw of the sample axes; by default one sample per metre from (0, 0)
+ * @param {{step?: number, lattice?: object, bounds?: object, detail?: Uint8Array}} [options] - `lattice` as the worker's
+ *   gridLattice: where sample (0, 0) lies, the metres between samples and the yaw of the sample axes; by default one sample
+ *   per metre from (0, 0); `detail` the bytes of a heightmap.detail.bin without its gzip layer (detailBytes)
  * @returns {SquadHeightmap}
  */
-function heightmapOf(rows, { step = 1, lattice = { originX: 0, originY: 0, resolution: 1, yawDeg: 0 }, bounds = BOUNDS } = {}) {
+function heightmapOf(rows, { step = 1, lattice = { originX: 0, originY: 0, resolution: 1, yawDeg: 0 }, bounds = BOUNDS, detail } = {}) {
     const heightmap = Object.create(SquadHeightmap.prototype);
-    Object.assign(heightmap, { map: { pixelSize: PIXEL_SIZE }, jsonPng: [], step: 0, toGrid: null, resolution: 0, ready: false, failed: false, worker: null });
+    Object.assign(heightmap, { map: { pixelSize: PIXEL_SIZE }, jsonPng: [], step: 0, toGrid: null, resolution: 0, detail: null, ready: false, failed: false, worker: null });
     heightmap.map.heightmap = heightmap;
     if (rows.length) {
-        heightmap.receive({ levels: Uint16Array.from(rows.flat()), width: rows[0].length, height: rows.length, step, lattice, bounds, url: "test" });
+        const levels = Uint16Array.from(rows.flat());
+        const width = rows[0].length;
+        heightmap.receive({ levels, width, height: rows.length, step, lattice, bounds, detail: detail && decodeDetail(detail, levels, width), url: "test" });
     }
     return heightmap;
+}
+
+/**
+ * The bytes of a heightmap.detail.bin without its gzip layer, as tools/heightmaps/py/heightmap_detail.py writes them
+ * @param {{factor?: number, unit?: number, quadColumns: number, quadRows: number, quads: Map<number, number[]>}} detail -
+ *   `quads` maps a quad (row * quadColumns + col) to the stored values of its sub-grid nodes without the corners, row-major:
+ *   each node's level is the triangle rule's read of the quad's corners there, rounded half up, plus value * unit
+ * @returns {Uint8Array}
+ */
+function detailBytes({ factor = 2, unit = 1, quadColumns, quadRows, quads }) {
+    const indices = [...quads.keys()].sort((a, b) => a - b);
+    const bitBytes = Math.ceil(quadColumns * quadRows / 8);
+    const varints = [];
+    for (const quad of indices) {
+        for (const value of quads.get(quad)) {
+            let zigzag = value >= 0 ? 2 * value : -2 * value - 1;
+            for (; zigzag >= 0x80; zigzag = Math.floor(zigzag / 128)) varints.push((zigzag % 128) | 0x80);
+            varints.push(zigzag);
+        }
+    }
+    const bytes = new Uint8Array(24 + bitBytes + varints.length);
+    bytes.set([..."HMD1"].map((char) => char.charCodeAt(0)));
+    const view = new DataView(bytes.buffer);
+    [factor, unit, quadColumns, quadRows, indices.length].forEach((value, i) => view.setUint32(4 + 4 * i, value, true));
+    for (const quad of indices) bytes[24 + (quad >> 3)] |= 1 << (quad & 7);
+    bytes.set(varints, 24 + bitBytes);
+    return bytes;
 }
 
 /** The LatLng of world (x, y) metres on a map of `bounds` */
@@ -106,6 +137,59 @@ test("a turned lattice (Skorpo) is read along its own axes", () => {
     // Read along world X and Y, sample (3, 3) would lie 0.13 m off: 4 levels lower
     const unturned = heightmapOf(rows, { lattice: { ...lattice, yawDeg: 0 }, bounds });
     assert.ok(Math.abs(unturned.getHeight(sample(3, 3)) - 150) > 3);
+});
+
+test("a quad with detail is read on its sub-grid, with the triangle rule on each of its quads", () => {
+    // One flat quad at level 0 whose detail raises its five inner nodes: the middles of its top, left, right and bottom
+    // edges and its centre (a 1 m chimney in a 2 m quad, at step 0.01)
+    const detail = detailBytes({ quadColumns: 1, quadRows: 1, quads: new Map([[0, [10, 20, 100, 30, 40]]]) });
+    const heightmap = heightmapOf([[0, 0], [0, 0]], { step: 0.01, detail });
+    const height = (row, col) => Math.round(heightmap.getHeight(at(row, col)) / 0.01 * 1e9) / 1e9;
+    assert.deepEqual([height(0, 0.5), height(0.5, 0), height(0.5, 0.5), height(0.5, 1), height(1, 0.5)], [10, 20, 100, 30, 40]);
+    assert.deepEqual([height(0, 0), height(0, 1), height(1, 0), height(1, 1)], [0, 0, 0, 0]);
+    // Inside the sub-quads: on the diagonal of the upper-left one from its corner (0) to the centre (100), with the
+    // edge's middles 10 and 20 beside it; the upper-right one from 10 to the right edge's middle (30)
+    assert.equal(height(0.25, 0.25), 50);
+    assert.equal(height(0.25, 0.75), 20);
+    // Without its detail the quad is flat
+    assert.equal(heightmapOf([[0, 0], [0, 0]], { step: 0.01 }).getHeight(at(0.5, 0.5)), 0);
+});
+
+test("the detail's nodes count from the triangle rule's read of the corners, rounded half up, in units", () => {
+    // Corners 0, 1, 1, 2: the read is 0.5 at the middle of the top edge, which counts as 1; the centre reads 1
+    const plane = heightmapOf([[0, 1], [1, 2]], { detail: detailBytes({ quadColumns: 1, quadRows: 1, quads: new Map([[0, [0, 0, 0, 0, 0]]]) }) });
+    assert.equal(plane.getHeight(at(0, 0.5)), 1);
+    assert.equal(plane.getHeight(at(0.5, 0.5)), 1);
+    // A unit of 5 levels: the centre's 3 units lift it from the read 10 to 25, a negative value lowers a node
+    const units = heightmapOf([[0, 10], [10, 20]], { detail: detailBytes({ unit: 5, quadColumns: 1, quadRows: 1, quads: new Map([[0, [0, -1, 3, 0, 0]]]) }) });
+    assert.equal(units.getHeight(at(0.5, 0.5)), 25);
+    assert.equal(units.getHeight(at(0.5, 0)), 0);
+    assert.equal(units.getHeight(at(0, 0.5)), 5);
+});
+
+test("a quad without detail reads its corners, beside one that has detail", () => {
+    // Quads 0 and 2 of a row of three: only quad 1 has detail; with a factor of 4, 21 nodes per quad
+    const detail = detailBytes({ factor: 4, quadColumns: 3, quadRows: 1, quads: new Map([[1, new Array(21).fill(8)]]) });
+    const heightmap = heightmapOf([[0, 4, 8, 12], [0, 4, 8, 12]], { detail });
+    assert.equal(heightmap.getHeight(at(0.5, 0.5)), 2);
+    assert.equal(heightmap.getHeight(at(0.5, 2.5)), 10);
+    // Quad 1 reads 6 at its centre and 8 more there
+    assert.equal(heightmap.getHeight(at(0.5, 1.5)), 14);
+});
+
+test("a detail of another heightmap or a damaged one is refused", () => {
+    const levels = new Uint16Array(6);
+    const good = detailBytes({ quadColumns: 2, quadRows: 1, quads: new Map([[1, [1, 2, 3, 4, 5]]]) });
+    assert.equal(decodeDetail(good, levels, 3).nodes.length, 5);
+    assert.throws(() => decodeDetail(good, levels, 2), /another heightmap/);
+    const magic = good.slice();
+    magic[3] = 0x32;
+    assert.throws(() => decodeDetail(magic, levels, 3), /not an HMD1 detail/);
+    const count = good.slice();
+    new DataView(count.buffer).setUint32(20, 2, true);
+    assert.throws(() => decodeDetail(count, levels, 3), /damaged detail/);
+    assert.throws(() => decodeDetail(good.subarray(0, good.length - 1), levels, 3), /truncated detail/);
+    assert.throws(() => decodeDetail(Uint8Array.from([...good, 0]), levels, 3), /damaged detail/);
 });
 
 test("a loaded heightmap is ready and announced; a failed one shows its toast and every height is 0", () => {
