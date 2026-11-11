@@ -1,33 +1,29 @@
 /**
  * Heightmap worker: fetches and decodes a map's heightmap off the main thread (squadHeightmaps.js).
- * Decoding the largest precise heightmaps (6851 x 6870 px, 16-bit) takes seconds of JavaScript,
+ * Decoding the largest heightmaps (66 million samples, 16-bit) takes seconds of JavaScript,
  * which froze the page on every map switch when done on the main thread.
  *
- * Message in: {preciseBase, fallbackUrl, fallbackScale}
- *   - preciseBase: URL of this deployment's /heightmaps/<map>/ (meta.json, heightmap.webp, heightmap.png)
- *   - fallbackUrl: SquadCalc's 8-bit R/B heightmap.png, used when there is no precise one
- *   - fallbackScale: metres per level of the 8-bit heightmap (SDK_data.heightmapPNG.scale[2])
- * Message out: {levels, width, height, step, resolution, precise, preciseLost, url}, `levels` a Uint16Array
- * (transferred) of width x height integer levels, row-major, height in metres = level * step; `resolution`
- * is the distance in metres between two samples (meta.json `resolution_m`: 1 m, 0.5 m on Chora and Kokan;
- * absent for the 8-bit heightmap and for a meta.json without it);
- * `preciseLost` when the precise heightmap could not be fetched (network) and the 8-bit one is used
- * instead; or {error, url}.
+ * Message in: {base} - URL of this deployment's /heightmaps/<map>/ (meta.json, heightmap.webp, heightmap.png,
+ *   heightmap.detail.bin)
+ * Message out: {levels, width, height, step, lattice, bounds, detail, url}, `levels` a Uint16Array (transferred) of
+ * width x height integer levels, row-major, height in metres above meta.json `z_min_m` = level * step; `lattice` where the
+ * samples lie (see gridLattice), `bounds` the minimap bounds the page covers (meta.json `bounds_m`) and `detail` the
+ * finer grid where objects stand (heightmapDetail.js, its arrays transferred), null when meta.json announces none or it
+ * cannot be used (`detailError` then says why: the heights are the heightmap's alone); or {error, url}.
  *
- * The precise heightmap is announced by meta.json, fetched first: with `format: "webp-rg16"` the heavy file is
+ * The heightmap is announced by meta.json, fetched first: with `format: "webp-rg16"` the heavy file is
  * heightmap.webp (lossless WebP, high byte of the level in red, low byte in green, decoded by the
  * browser itself; tools/heightmaps/py/heightmap_webp.py in the deployment repository), else, or when the
  * WebP cannot be used (the browser cannot decode it, a failed checksum, a missing file), the 16-bit
- * grayscale heightmap.png. A meta.json that is missing means no precise heightmap and no further request.
+ * grayscale heightmap.png. Both hold the same levels. A meta.json that is missing means the map has no heightmap.
  * With `generated` in meta.json the heavy file is requested as <file>?v=<generated>: the server can cache it
  * for good, and a rebuilt heightmap has a new URL.
  *
  * Requests the network drops (connection lost, a server error) are tried again, RETRY_DELAYS_MS
- * apart, before giving up; an HTTP client error (404: this deployment has no precise heightmap)
+ * apart, before giving up; an HTTP client error (404: this deployment has no heightmap of the map)
  * is final at once.
  */
-import { decode } from "fast-png";
-
+import { decodeDetail } from "./heightmapDetail.js";
 
 // Waits before each new attempt of a failed request: 4 attempts over about 7 s
 const RETRY_DELAYS_MS = [1000, 2000, 4000];
@@ -180,7 +176,7 @@ async function decodePng16(bytes) {
  * The heightmap.webp announced by `meta`
  * @param {string} base - URL of /heightmaps/<map>/
  * @param {object} meta - parsed meta.json with format "webp-rg16"
- * @returns {Promise<{levels: Uint16Array, width: number, height: number, step: number, resolution: number, url: string}|null>} -
+ * @returns {Promise<{levels: Uint16Array, width: number, height: number, step: number, url: string}|null>} -
  *   null when the file is missing or cannot be used (the PNG is then read)
  * @throws {TypeError} - when the network kept failing (fetchBytes)
  */
@@ -192,7 +188,7 @@ async function loadWebp(base, meta) {
     try {
         const image = await decodeWebp(bytes);
         if ("levels_sum" in meta.webp && sumLevels(image.levels) !== meta.webp.levels_sum) return null;
-        return { ...image, step: meta.webp.z_step_m, resolution: meta.resolution_m, url };
+        return { ...image, step: meta.webp.z_step_m, url };
     } catch {
         return null;
     }
@@ -203,7 +199,7 @@ async function loadWebp(base, meta) {
  * The heightmap.png of this deployment: 16-bit grayscale, height = value * z_step_m of `meta`
  * @param {string} base - URL of /heightmaps/<map>/
  * @param {object} meta - parsed meta.json
- * @returns {Promise<{levels: Uint16Array, width: number, height: number, step: number, resolution: number, url: string}|null>} -
+ * @returns {Promise<{levels: Uint16Array, width: number, height: number, step: number, url: string}|null>} -
  *   null when the file is missing or is not a 16-bit grayscale PNG
  * @throws {TypeError} - when the network kept failing (fetchBytes)
  */
@@ -213,7 +209,7 @@ async function loadPng(base, meta) {
     if (!bytes) return null;
     try {
         const image = await decodePng16(bytes);
-        return image && { ...image, step: meta.z_step_m, resolution: meta.resolution_m, url };
+        return image && { ...image, step: meta.z_step_m, url };
     } catch {
         return null;
     }
@@ -232,57 +228,74 @@ function versionedUrl(url, meta) {
 
 
 /**
- * The precise heightmap of this deployment, described by its meta.json (fetched first: a deployment
- * without precise heightmaps costs one small request, not the heavy file).
+ * The heightmap.detail.bin announced by `meta`, for the heightmap `image`
  * @param {string} base - URL of /heightmaps/<map>/
- * @returns {Promise<{levels: Uint16Array, width: number, height: number, step: number, url: string}|null>} -
- *   null when this deployment has none for the map (or the dev server answers with index.html)
- * @throws {TypeError} - when the network kept failing (fetchBytes)
+ * @param {object} meta - parsed meta.json with a `detail` entry
+ * @param {{levels: Uint16Array, width: number}} image
+ * @returns {Promise<import("./heightmapDetail.js").HeightmapDetail>}
+ * @throws {Error} - when the file is missing, damaged or of another heightmap; TypeError when the network kept failing
  */
-async function loadPrecise(base) {
-    const metaBytes = await fetchBytes(`${base}meta.json`);
-    if (!metaBytes) return null;
-    let meta;
-    try {
-        meta = JSON.parse(new TextDecoder().decode(metaBytes));
-    } catch {
-        return null;
-    }
-    if (!(meta.z_step_m > 0)) return null;
-    const webp = meta.format === WEBP_FORMAT ? await loadWebp(base, meta) : null;
-    return webp || loadPng(base, meta);
+async function loadDetail(base, meta, image) {
+    const bytes = await fetchBytes(versionedUrl(`${base}${meta.detail.file}`, meta));
+    if (!bytes) throw new Error(`no ${meta.detail.file} at ${base}`);
+    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
+    return decodeDetail(new Uint8Array(await new Response(stream).arrayBuffer()), image.levels, image.width);
 }
 
 
 /**
- * SquadCalc's 8-bit heightmap: level = 255 + red - blue (0 to 510)
- * @param {string} url
- * @param {number} scale - metres per level
- * @returns {Promise<{levels: Uint16Array, width: number, height: number, step: number, url: string}>}
- * @throws {Error} - when it cannot be fetched
+ * Where the samples of a heightmap lie: sample (col, row) at world
+ * `origin + col * resolution * (cos yaw, sin yaw) + row * resolution * (-sin yaw, cos yaw)` (metres, Unreal X east,
+ * Y south). The heightmaps of tools/heightmaps put them on the landscape's own vertices (meta.json `origin_m`,
+ * `resolution_m`, `yaw_deg`: 0.75 m apart on Anvil, 1.2 m on Skorpo, whose landscape is turned by -2.006 degrees); one
+ * built before them has no `origin_m`, and its first sample is the bounds' min corner.
+ * @param {object} meta - parsed meta.json
+ * @returns {{originX: number, originY: number, resolution: number, yawDeg: number}}
  */
-async function loadFallback(url, scale) {
-    const bytes = await fetchBytes(url);
-    if (!bytes) throw new Error(`HTTP error for ${url}`);
-    const { data, width, height, channels } = decode(bytes);
-    const levels = new Uint16Array(width * height);
-    for (let i = 0; i < levels.length; i++) levels[i] = 255 + data[i * channels] - data[i * channels + 2];
-    return { levels, width, height, step: scale, url };
+function gridLattice(meta) {
+    const [originX, originY] = meta.origin_m ?? [meta.bounds_m.min_x, meta.bounds_m.min_y];
+    return { originX, originY, resolution: meta.resolution_m, yawDeg: meta.yaw_deg ?? 0 };
 }
 
 
-self.onmessage = async ({ data: { preciseBase, fallbackUrl, fallbackScale } }) => {
-    let precise = null;
-    let preciseLost = false;
+/**
+ * The heightmap of a map, described by its meta.json (fetched first)
+ * @param {string} base - URL of /heightmaps/<map>/
+ * @returns {Promise<{levels: Uint16Array, width: number, height: number, step: number, lattice: object, bounds: object,
+ *   detail: object|null, detailError?: string, url: string}>}
+ * @throws {Error} - when this deployment has none for the map (or the dev server answers with index.html), or its files
+ *   cannot be used; TypeError when the network kept failing (fetchBytes)
+ */
+async function loadHeightmap(base) {
+    const metaBytes = await fetchBytes(`${base}meta.json`);
+    if (!metaBytes) throw new Error(`no heightmap at ${base}`);
+    let meta;
     try {
-        precise = await loadPrecise(preciseBase);
+        meta = JSON.parse(new TextDecoder().decode(metaBytes));
     } catch {
-        preciseLost = true;
+        throw new Error(`no heightmap at ${base} (meta.json is not JSON)`);
     }
+    if (!(meta.z_step_m > 0 && meta.resolution_m > 0 && meta.bounds_m)) throw new Error(`${base}meta.json describes no heightmap`);
+    const image = (meta.format === WEBP_FORMAT ? await loadWebp(base, meta) : null) ?? await loadPng(base, meta);
+    if (!image) throw new Error(`no usable heightmap.webp or heightmap.png at ${base}`);
+    const result = { ...image, lattice: gridLattice(meta), bounds: meta.bounds_m, detail: null };
+    if (meta.detail?.file) {
+        try {
+            result.detail = await loadDetail(base, meta, image);
+        } catch (error) {
+            result.detailError = String(error);
+        }
+    }
+    return result;
+}
+
+
+self.onmessage = async ({ data: { base } }) => {
     try {
-        const result = precise || await loadFallback(fallbackUrl, fallbackScale);
-        self.postMessage({ ...result, precise: Boolean(precise), preciseLost }, [result.levels.buffer]);
+        const result = await loadHeightmap(base);
+        const { detail } = result;
+        self.postMessage(result, [result.levels.buffer, ...(detail ? [detail.words.buffer, detail.ranks.buffer, detail.nodes.buffer] : [])]);
     } catch (error) {
-        self.postMessage({ error: String(error), url: fallbackUrl });
+        self.postMessage({ error: String(error), url: `${base}meta.json` });
     }
 };

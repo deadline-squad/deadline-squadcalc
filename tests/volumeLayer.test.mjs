@@ -53,13 +53,14 @@ function vcol(columns, { minX, minY, cell, dz, zMin, width, height }) {
     return gzipSync(Buffer.concat([header, Buffer.from(body)]));
 }
 
-/** gzip TER1 bytes (tools/volumetric/py/terrain_raster.py) of flat ground at level `level` */
-function flatTerrain(width, height, level, { minX, minY, cell, zMin, step }) {
+/** gzip TER2 bytes (tools/volumetric/py/terrain_raster.py) of flat ground at level `level` */
+function flatTerrain(width, height, level, { originX, originY, cell, zMin, step }) {
     const count = width * height;
-    const header = Buffer.alloc(40);
-    header.write("TER1", 0, "latin1");
-    [minX, minY, cell, zMin, step].forEach((value, i) => header.writeFloatLE(value, 8 + 4 * i));
-    [width, height, 0].forEach((value, i) => header.writeUInt32LE(value, 28 + 4 * i));
+    const header = Buffer.alloc(56);
+    header.write("TER2", 0, "latin1");
+    [originX, originY, cell].forEach((value, i) => header.writeDoubleLE(value, 8 + 8 * i));
+    [0, zMin, step].forEach((value, i) => header.writeFloatLE(value, 32 + 4 * i));
+    [width, height, 0].forEach((value, i) => header.writeUInt32LE(value, 44 + 4 * i));
     const low = Buffer.alloc(count);
     const high = Buffer.alloc(count);
     for (let i = 0; i < count; i++) {
@@ -80,7 +81,7 @@ function flatTerrain(width, height, level, { minX, minY, cell, zMin, step }) {
 // (indices 40 to 49), over the columns 0 to 39 except the doorway of columns 18 to 21 (x 109 to 111), which has
 // a lintel from 2 m (indices 48 and 49) and is open from the ground to 2 m
 const GRID = { minX: 100, minY: -50, cell: 0.5, dz: 0.25, zMin: -10, width: 40, height: 40 };
-const TERRAIN = { minX: 100, minY: -50, cell: 1, zMin: -10, step: 0.5 };
+const TERRAIN = { originX: 100, originY: -50, cell: 1, zMin: -10, step: 0.5 };
 const wall = {};
 for (let column = 0; column < 40; column++) {
     wall[20 * 40 + column] = column >= 18 && column <= 21 ? [[48, 2]] : [[40, 10]];
@@ -98,7 +99,7 @@ wall[30 * 40 + 3] = [[20, 10]];
 for (let row = 14; row <= 17; row++) for (let column = 0; column < 4; column++) wall[row * 40 + column] = [[40, 400]];
 const VOLUME_FILE = vcol(wall, GRID);
 // Flat ground at 0 m over x 0 to 1200, y -1200 to 0: room for the trajectories of the weapons of weapons.js
-const BIG_TERRAIN_FILE = flatTerrain(1200, 1200, 21, { minX: 0, minY: -1200, cell: 1, zMin: -10, step: 0.5 });
+const BIG_TERRAIN_FILE = flatTerrain(1200, 1200, 21, { originX: 0, originY: -1200, cell: 1, zMin: -10, step: 0.5 });
 const TERRAIN_FILE = flatTerrain(40, 40, 21, TERRAIN);
 const entry = (bytes) => ({ file: "x", bytes: bytes.length, sha256: createHash("sha256").update(bytes).digest("hex") });
 const META = {

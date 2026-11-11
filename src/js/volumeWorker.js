@@ -5,7 +5,7 @@
  *   - the WebAssembly engine (public/engine, built by scripts/build-engine.sh from engine/ and loaded at run
  *     time, so the page builds and runs without it), which holds the voxel columns and answers segment queries
  *     with an exact voxel-column walk (engine/README.md, "Voxel columns");
- *   - the voxel file (volume.vcol, `VCOL1`) and the landscape heights (terrain.bin, `TER1`, volumeTerrain.js)
+ *   - the voxel file (volume.vcol, `VCOL1`) and the landscape heights (terrain.bin, `TER2`, volumeTerrain.js)
  *     that publish_volume.py put next to the map's heightmap; both are fetched as <file>?v=<generated> and
  *     checked against the sha256 of meta.json (SubtleCrypto, or sha256.js on a page without it).
  * Positions are in the frame of the files: Unreal metres, X east, Y south, Z up in the game's own Z (the page's
