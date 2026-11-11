@@ -10,7 +10,8 @@
 - `heightmapWorker.js` takes `{base}` and returns the levels with `lattice` (`gridLattice`: the samples' origin, spacing and yaw from `meta.json`; a heightmap without `origin_m` starts at the bounds' corner as before) and `bounds`; `squadHeightmaps.receive` turns them into `toGrid`, an affine map from a LatLng to the samples' (col, row), which `getHeight` and the height path read. `ready` replaces `precise`.
 - `volumeTerrain.js` reads `terrain.bin` TER2 (56-byte header: origin, spacing, yaw), and still TER1.
 - `SDK_data.heightmapPNG`, `heightmap.BWlevels`, `npm run mapinfo`, the `fast-png` dependency and the service worker's cache of the 8-bit images (`map-heightmaps`, deleted on activation) are gone with the fallback, and so are the texts `heightmapCoarse` and `heightmapCoarseDesc`.
-- `tests/squadHeightmaps.test.mjs` reads heightmaps through `receive`: samples off the minimap corner (Goose Bay), 0.75 m apart (Anvil), turned (Skorpo), a failed load; `tests/volumeTerrain.test.mjs` TER2 and TER1.
+- `SDK_data.heightmap.origin` is the landscape's first vertex to the millimetre (Goose Bay's was 0.57 and 0.75 m off).
+- `tests/squadHeightmaps.test.mjs` reads heightmaps through `receive`: samples off the minimap corner (Goose Bay), 0.75 m apart (Anvil), turned (Skorpo), a failed load; `tests/volumeTerrain.test.mjs` TER2 and TER1; `tests/maps.test.mjs` the origins to the millimetre.
 - The deployment repository's `tools/browser_check/heightmap_native.mjs` checks the page's heights at the game's landscape vertices and between them on Skorpo, Anvil, Chora, Goose Bay, Jensen, Black Coast, Kohat, Logar and Fallujah.
 
 </br></br><!-- CHANGELOG SPLIT MARKER -->

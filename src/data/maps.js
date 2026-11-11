@@ -34,8 +34,10 @@ export const MAPS = [
                 // The game's own corners (MapTextureCorner0/1 of the layers' SQWorldSettings, build 26005357), in metres
                 game: { min: [-2000.0, -2000.0], max: [2000.0, 2000.0] },
             },
+            // The game's landscape (Landscape actor of build 26005357): first vertex (metres), vertices, scale (metres per
+            // quad, and Z); the heightmap's grid is built on its vertices (tools/heightmaps, meta.json origin_m, resolution_m)
             heightmap: {
-                origin: [-2040, -2040],
+                origin: [-2040.01, -2040.0],
                 size: [4081, 4081],
                 scale: [1, 1, 1]
             }
@@ -53,7 +55,7 @@ export const MAPS = [
                 game: { min: [-2040.0, -2040.0], max: [1020.0, 1020.0] },
             },
             heightmap: {
-                origin: [-2040, -2040],
+                origin: [-2040.0, -2040.0],
                 size: [4081, 4081],
                 scale: [0.75, 0.75, 0.45]
             }
@@ -71,7 +73,7 @@ export const MAPS = [
                 game: { min: [-2300.0, -2127.47], max: [2299.98, 2472.51] },
             },
             heightmap: {
-                origin: [-2040, -2142],
+                origin: [-2040.006, -2142.504],
                 size: [4065, 4065],
                 scale: [1.003937, 1.003937, 0.8]
             }
@@ -89,7 +91,7 @@ export const MAPS = [
                 game: { min: [-2464.0, -2664.0], max: [1599.9, 1400.0] },
             },
             heightmap: {
-                origin: [-2464, -1902],
+                origin: [-2464.0, -1902.0],
                 size: [8129, 4827],
                 scale: [0.5, 0.5, 4]
             }
@@ -107,7 +109,7 @@ export const MAPS = [
                 game: { min: [-1315.0, -1545.0], max: [1690.0, 1460.0] },
             },
             heightmap: {
-                origin: [-2040, -2040],
+                origin: [-2040.0, -2040.0],
                 size: [4081, 4081],
                 scale: [1, 1, 1]
             }
@@ -125,7 +127,7 @@ export const MAPS = [
                 game: { min: [-1325.77, -1325.77], max: [448.05, 448.05] },
             },
             heightmap: {
-                origin: [-1598, -1866],
+                origin: [-1598.095, -1866.3],
                 size: [2806, 2806],
                 scale: [1, 1, 3.2]
             }
@@ -143,7 +145,7 @@ export const MAPS = [
                 game: { min: [-2016.58, -2016.75], max: [2015.23, 2015.03] },
             },
             heightmap: {
-                origin: [-2032, -2032],
+                origin: [-2032.569, -2032.748],
                 size: [4065, 4065],
                 scale: [1, 1, 0.4]
             }
@@ -161,7 +163,7 @@ export const MAPS = [
                 game: { min: [-2031.99, -2032.0], max: [2032.01, 2032.0] },
             },
             heightmap: {
-                origin: [-2032, -2032],
+                origin: [-2031.992, -2032.0],
                 size: [4065, 4065],
                 scale: [1, 1, 10]
             }
@@ -179,7 +181,7 @@ export const MAPS = [
                 game: { min: [-2016.0, -2016.0], max: [2016.0, 2016.0] },
             },
             heightmap: {
-                origin: [-2016, -2016],
+                origin: [-2015.994, -2016.008],
                 size: [4033, 4033],
                 scale: [1, 1, 1]
             }
@@ -198,7 +200,7 @@ export const MAPS = [
                 game: { min: [-2004.0, -2004.0], max: [2004.0, 2004.0] },
             },
             heightmap: {
-                origin: [-2040, -2040],
+                origin: [-2040.514, -2040.141],
                 size: [4081, 4081],
                 scale: [1, 1, 1]
             }
@@ -216,7 +218,7 @@ export const MAPS = [
                 game: { min: [-2016.0, -2016.0], max: [2016.0, 2016.0] },
             },
             heightmap: {
-                origin: [-2016, -2016],
+                origin: [-2016.0, -2016.0],
                 size: [4033, 4033],
                 scale: [1, 1, 1.35]
             }
@@ -234,7 +236,7 @@ export const MAPS = [
                 game: { min: [-2300.0, -2300.0], max: [2317.0, 2317.0] },
             },
             heightmap: {
-                origin: [-2016, -2016],
+                origin: [-2016.023, -2016.0],
                 size: [4065, 4065],
                 scale: [1, 1, 0.75]
             }
@@ -252,7 +254,7 @@ export const MAPS = [
                 game: { min: [-1076.35, -1075.67], max: [1420.14, 1420.14] },
             },
             heightmap: {
-                origin: [-1333, -1714],
+                origin: [-1332.996, -1714.0],
                 size: [6097, 7367],
                 scale: [0.5, 0.5, 1]
             }
@@ -270,7 +272,7 @@ export const MAPS = [
                 game: { min: [-2167.0, -2167.0], max: [2167.0, 2167.0] },
             },
             heightmap: {
-                origin: [-2167, -2167],
+                origin: [-2167.0, -2167.0],
                 size: [4336, 4336],
                 scale: [1, 1, 1.5]
             }
@@ -288,7 +290,7 @@ export const MAPS = [
                 game: { min: [-881.45, -1132.39], max: [879.78, 629.22] },
             },
             heightmap: {
-                origin: [-1386, -1260],
+                origin: [-1386.043, -1260.056],
                 size: [2773, 1891],
                 scale: [1, 1, 0.5]
             }
@@ -306,7 +308,7 @@ export const MAPS = [
                 game: { min: [-2016.58, -2016.75], max: [2015.23, 2015.03] },
             },
             heightmap: {
-                origin: [-2032, -2032],
+                origin: [-2032.216, -2032.099],
                 size: [4065, 4065],
                 scale: [1, 1, 3]
             }
@@ -324,7 +326,7 @@ export const MAPS = [
                 game: { min: [-1200.0, -1100.0], max: [1200.0, 1300.0] },
             },
             heightmap: {
-                origin: [-1545, -1162],
+                origin: [-1545.0, -1161.955],
                 size: [3061, 2551],
                 scale: [1, 1, 1.2]
             }
@@ -342,7 +344,7 @@ export const MAPS = [
                 game: { min: [-935.0, -1140.0], max: [1820.0, 1615.0] },
             },
             heightmap: {
-                origin: [-1785, -1785],
+                origin: [-1785.02, -1785.0],
                 size: [4081, 4081],
                 scale: [1, 1, 0.3]
             }
@@ -360,7 +362,7 @@ export const MAPS = [
                 game: { min: [-1389.71, -1402.07], max: [1410.29, 1397.93] },
             },
             heightmap: {
-                origin: [-2032, -2032],
+                origin: [-2032.0, -2032.0],
                 size: [4065, 4065],
                 scale: [1, 1, 1]
             }
@@ -394,7 +396,7 @@ export const MAPS = [
                 game: { min: [-2016.0, -2016.0], max: [2016.0, 2016.0] },
             },
             heightmap: {
-                origin: [-2016, -2016],
+                origin: [-2016.0, -2016.0],
                 size: [4033, 4033],
                 scale: [1, 1, 0.28]
             }
@@ -412,7 +414,7 @@ export const MAPS = [
                 game: { min: [-2300.0, -2050.0], max: [2300.0, 2550.0] },
             },
             heightmap: {
-                origin: [-2040, -2040],
+                origin: [-2040.0, -2040.0],
                 size: [4081, 4081],
                 scale: [1, 1, 1]
             }
@@ -443,7 +445,7 @@ export const MAPS = [
                 image: { min: [-3611.1, -3291.8], max: [3257.7, 3575.8] },
             },
             heightmap: {
-                origin: [-4138, -2142],
+                origin: [-4138.024, -2141.579],
                 size: [7113, 5081],
                 scale: [1.2, 1.2, 3.5]
             }
@@ -461,7 +463,7 @@ export const MAPS = [
                 game: { min: [-639.74, -447.28], max: [660.34, 852.97] },
             },
             heightmap: {
-                origin: [-682, -372],
+                origin: [-682.008, -371.994],
                 size: [1427, 1055],
                 scale: [1, 1, 0.75]
             }
@@ -479,7 +481,7 @@ export const MAPS = [
                 game: { min: [-2340.0, -2340.0], max: [2340.0, 2340.0] },
             },
             heightmap: {
-                origin: [-2286, -2286], // the first landscape components lie 254 m before the actor's location (-2032)
+                origin: [-2285.907, -2285.768], // the first landscape components lie 254 m before the actor's location (-2032)
                 size: [4573, 4573],
                 scale: [1, 1, 1.25]
             }
@@ -497,7 +499,7 @@ export const MAPS = [
                 game: { min: [-3301.97, -3301.99], max: [3048.03, 3048.0] },
             },
             heightmap: {
-                origin: [-3302, -3302], // SDK is wrong, this is deduced instead
+                origin: [-3301.97, -3302.0], // SDK is wrong, this is deduced instead
                 size: [6351, 6351],
                 scale: [1, 1, 4]
             }
