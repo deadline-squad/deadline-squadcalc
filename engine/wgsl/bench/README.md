@@ -2,8 +2,8 @@
 
 A static page that times the four WebGPU kernels (`trace_segments`, `trace_trajectories`, `heatmap`, `voxel_segments`) on
 the machine that opens it, and checks a sample of every run against the float64 CPU mirrors. It exists to get real-GPU
-numbers (plan item C9 of deadline-squad/deadline-squadcalc#22): the test server has no GPU, so `test/last-run.txt` only
-holds SwiftShader (CPU) numbers.
+numbers (plan item C9 of deadline-squad/deadline-squadcalc#22): `test/last-run.txt` only holds SwiftShader (CPU) numbers;
+`last-run-gtx1650.txt` is a run on a real GPU (below).
 
 ## What to run
 
@@ -75,11 +75,20 @@ or export a map with the Rust crate (`engine/`) and copy its `bvh.bin`. Other vo
 on SwiftShader. `last-run-swiftshader.txt` is its output: it proves the page, the kernels and the checks work, and is CPU
 emulation, not a GPU measurement.
 
+## Run on a Linux GPU from the command line
+
+`GPU=1 xvfb-run -a node engine/wgsl/bench/run_headless.mjs [sizes] [heatmapSizes] [runs] [budgetSeconds]` drives the page in a
+headed Chromium on the machine's Vulkan GPU (headless Chromium finds no Vulkan device and falls back to SwiftShader); check
+that the adapter line names the GPU and `isFallbackAdapter` is false. `last-run-gtx1650.txt` is its output on an NVIDIA
+GeForce GTX 1650 Mobile (driver 580): 1e6 segments in 25 ms (`trace_segments`), 20 ms (`trace_trajectories`) and 151 ms
+(`voxel_segments`); `trace_segments` and `voxel_segments` run about 750 and 900 times the SwiftShader rate.
+
 ## Files
 
 | File | Role |
 |---|---|
 | `bench.html`, `bench.mjs` | the page and the benchmark (imports `../gpu.mjs`, `../test/bvh_tools.mjs`) |
 | `make_fixture.mjs` | cuts and indexes a BVH fixture from a triangle soup |
-| `run_headless.mjs` | headless SwiftShader driver |
-| `last-run-swiftshader.txt` | its recorded output |
+| `run_headless.mjs` | headless SwiftShader driver; with `GPU=1` a headed driver on the Vulkan GPU |
+| `last-run-swiftshader.txt` | its recorded output on SwiftShader |
+| `last-run-gtx1650.txt` | its recorded output on a GTX 1650 |

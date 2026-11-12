@@ -1,0 +1,401 @@
+# GPU benchmark page on a real GPU: NVIDIA GeForce GTX 1650 Mobile (Turing, 4 GB), driver 580.178.04, Vulkan.
+# Command: GPU=1 nice xvfb-run -a node engine/wgsl/bench/run_headless.mjs 10000,100000,1000000 1000,10000,100000 5 120
+# Date: 2026-11-12 21:53 UTC, Chromium 153.0.8010.12 headed on Xvfb (headless Chromium finds no Vulkan device and falls back to
+# SwiftShader), idle GPU (0 %, 9 MiB) and host (load 0.4). Two runs 4 minutes earlier with the same flags agree at 1e6 segments
+# within 0.1 % (trace_segments), 1 % (voxel_segments) and 6 % (trace_trajectories); heatmap at 1e5 candidates took 12.8 and 16.6 ms.
+
+Adapter: {"vendor":"nvidia","architecture":"turing","device":"","description":"","subgroupMinSize":32,"subgroupMaxSize":32,"isFallbackAdapter":false}
+maxStorageBufferBindingSize 2147483644, maxComputeWorkgroupStorageSize 16384, maxBufferSize 4294967292, maxComputeInvocationsPerWorkgroup 256
+Timer: GPU timestamp queries (timestamp-query); the wall clock is reported next to it
+Fixtures: BVH 60000 triangles, 32767 nodes, 3928552 bytes; Jensen voxels 109334 columns, 172035 runs
+Shaders compiled with 0 messages
+trace_segments 10000 segments: median 1.09 ms over 5 runs [timestamp-query], 9,178,219 segments/s, check PASS (both hit 379, both miss 1621, hit/miss disagreements 0, other triangle at equal t (<1 mm) 1, other triangle at other t 0, max |dt| 1.23e-5 m)
+trace_segments 100000 segments: median 3.02 ms over 5 runs [timestamp-query], 33,100,658 segments/s, check PASS (both hit 385, both miss 1615, hit/miss disagreements 0, other triangle at equal t (<1 mm) 0, other triangle at other t 0, max |dt| 2.35e-4 m)
+trace_segments 1000000 segments: median 25.23 ms over 5 runs [timestamp-query], 39,632,766 segments/s, check PASS (both hit 369, both miss 1631, hit/miss disagreements 0, other triangle at equal t (<1 mm) 0, other triangle at other t 0, max |dt| 1.37e-5 m)
+trace_trajectories 10000 segments: median 0.79 ms over 5 runs [timestamp-query], 12,642,097 segments/s, check PASS (625 trajectories, 148 occluded by the f64 CPU, first-occluded-segment mismatches 0)
+trace_trajectories 100000 segments: median 1.04 ms over 5 runs [timestamp-query], 96,150,888 segments/s, check PASS (1000 trajectories, 250 occluded by the f64 CPU, first-occluded-segment mismatches 0)
+trace_trajectories 1000000 segments: median 20.03 ms over 5 runs [timestamp-query], 49,917,576 segments/s, check PASS (1000 trajectories, 255 occluded by the f64 CPU, first-occluded-segment mismatches 0)
+heatmap 1000 candidates: median 22.03 ms over 5 runs [timestamp-query], 45,392 candidates/s, check PASS (150 candidates x 2 arcs (clear 174, blocked 126, unreachable 0), state mismatches 0, max clearance difference 6.49e-5 m)
+heatmap 10000 candidates: median 21.96 ms over 5 runs [timestamp-query], 455,450 candidates/s, check PASS (150 candidates x 2 arcs (clear 175, blocked 125, unreachable 0), state mismatches 0, max clearance difference 6.07e-5 m)
+heatmap 100000 candidates: median 13.06 ms over 5 runs [timestamp-query], 7,657,793 candidates/s, check PASS (150 candidates x 2 arcs (clear 184, blocked 116, unreachable 0), state mismatches 0, max clearance difference 5.86e-5 m)
+voxel_segments 10000 segments: median 2.25 ms over 5 runs [timestamp-query], 4,446,120 segments/s, check PASS (both clear 3943, both blocked in the same voxel 1057 (max entry difference 2.79e-3 m), blocked/clear flips 0, other first voxel 0, of those explained by f32 rounding of the segment 0)
+voxel_segments 100000 segments: median 17.27 ms over 5 runs [timestamp-query], 5,790,629 segments/s, check PASS (both clear 3958, both blocked in the same voxel 1042 (max entry difference 5.21e-4 m), blocked/clear flips 0, other first voxel 0, of those explained by f32 rounding of the segment 0)
+voxel_segments 1000000 segments: median 151.45 ms over 5 runs [timestamp-query], 6,602,894 segments/s, check PASS (both clear 4001, both blocked in the same voxel 999 (max entry difference 5.76e-4 m), blocked/clear flips 0, other first voxel 0, of those explained by f32 rounding of the segment 0)
+Done in 8 s, all checks passed.
+
+--- markdown table
+| kernel | size | unit | timed runs | median ms | min-max ms | per second | timer | f64 check |
+|---|---:|---|---:|---:|---|---:|---|---|
+| trace_segments | 10,000 | segments | 5 | 1.09 | 1.09-1.09 | 9,178,219 | GPU timestamps | PASS (0/2000) |
+| trace_segments | 100,000 | segments | 5 | 3.02 | 3.01-3.05 | 33,100,658 | GPU timestamps | PASS (0/2000) |
+| trace_segments | 1,000,000 | segments | 5 | 25.23 | 25.21-25.25 | 39,632,766 | GPU timestamps | PASS (0/2000) |
+| trace_trajectories | 10,000 | segments | 5 | 0.79 | 0.79-0.81 | 12,642,097 | GPU timestamps | PASS (0/625) |
+| trace_trajectories | 100,000 | segments | 5 | 1.04 | 1.03-2.49 | 96,150,888 | GPU timestamps | PASS (0/1000) |
+| trace_trajectories | 1,000,000 | segments | 5 | 20.03 | 18.88-20.81 | 49,917,576 | GPU timestamps | PASS (0/1000) |
+| heatmap | 1,000 | candidates | 5 | 22.03 | 17.44-22.05 | 45,392 | GPU timestamps | PASS (0/300) |
+| heatmap | 10,000 | candidates | 5 | 21.96 | 17.46-21.97 | 455,450 | GPU timestamps | PASS (0/300) |
+| heatmap | 100,000 | candidates | 5 | 13.06 | 13.03-13.41 | 7,657,793 | GPU timestamps | PASS (0/300) |
+| voxel_segments | 10,000 | segments | 5 | 2.25 | 2.23-2.25 | 4,446,120 | GPU timestamps | PASS (0/5000) |
+| voxel_segments | 100,000 | segments | 5 | 17.27 | 17.19-17.40 | 5,790,629 | GPU timestamps | PASS (0/5000) |
+| voxel_segments | 1,000,000 | segments | 5 | 151.45 | 151.18-151.63 | 6,602,894 | GPU timestamps | PASS (0/5000) |
+
+Adapter: nvidia / turing / n/a; timer: timestamp-query; maxStorageBufferBindingSize 2147483644; maxComputeWorkgroupStorageSize 16384
+--- JSON
+{
+  "benchmark": "squadcalc engine/wgsl/bench v1",
+  "started": "2026-11-12T21:53:51.811Z",
+  "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36",
+  "platform": "Linux x86_64",
+  "adapter": {
+    "info": {
+      "vendor": "nvidia",
+      "architecture": "turing",
+      "device": "",
+      "description": "",
+      "subgroupMinSize": 32,
+      "subgroupMaxSize": 32,
+      "isFallbackAdapter": false
+    },
+    "limits": {
+      "maxTextureDimension1D": 16384,
+      "maxTextureDimension2D": 16384,
+      "maxTextureDimension3D": 2048,
+      "maxTextureArrayLayers": 2048,
+      "maxBindGroups": 4,
+      "maxBindGroupsPlusVertexBuffers": 24,
+      "maxBindingsPerBindGroup": 1000,
+      "maxDynamicUniformBuffersPerPipelineLayout": 10,
+      "maxDynamicStorageBuffersPerPipelineLayout": 8,
+      "maxSampledTexturesPerShaderStage": 48,
+      "maxSamplersPerShaderStage": 16,
+      "maxStorageBuffersPerShaderStage": 16,
+      "maxStorageTexturesPerShaderStage": 8,
+      "maxUniformBuffersPerShaderStage": 12,
+      "maxUniformBufferBindingSize": 65536,
+      "maxStorageBufferBindingSize": 2147483644,
+      "minUniformBufferOffsetAlignment": 256,
+      "minStorageBufferOffsetAlignment": 256,
+      "maxVertexBuffers": 8,
+      "maxBufferSize": 4294967292,
+      "maxVertexAttributes": 30,
+      "maxVertexBufferArrayStride": 2048,
+      "maxInterStageShaderVariables": 28,
+      "maxColorAttachments": 8,
+      "maxColorAttachmentBytesPerSample": 128,
+      "maxComputeWorkgroupStorageSize": 49152,
+      "maxComputeInvocationsPerWorkgroup": 1024,
+      "maxComputeWorkgroupSizeX": 1024,
+      "maxComputeWorkgroupSizeY": 1024,
+      "maxComputeWorkgroupSizeZ": 64,
+      "maxComputeWorkgroupsPerDimension": 65535,
+      "maxImmediateSize": 64,
+      "maxStorageBuffersInFragmentStage": 16,
+      "maxStorageTexturesInFragmentStage": 8,
+      "maxStorageBuffersInVertexStage": 16,
+      "maxStorageTexturesInVertexStage": 8
+    },
+    "features": [
+      "bgra8unorm-storage",
+      "chromium-experimental-multi-draw-indirect",
+      "chromium-experimental-sampling-resource-table",
+      "chromium-experimental-timestamp-query-inside-passes",
+      "clip-distances",
+      "core-features-and-limits",
+      "depth-clip-control",
+      "depth32float-stencil8",
+      "dual-source-blending",
+      "float32-blendable",
+      "float32-filterable",
+      "indirect-first-instance",
+      "primitive-index",
+      "rg11b10ufloat-renderable",
+      "subgroup-size-control",
+      "subgroups",
+      "texture-component-swizzle",
+      "texture-compression-bc",
+      "texture-compression-bc-sliced-3d",
+      "texture-compression-unaligned",
+      "texture-formats-tier1",
+      "texture-formats-tier2",
+      "timestamp-query"
+    ]
+  },
+  "timer": "timestamp-query",
+  "settings": {
+    "sizes": [
+      10000,
+      100000,
+      1000000
+    ],
+    "heatmapSizes": [
+      1000,
+      10000,
+      100000
+    ],
+    "runs": 5,
+    "budgetSeconds": 120,
+    "highPerformance": true
+  },
+  "fixtures": {
+    "triangles": 60000,
+    "bvhNodes": 32767,
+    "voxelColumns": 109334,
+    "voxelRuns": 172035
+  },
+  "results": [
+    {
+      "kernel": "trace_segments",
+      "unit": "segments",
+      "size": 10000,
+      "timer": "timestamp-query",
+      "timedRuns": 5,
+      "warmUpWallMs": 5.800000071525574,
+      "medianMs": 1.089536,
+      "minMs": 1.088704,
+      "maxMs": 1.093728,
+      "medianWallMs": 3.299999952316284,
+      "medianGpuMs": 1.089536,
+      "itemsPerSecond": 9178218.984962406,
+      "correctness": {
+        "sample": 2000,
+        "differing": 0,
+        "passed": true,
+        "detail": "both hit 379, both miss 1621, hit/miss disagreements 0, other triangle at equal t (<1 mm) 1, other triangle at other t 0, max |dt| 1.23e-5 m"
+      }
+    },
+    {
+      "kernel": "trace_segments",
+      "unit": "segments",
+      "size": 100000,
+      "timer": "timestamp-query",
+      "timedRuns": 5,
+      "warmUpWallMs": 6.300000071525574,
+      "medianMs": 3.021088,
+      "minMs": 3.011008,
+      "maxMs": 3.045408,
+      "medianWallMs": 6.200000047683716,
+      "medianGpuMs": 3.021088,
+      "itemsPerSecond": 33100657.776271325,
+      "correctness": {
+        "sample": 2000,
+        "differing": 0,
+        "passed": true,
+        "detail": "both hit 385, both miss 1615, hit/miss disagreements 0, other triangle at equal t (<1 mm) 0, other triangle at other t 0, max |dt| 2.35e-4 m"
+      }
+    },
+    {
+      "kernel": "trace_segments",
+      "unit": "segments",
+      "size": 1000000,
+      "timer": "timestamp-query",
+      "timedRuns": 5,
+      "warmUpWallMs": 46.60000002384186,
+      "medianMs": 25.231648,
+      "minMs": 25.208224,
+      "maxMs": 25.252448,
+      "medianWallMs": 45.59999990463257,
+      "medianGpuMs": 25.231648,
+      "itemsPerSecond": 39632765.96122457,
+      "correctness": {
+        "sample": 2000,
+        "differing": 0,
+        "passed": true,
+        "detail": "both hit 369, both miss 1631, hit/miss disagreements 0, other triangle at equal t (<1 mm) 0, other triangle at other t 0, max |dt| 1.37e-5 m"
+      }
+    },
+    {
+      "kernel": "trace_trajectories",
+      "unit": "segments",
+      "size": 10000,
+      "trajectories": 625,
+      "segmentsPerTrajectory": 16,
+      "timer": "timestamp-query",
+      "timedRuns": 5,
+      "warmUpWallMs": 5.699999928474426,
+      "medianMs": 0.791008,
+      "minMs": 0.79024,
+      "maxMs": 0.80896,
+      "medianWallMs": 3.299999952316284,
+      "medianGpuMs": 0.791008,
+      "itemsPerSecond": 12642097.172215704,
+      "correctness": {
+        "sample": 625,
+        "differing": 0,
+        "passed": true,
+        "detail": "625 trajectories, 148 occluded by the f64 CPU, first-occluded-segment mismatches 0"
+      }
+    },
+    {
+      "kernel": "trace_trajectories",
+      "unit": "segments",
+      "size": 100000,
+      "trajectories": 6250,
+      "segmentsPerTrajectory": 16,
+      "timer": "timestamp-query",
+      "timedRuns": 5,
+      "warmUpWallMs": 3.899999976158142,
+      "medianMs": 1.040032,
+      "minMs": 1.03424,
+      "maxMs": 2.494688,
+      "medianWallMs": 3.8000000715255737,
+      "medianGpuMs": 1.040032,
+      "itemsPerSecond": 96150887.66499493,
+      "correctness": {
+        "sample": 1000,
+        "differing": 0,
+        "passed": true,
+        "detail": "1000 trajectories, 250 occluded by the f64 CPU, first-occluded-segment mismatches 0"
+      }
+    },
+    {
+      "kernel": "trace_trajectories",
+      "unit": "segments",
+      "size": 1000000,
+      "trajectories": 62500,
+      "segmentsPerTrajectory": 16,
+      "timer": "timestamp-query",
+      "timedRuns": 5,
+      "warmUpWallMs": 43.5,
+      "medianMs": 20.033024,
+      "minMs": 18.884352,
+      "maxMs": 20.811776,
+      "medianWallMs": 48.800000071525574,
+      "medianGpuMs": 20.033024,
+      "itemsPerSecond": 49917576.09834641,
+      "correctness": {
+        "sample": 1000,
+        "differing": 0,
+        "passed": true,
+        "detail": "1000 trajectories, 255 occluded by the f64 CPU, first-occluded-segment mismatches 0"
+      }
+    },
+    {
+      "kernel": "heatmap",
+      "unit": "candidates",
+      "size": 1000,
+      "grid": "32x32",
+      "chords": 32,
+      "timer": "timestamp-query",
+      "timedRuns": 5,
+      "warmUpWallMs": 25.5,
+      "medianMs": 22.030336,
+      "minMs": 17.436768,
+      "maxMs": 22.05152,
+      "medianWallMs": 25,
+      "medianGpuMs": 22.030336,
+      "itemsPerSecond": 45391.954076415364,
+      "correctness": {
+        "sample": 300,
+        "differing": 0,
+        "passed": true,
+        "detail": "150 candidates x 2 arcs (clear 174, blocked 126, unreachable 0), state mismatches 0, max clearance difference 6.49e-5 m"
+      }
+    },
+    {
+      "kernel": "heatmap",
+      "unit": "candidates",
+      "size": 10000,
+      "grid": "100x100",
+      "chords": 32,
+      "timer": "timestamp-query",
+      "timedRuns": 5,
+      "warmUpWallMs": 24.300000071525574,
+      "medianMs": 21.95632,
+      "minMs": 17.461696,
+      "maxMs": 21.96544,
+      "medianWallMs": 24.299999952316284,
+      "medianGpuMs": 21.95632,
+      "itemsPerSecond": 455449.7292806809,
+      "correctness": {
+        "sample": 300,
+        "differing": 0,
+        "passed": true,
+        "detail": "150 candidates x 2 arcs (clear 175, blocked 125, unreachable 0), state mismatches 0, max clearance difference 6.07e-5 m"
+      }
+    },
+    {
+      "kernel": "heatmap",
+      "unit": "candidates",
+      "size": 100000,
+      "grid": "317x317",
+      "chords": 32,
+      "timer": "timestamp-query",
+      "timedRuns": 5,
+      "warmUpWallMs": 14.400000095367432,
+      "medianMs": 13.058592,
+      "minMs": 13.033536,
+      "maxMs": 13.412352,
+      "medianWallMs": 15.199999928474426,
+      "medianGpuMs": 13.058592,
+      "itemsPerSecond": 7657793.428265466,
+      "correctness": {
+        "sample": 300,
+        "differing": 0,
+        "passed": true,
+        "detail": "150 candidates x 2 arcs (clear 184, blocked 116, unreachable 0), state mismatches 0, max clearance difference 5.86e-5 m"
+      }
+    },
+    {
+      "kernel": "voxel_segments",
+      "unit": "segments",
+      "size": 10000,
+      "timer": "timestamp-query",
+      "timedRuns": 5,
+      "warmUpWallMs": 4.900000095367432,
+      "medianMs": 2.249152,
+      "minMs": 2.233792,
+      "maxMs": 2.253056,
+      "medianWallMs": 4.700000047683716,
+      "medianGpuMs": 2.249152,
+      "itemsPerSecond": 4446120.1377230175,
+      "correctness": {
+        "sample": 5000,
+        "differing": 0,
+        "passed": true,
+        "detail": "both clear 3943, both blocked in the same voxel 1057 (max entry difference 2.79e-3 m), blocked/clear flips 0, other first voxel 0, of those explained by f32 rounding of the segment 0"
+      }
+    },
+    {
+      "kernel": "voxel_segments",
+      "unit": "segments",
+      "size": 100000,
+      "timer": "timestamp-query",
+      "timedRuns": 5,
+      "warmUpWallMs": 21.700000047683716,
+      "medianMs": 17.26928,
+      "minMs": 17.190176,
+      "maxMs": 17.4008,
+      "medianWallMs": 21.299999952316284,
+      "medianGpuMs": 17.26928,
+      "itemsPerSecond": 5790629.371925176,
+      "correctness": {
+        "sample": 5000,
+        "differing": 0,
+        "passed": true,
+        "detail": "both clear 3958, both blocked in the same voxel 1042 (max entry difference 5.21e-4 m), blocked/clear flips 0, other first voxel 0, of those explained by f32 rounding of the segment 0"
+      }
+    },
+    {
+      "kernel": "voxel_segments",
+      "unit": "segments",
+      "size": 1000000,
+      "timer": "timestamp-query",
+      "timedRuns": 5,
+      "warmUpWallMs": 181,
+      "medianMs": 151.448736,
+      "minMs": 151.1816,
+      "maxMs": 151.63408,
+      "medianWallMs": 174.19999992847443,
+      "medianGpuMs": 151.448736,
+      "itemsPerSecond": 6602894.328546922,
+      "correctness": {
+        "sample": 5000,
+        "differing": 0,
+        "passed": true,
+        "detail": "both clear 4001, both blocked in the same voxel 999 (max entry difference 5.76e-4 m), blocked/clear flips 0, other first voxel 0, of those explained by f32 rounding of the segment 0"
+      }
+    }
+  ],
+  "skipped": [],
+  "allChecksPassed": true
+}

@@ -2,8 +2,8 @@
 
 Статическая страница: замеряет четыре WebGPU-ядра (`trace_segments`, `trace_trajectories`, `heatmap`, `voxel_segments`) на
 машине, которая её открыла, и сверяет выборку каждого прогона с float64-эталонами на CPU. Нужна, чтобы получить числа на
-настоящей видеокарте (пункт C9 плана в deadline-squad/deadline-squadcalc#22): на тестовом сервере GPU нет, поэтому в
-`test/last-run.txt` только числа SwiftShader (это CPU).
+настоящей видеокарте (пункт C9 плана в deadline-squad/deadline-squadcalc#22): в `test/last-run.txt` только числа SwiftShader
+(это CPU); `last-run-gtx1650.txt` — прогон на настоящей видеокарте (ниже).
 
 ## Что запустить
 
@@ -77,11 +77,20 @@ node engine/wgsl/bench/make_fixture.mjs <dataDir>/tris.bin engine/wgsl/bench/fix
 Chromium на SwiftShader. `last-run-swiftshader.txt` содержит его вывод: он доказывает, что страница, ядра и проверки работают, и
 является эмуляцией на CPU, а не измерением видеокарты.
 
+## Запуск на видеокарте в Linux из командной строки
+
+`GPU=1 xvfb-run -a node engine/wgsl/bench/run_headless.mjs [sizes] [heatmapSizes] [runs] [budgetSeconds]` гоняет страницу в
+Chromium с окном на Vulkan-видеокарте машины (headless Chromium не находит Vulkan-устройство и падает на SwiftShader); проверьте,
+что строка адаптера называет видеокарту и `isFallbackAdapter` равен false. `last-run-gtx1650.txt` — его вывод на NVIDIA
+GeForce GTX 1650 Mobile (драйвер 580): 1e6 отрезков за 25 мс (`trace_segments`), 20 мс (`trace_trajectories`) и 151 мс
+(`voxel_segments`); `trace_segments` и `voxel_segments` примерно в 750 и 900 раз быстрее SwiftShader.
+
 ## Файлы
 
 | Файл | Назначение |
 |---|---|
 | `bench.html`, `bench.mjs` | страница и бенчмарк (импортирует `../gpu.mjs`, `../test/bvh_tools.mjs`) |
 | `make_fixture.mjs` | вырезает и индексирует BVH-фикстуру из набора треугольников |
-| `run_headless.mjs` | headless-запуск на SwiftShader |
-| `last-run-swiftshader.txt` | записанный вывод |
+| `run_headless.mjs` | headless-запуск на SwiftShader; с `GPU=1` запуск с окном на Vulkan-видеокарте |
+| `last-run-swiftshader.txt` | записанный вывод на SwiftShader |
+| `last-run-gtx1650.txt` | записанный вывод на GTX 1650 |
