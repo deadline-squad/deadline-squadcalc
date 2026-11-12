@@ -1,10 +1,12 @@
 /**
  * Drives bench.html in headless Chromium on the SwiftShader software adapter (a CPU): the proof that the page
  * works on a machine without a GPU. The numbers it prints measure a CPU.
+ * With GPU=1 it drives a headed Chromium on the machine's Vulkan GPU instead (headless Chromium finds no Vulkan device and
+ * falls back to SwiftShader), so it needs a display, e.g. `xvfb-run -a`; check the printed adapter line.
  *
- *   node engine/wgsl/bench/run_headless.mjs [sizes] [heatmapSizes] [runs] [budgetSeconds]
+ *   [GPU=1 xvfb-run -a] node engine/wgsl/bench/run_headless.mjs [sizes] [heatmapSizes] [runs] [budgetSeconds]
  *
- * Env: PLAYWRIGHT_CORE (playwright-core dir), CHROME (chrome binary).
+ * Env: PLAYWRIGHT_CORE (playwright-core dir), CHROME (chrome binary), GPU.
  */
 import fs from 'node:fs';
 import http from 'node:http';
@@ -17,7 +19,10 @@ const wgslDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const [sizes = '10000,100000,1000000', heatmapSizes = '1000,10000,100000', runs = '5', budget = '30'] = process.argv.slice(2);
 const playwrightDir = process.env.PLAYWRIGHT_CORE || '/home/seregatipich/cafe-pulse-sync/node_modules/playwright-core';
 const chrome = process.env.CHROME || path.join(os.homedir(), '.cache/ms-playwright/chromium-1243/chrome-linux64/chrome');
-const CHROME_ARGS = ['--enable-unsafe-webgpu', '--use-webgpu-adapter=swiftshader', '--enable-features=Vulkan,UseSkiaRenderer', '--use-gl=angle', '--use-angle=swiftshader'];
+const GPU = Boolean(process.env.GPU);
+const CHROME_ARGS = GPU
+    ? ['--enable-unsafe-webgpu', '--enable-features=Vulkan', '--use-angle=vulkan']
+    : ['--enable-unsafe-webgpu', '--use-webgpu-adapter=swiftshader', '--enable-features=Vulkan,UseSkiaRenderer', '--use-gl=angle', '--use-angle=swiftshader'];
 const TYPES = { '.mjs': 'text/javascript', '.html': 'text/html', '.wgsl': 'text/plain' };
 
 const server = http.createServer((req, res) => {
@@ -28,7 +33,7 @@ const server = http.createServer((req, res) => {
 }).listen(0);
 
 const { chromium } = createRequire(playwrightDir + '/')(playwrightDir);
-const browser = await chromium.launch({ executablePath: chrome, headless: true, args: CHROME_ARGS });
+const browser = await chromium.launch({ executablePath: chrome, headless: !GPU, args: CHROME_ARGS });
 const page = await browser.newPage();
 await page.goto(`http://localhost:${server.address().port}/bench/bench.html`);
 await page.fill('#sizes', sizes);
