@@ -1,6 +1,6 @@
 //! A trajectory as straight segments in world coordinates, ready for the ray queries of [`crate::trace`].
 //!
-//! Points are evaluated on the exact flight ([`Flight::path_at`], closed forms and the game's substeps; no
+//! Points are evaluated on the exact flight ([`Flight::path_at`], closed forms and the game's steps; no
 //! numerical integration), and a stretch is split in two until the exact point at its middle lies within
 //! `tolerance` metres of the chord. The segments therefore follow the true path to `tolerance` (sampled at
 //! the middle of every stretch, after a first split into [`INITIAL_PIECES`] equal pieces and at the apex).

@@ -19,7 +19,6 @@
 //! `options` object ([`Options`]). World frame and the meaning of the refs: see `README.md`.
 
 use crate::bvh::BvhSet;
-use crate::flight::Flight;
 use crate::heightmap::Heightmap;
 use crate::materials;
 use crate::path::{trajectory_segments, Segment};
@@ -450,7 +449,11 @@ pub fn run(request: &Request, resources: &Resources) -> Result<Response, EngineE
     let gz = ground(gx, gy);
     let (east, north) = (tx - gx, ty - gy);
     let distance = east.hypot(north);
-    let azimuth_deg = east.atan2(north).to_degrees().rem_euclid(360.0);
+    // A tiny negative angle gains the whole turn to exactly 360 in double precision: that is north, 0
+    let azimuth_deg = match east.atan2(north).to_degrees().rem_euclid(360.0) {
+        turn if turn >= 360.0 => 0.0,
+        azimuth => azimuth,
+    };
 
     let solution = weapon.solve(distance, tz - gz);
     let chosen = match request.options.arc {
@@ -487,7 +490,7 @@ pub fn run(request: &Request, resources: &Resources) -> Result<Response, EngineE
         });
     }
 
-    let flight = Flight::new(weapon.shot());
+    let flight = weapon.flight(weapon.shot());
     // The sight angle has the weapon's angle offset taken off; the barrel is at sight + offset
     let barrel = chosen.elevation_rad + deg_to_rad(weapon.angle_offset_deg);
     let (_, apex_height) = flight.apex(barrel, distance);
@@ -665,6 +668,15 @@ mod tests {
         assert_eq!(r["occlusion_status"], "no_solution");
         assert!(r["firing_solution"]["elevation_mrad"].is_null());
         assert!(r["collision_details"]["point"].is_null());
+    }
+
+    #[test]
+    fn a_hair_west_of_north_is_azimuth_0_not_360() {
+        let hair_west = request("").replace("[0.0,600.0,0.0]", "[-1e-15,600.0,0.0]");
+        let azimuth = run_text(&hair_west, &Resources::new())["firing_solution"]["azimuth_deg"]
+            .as_f64()
+            .unwrap();
+        assert_eq!(azimuth, 0.0);
     }
 
     #[test]

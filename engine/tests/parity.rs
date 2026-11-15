@@ -1,9 +1,13 @@
 //! Parity of the Rust solver with SquadCalc's JavaScript solver (`src/js/squadFiringSolution.js`) over the grid
-//! of `tools/direct_fire/compare.py`: every shell of every weapon with a `ballistics` name, 15 distances x 9
-//! heights and 18 cases around the maximum range. Needs `node` (v22+); the JS side is
-//! `tools/js/reference.mjs`, which runs the real `Weapon` and `SquadFiringSolution` of the checkout.
+//! of `tools/direct_fire/compare.py`: every shell of every weapon with a `ballistics` name, 19 distances (0.5 m
+//! to 8 km, with 1 to 4 m between 0.5 and 5 m) x 9 heights, 8 distances from 10 cm to 5 m x 7 heights of a few
+//! metres (the muzzle has passed the target, the barrel's own line runs through it) and 18 cases around the
+//! maximum range; then the
+//! check of paths against terrain profiles (`Flight::above` with and without a `RangeMax`). Needs `node` (v22+);
+//! the JS side is `tools/js/reference.mjs`, which runs the real `Weapon` and `SquadFiringSolution` of the checkout.
 
 use serde_json::Value;
+use squad_engine::flight::RangeMax;
 use squad_engine::weapon::Weapon;
 use std::path::PathBuf;
 use std::process::Command;
@@ -11,9 +15,10 @@ use std::process::Command;
 const TOLERANCE_DEG: f64 = 1e-9;
 const TOLERANCE_SEC: f64 = 1e-9;
 /// Times of flight above 10 s (near-vertical high arcs of close targets, 40-140 s) are held to this fraction
-/// instead: the time is `ahead / (v cos(theta))`, which changes by about 5e3 s per radian near 89 degrees, so
-/// the 4e-13 rad the two root searches differ by (different libm `sin`/`cos`) is already ~10 ns.
-const TOLERANCE_LONG_FLIGHT: f64 = 3e-10;
+/// instead: the time is `ahead / (v cos(theta))`, which changes by about 5e3 s per radian near 89 degrees (and
+/// more for the targets 10 cm away), so the 4e-13 rad the two root searches differ by (different libm
+/// `sin`/`cos`) is already ~10 ns; the worst of the grid is 3.7e-10 of the time.
+const TOLERANCE_LONG_FLIGHT: f64 = 1e-9;
 
 fn number(v: &Value) -> f64 {
     v.as_f64().unwrap_or(f64::NAN)
@@ -124,10 +129,37 @@ fn rust_solver_matches_the_javascript_solver() {
         }
     }
 
+    let above_rows = reference["aboveRows"].as_array().unwrap();
+    let mut above_clear = 0usize;
+    for row in above_rows {
+        let spec = row["spec"].as_u64().unwrap() as usize;
+        let weapon = &weapons[spec];
+        let flight = weapon.flight(weapon.shot());
+        let profile: Vec<f64> = row["profile"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(number)
+            .collect();
+        let (angle, step) = (number(&row["angle"]), number(&row["step"]));
+        let expected = row["above"].as_bool().unwrap();
+        let table = RangeMax::new(&profile);
+        let samples = 0..=profile.len() - 1;
+        let by_stretches = flight.above(angle, &profile, samples.clone(), step, 0.0, Some(&table));
+        let by_samples = flight.above(angle, &profile, samples, step, 0.0, None);
+        above_clear += usize::from(expected);
+        if by_stretches != expected || by_samples != expected {
+            mismatches.push(format!(
+                "{spec} above at {angle} rad: rust {by_stretches} / {by_samples} js {expected}"
+            ));
+        }
+    }
+
     println!(
-        "parity: {} shells, {} cases, {checked} values compared, {} mismatches, worst {worst_deg:e} deg, {worst_sec:e} s ({worst_short_sec:e} s under 10 s)",
+        "parity: {} shells, {} cases, {checked} values compared, {} paths against terrain ({above_clear} clear), {} mismatches, worst {worst_deg:e} deg, {worst_sec:e} s ({worst_short_sec:e} s under 10 s)",
         weapons.len(),
         rows.len(),
+        above_rows.len(),
         mismatches.len()
     );
     assert!(

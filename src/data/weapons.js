@@ -1151,7 +1151,7 @@ export var WEAPONS = [
         deceleration: 0,
         decelerationTime: 0,
         acceleration: 350,
-        accelerationTime: 0.6,
+        accelerationTime: 0.65,
         maxSpeed: 250,
         gravityScale: 0,
         minElevation: [-90, 90],

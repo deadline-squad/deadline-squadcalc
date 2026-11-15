@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { WEAPONS, WEAPONSTYPE } from "../src/data/weapons.js";
-import { heightAt, maxRange } from "../src/js/squadBallistics.js";
+import { burnTime, heightAt, maxRange } from "../src/js/squadBallistics.js";
 import { loadWeapon } from "./helpers.mjs";
 
 test("weapons are named once and have a known type", () => {
@@ -200,4 +200,26 @@ test("the range circle of a mortar or hell cannon marker is the longest shot of 
         const { weapon } = loadWeapon(name);
         assert.equal(range, Math.round(maxRange(weapon.getShot(9.8))), `${icon}: ${range} m`);
     }
+});
+
+test("the straight-flight velocity of a motor counts the steps it acts on, not its configured time", () => {
+    const { weapon } = loadWeapon("DF_RPG_7_PG_7V_HEAT_OG_7V");
+    const burn = (Math.ceil(0.8 * 49.87) - 1) / 49.87;
+    const cruise = 117 + 150 * burn;
+    const boostDistance = 117 * burn + 0.5 * 150 * burn ** 2;
+    assert.ok(Math.abs(burn - 0.8) > 0.01, `the burn of ${burn} s must differ from the configured 0.8 s`);
+    assert.ok(cruise < 250, "below the cap");
+    const distance = 3000;
+    const expected = distance / (burn + (distance - boostDistance) / cruise);
+    assert.ok(Math.abs(weapon.getBoostVelocity(distance) - expected) < 1e-9, `${weapon.getBoostVelocity(distance)} m/s, not ${expected}`);
+});
+
+test("a motor that never stops in the game (the NLAW, held by its cap) burns long enough in whole steps to reach the cap", () => {
+    const { weapon } = loadWeapon("DF_NLAW");
+    const toCap = (weapon.maxSpeed - weapon.velocity) / weapon.acceleration;
+    assert.ok(burnTime(weapon.getShot()) >= toCap, `burns ${burnTime(weapon.getShot())} s, the cap needs ${toCap} s`);
+    // The motor speeds it up until the cap, whatever its time; then it is held at the cap
+    const boostDistance = weapon.velocity * toCap + 0.5 * weapon.acceleration * toCap ** 2;
+    const time = toCap + (1000 - boostDistance) / weapon.maxSpeed;
+    assert.ok(Math.abs(weapon.getBoostVelocity(1000) - 1000 / time) < 1e-9, `${weapon.getBoostVelocity(1000)} m/s, not ${1000 / time}`);
 });

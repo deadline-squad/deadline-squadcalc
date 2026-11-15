@@ -28,6 +28,28 @@ pub const Z_COUNT: u32 = 1 << Z_BITS;
 const MAGIC: &[u8; 8] = b"VCOL1\0\0\0";
 const HEADER_LEN: usize = 40;
 
+/// Largest decompressed `VCOL1` file accepted, bytes (256 MiB). The largest of the 58 files measured (every
+/// `.vcol` under the map builds and the parity sets, 2026-11-15) is 228 363 687 bytes (`chora`); a gzip of a few
+/// hundred kilobytes can inflate to gigabytes (a 652 KB file to 640 MiB took 1.7 GB of memory), so the stream is
+/// cut here.
+pub const MAX_VCOL_BYTES: u64 = 256 << 20;
+
+/// Inflates a gzip stream, reading at most `limit` bytes of it.
+///
+/// # Errors
+/// The message of the gzip error, or that the stream inflates past `limit`.
+pub(crate) fn inflate_capped(bytes: &[u8], limit: u64) -> Result<Vec<u8>, String> {
+    let mut raw = Vec::new();
+    GzDecoder::new(bytes)
+        .take(limit + 1)
+        .read_to_end(&mut raw)
+        .map_err(|e| e.to_string())?;
+    if raw.len() as u64 > limit {
+        return Err(format!("inflates to more than {limit} bytes"));
+    }
+    Ok(raw)
+}
+
 /// Why a `VCOL1` file cannot be used.
 #[derive(Debug, PartialEq, Eq)]
 pub enum VoxelError {
@@ -137,10 +159,7 @@ impl VoxelColumns {
     /// [`VoxelError`] for a wrong magic, damaged gzip, truncated data or values outside the grid.
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, VoxelError> {
         if bytes.starts_with(&[0x1F, 0x8B]) {
-            let mut raw = Vec::new();
-            GzDecoder::new(bytes)
-                .read_to_end(&mut raw)
-                .map_err(|e| VoxelError::Gzip(e.to_string()))?;
+            let raw = inflate_capped(bytes, MAX_VCOL_BYTES).map_err(VoxelError::Gzip)?;
             return Self::from_raw(&raw);
         }
         Self::from_raw(bytes)
@@ -584,6 +603,24 @@ fn first_in_column(runs: &[u32], z0: f64, dz: f64, t_in: f64, t_out: f64) -> Opt
 #[cfg(test)]
 mod tests {
     use super::*;
+    use flate2::write::GzEncoder;
+    use flate2::Compression;
+    use std::io::Write;
+
+    #[test]
+    fn a_gzip_that_inflates_past_the_limit_is_an_error() {
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::fast());
+        encoder.write_all(&[0u8; 1000]).unwrap();
+        let gzip = encoder.finish().unwrap();
+        assert!(
+            gzip.len() < 100,
+            "a thousand zeros compress to {} bytes",
+            gzip.len()
+        );
+        assert_eq!(inflate_capped(&gzip, 1000).unwrap().len(), 1000);
+        let error = inflate_capped(&gzip, 999).unwrap_err();
+        assert!(error.contains("more than 999 bytes"), "{error}");
+    }
 
     fn world(voxels: &[(u32, u32, u32)]) -> VoxelColumns {
         VoxelColumns::from_voxels([100.0, -50.0, -10.0], 0.5, 0.25, 40, 40, voxels).unwrap()

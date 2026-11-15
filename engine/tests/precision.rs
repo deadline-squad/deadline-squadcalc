@@ -126,7 +126,7 @@ fn the_cli_stops_at_the_region_triangle_instead_of_the_voxel_behind_it() {
 #[test]
 fn the_cli_fails_cleanly_on_a_bad_region() {
     let dir = env!("CARGO_TARGET_TMPDIR");
-    let vcol = format!("{dir}/precision-wall.vcol");
+    let vcol = format!("{dir}/precision-damaged-region.vcol");
     std::fs::write(&vcol, wall_vcol()).unwrap();
     let damaged = format!("{dir}/damaged.rtri");
     std::fs::write(&damaged, b"not a region file").unwrap();
