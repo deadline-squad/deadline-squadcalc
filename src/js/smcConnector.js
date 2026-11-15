@@ -189,7 +189,7 @@ const profiles = new WeakMap();
  */
 function getProfile(solution) {
     const heightmap = App.minimap.heightmap;
-    if (!heightmap?.jsonPng?.length || !(solution.distance > 0)) return null;
+    if (!heightmap?.ready || !(solution.distance > 0)) return null;
     if (profiles.has(solution)) return profiles.get(solution);
 
     const samples = Math.floor(solution.distance / PROFILE_STEP);

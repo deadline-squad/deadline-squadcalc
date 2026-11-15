@@ -9,7 +9,8 @@ Rust core of the Squad ballistics engine for SquadCalc. Russian version: [README
 * **BVH** (`bvh`): binned-SAH builder, flattened into the skip-pointer layout below, with `bvh.bin` import/export.
 * **Queries** (`trace`): Moller-Trumbore segment/triangle test in `f64` (reference) and `f32` (GPU parity, optional
   SIMD128), stackless first-hit traversal, line-of-fire query for a whole trajectory.
-* **Heightmap** (`heightmap`): 16-bit G16 sampler with the game's triangle-diagonal rule.
+* **Heightmap** (`heightmap`): the site's heightmap read in full (lattice frame, 16-bit levels, the game's triangle-diagonal
+  rule, the `HMD1` detail), see [Heightmap](#heightmap); also the 16-bit G16 and PNG samplers of the JSON interface.
 * **Voxel columns** (`voxel`): decoder of the `VCOL1` file (`tools/volumetric/py/codec.py`) and the segment query by
   voxel-column DDA (first occupied voxel or clear), see [Voxel columns](#voxel-columns-vcol1).
 * **Precision pass** (`precision`): around one target the voxel walk decides what stays far from geometry and the exact
@@ -120,7 +121,8 @@ Response:
   being blocked by the voxel, see [Precision pass](#precision-pass-rtri1).
 * Heightmap grid: row 0 is the northern edge, `X = col * resolution`, `Y = -row * resolution` (SquadCalc's `lng`,
   `-lat`). Between samples each quad is two triangles split along the diagonal from `(row, col)` to
-  `(row + 1, col + 1)`, as in `src/js/squadHeightmaps.js`; a point more than half a sample outside the grid has height 0.
+  `(row + 1, col + 1)`, as in `src/js/squadHeightmaps.js`; a point more than half a sample outside the grid has no height
+  (`Heightmap::height_at` gives NaN, the JSON interface reads it as 0).
   Raw `.g16`: `u32` width, `u32` height, then `u16` samples, little endian, row 0 first.
 * `elevation_mrad` is the elevation of the sight in milliradians.
   `null` fields and `occlusion_status: "no_solution"` mean the target cannot be reached.
@@ -198,6 +200,100 @@ meets the segment's box (`tools/recheck_expected.py`, plain numpy); all 21 equal
 generation has no such misses; the shipped data set was repaired with the recheck tool (the repaired entries are the
 only difference from a regeneration). The BVH never disagreed with the exact answer.
 
+
+## Heightmap
+
+`Heightmap` (`src/heightmap.rs`, `src/heightmap/detail.rs`) reads the site's heightmaps (`/heightmaps/<map>/`) the way the
+page does, in the engine's frame (X east, Y north, metres). The page decodes the images (`heightmapWorker.js`) and hands
+the raw levels and the frame to the core; the core does no image decoding for it.
+
+* **Lattice.** Sample `(row, col)` lies at `origin + col * spacing * (cos yaw, sin yaw) + row * spacing * (sin yaw, -cos yaw)`.
+  `meta.json` states `origin_m`, `resolution_m` and `yaw_deg` in Unreal's frame (Y south, yaw clockwise), so the
+  origin's Y and the yaw are negated on the way in (`SquadHeightmap` does it). Skorpo's landscape is turned by 2.006
+  degrees, Anvil's samples are 0.75 m apart, the others 1 m.
+* **Levels.** 16 bits per sample, `Z = z_min + level * z_step` (`webp.z_step_m`). The page passes `z_min = 0`: its heights
+  count from the heightmap's lowest level.
+* **Triangle rule.** A quad of four samples is two triangles split along the diagonal from `(row, col)` to
+  `(row + 1, col + 1)`; the height is interpolated on the triangle the point is in.
+* **Detail (`HMD1`).** `heightmap.detail.bin` (gzip or raw): the magic `HMD1`, `u32` factor (2 on all maps), unit, quad
+  columns, quad rows and count, a bitset of the quads that have detail, then per such quad the `factor^2 + 2 * factor`
+  nodes of its sub-grid without the four corners, as zigzag varints of the residual against the triangle rule's read of
+  the corners (rounded half up) in units of `unit` levels. A quad with detail is read on its sub-grid by the same rule.
+  A file of another grid, a factor outside 2 to 64, a count that differs from the bitset's, a bit set past the last quad, a value whose level does not fit 32 bits, or
+  truncated or trailing bytes is refused (`HeightmapError::Detail`), and the heightmap keeps reading without it.
+* **Continuity (#46).** A quad without detail beside a quad with detail takes the nodes of their shared edge from that
+  neighbour; its other nodes follow the triangle rule on its corners, so the surface has no jump and the files do not
+  grow. Before, the plain quad read its corners and the surface jumped on the edge by up to the detail's threshold
+  (`meta.json` `detail.threshold_m`): 0.245 to 0.272 m on 22 maps, 0.499 m on Fallujah, 0.988 m on Sanxian
+  (every edge of all 25 maps measured). Two quads with detail agree on their shared nodes on all 25 maps (7.06 million
+  pairs, 0 unequal). After, on Jensen, Skorpo, Fallujah and Sanxian (1.15 million such edges), five points per edge, 2e-7 m on either side
+  of it: the heights differ by at most 1.3e-4 m on Skorpo (1.3e-6 m at 2e-9 m: it is the slope times the
+  distance, not a step), 5e-6 m on Jensen, 1e-5 m on Fallujah and Sanxian.
+* **Outside the lattice (#45).** More than half a sample outside it, and for a coordinate that is not finite, there is no
+  height: `height_at` gives NaN (the edge sample holds within half a sample, nothing further out). The old page read 0
+  there. The caller decides what to do:
+  `SquadHeightmap.getHeight(latlng, none = NaN)` returns `none`; sampling code that wants the old behaviour passes 0, and
+  a firing solution with a weapon or target of NaN height falls back to flat ground and says "no height data".
+  The JSON interface keeps height 0 off the grid (`io.rs` maps NaN to 0).
+* **A failed detail (#45).** The worker retries the download 4 times (1, 2 and 4 s between tries); when the detail still
+  cannot be fetched, or the core refuses it, `SquadHeightmap.detailFailed` is set with `detailError`, a warning toast is
+  shown, the target popup says so (`common:noHeightDetail`) and the coverage legend shows a notice; the coarse surface
+  still gives heights.
+
+### In the page
+
+`src/js/squadEngine.js` loads the wasm once on the main thread when the page starts (the app is usable while it loads);
+the volume worker keeps its own instance. `SquadHeightmap` (`src/js/squadHeightmaps.js`) builds a `Heightmap` from the
+worker's levels and reads through it: `getHeight(latlng, none)`, `getHeights(Float64Array lat, lng pairs, none)` and
+`getHeightPath`. The core is built on the page, in slices that let it work in between (below): the copy of the levels of
+the largest map (Chora, 66 million samples) and the decoding of its detail took 128 ms in one task in Chromium. The JavaScript reader and `heightmapDetail.js` are gone (the page has one reader, no second copy).
+Until the core and the heightmap are there, `ready` is false and a height is `none`.
+
+### WebAssembly API
+
+`Heightmap` (JS wrapper of the wasm class `Terrain`): `new Heightmap(levels, {width, height, zMin, zStep, origin, spacing,
+yawDeg})`, `loadDetail(bytes)`, `heightAt(x, y)`, `heights(xy)` and `free()`. `Heightmap.fromSlices(levels, frame,
+pause)` and `loadDetailInSlices(bytes, pause)` are the same two steps for a page that must keep answering: the first copies
+the levels into the module 2^21 at a time (the wasm class `TerrainBuilder`, `push_rows` and `finish`), the second decodes
+64 quads of the detail at a time (`Terrain.begin_detail` and `step_detail`, in Rust `Heightmap::begin_detail` and
+`continue_detail`), and each awaits `pause()` between two slices; `pause` may throw to give the build up. `heights` is the batch call: `xy` is a
+`Float64Array` of x, y pairs (odd length is an error) and the result a `Float64Array` with one height per pair, NaN where
+`heightAt` gives NaN. A class holds the levels in the module, so a read passes no map name (a string-keyed call cost about
+0.7 us more). The `Engine` registry's `loadHeightmap` (G16 or PNG with a `z_scale`) stays for the JSON interface.
+
+### Validation and tools
+
+`tools/heightmap/` holds an independent reference and the check against it:
+
+```sh
+node tools/heightmap/png16_to_u16.mjs <heightmaps_dir> <levels_dir> <map>...   # own PNG decoder; checks the sum against meta.json
+python3 tools/heightmap/reference.py points <heightmaps_dir> <levels_dir> <map> <out_dir>
+node --import ./tests/register.mjs engine/tools/heightmap/validate.mjs <heightmaps_dir> <levels_dir> <out_dir> <map>...   # from the repository root, after npm run build:engine
+```
+
+`reference.py` is pure Python written from the format's description, with integers for the detail's nodes, and draws
+points in four kinds (uniform, inside detail quads, around the border, plain quads beside detail ones). `validate.mjs`
+runs the page's path (`SquadHeightmap` on the wasm) against it, single and batch.
+
+Measured on 2026-11-15 on the served heightmaps of all 25 maps (Skorpo's turned lattice included), 142 000 points per
+map, 3.55 million in all: the largest difference to the reference is 0 m (bit-identical; the limit is 1e-8 m), no point
+where only one side has a height, the batch equals the single reads. The audit's own 732 000 reference points (6 maps)
+agree the same. The audit's older JavaScript outputs against the new reference differ only in plain quads beside a
+detail quad, by up to 0.18 m (Anvil), 0.44 m (Fallujah) and 0.22 m (Skorpo), which is the jump above, and on the detail
+quads the difference is below 1e-9 m. The tests of the edge and NaN, of a point 47 m outside the lattice and of the jump
+(`tests/squadHeightmaps.test.mjs`) fail on the old reader (NaN gave a number, the outside gave 0, the edge jumped from 20 to 0 m) and pass now.
+
+Speed through the page path in Node 26 (`SquadHeightmap.getHeight` per call, minimum of 5 runs of 1 000 000;
+`getHeights` of 100 000 random points, minimum of 7), idle machine:
+
+| map | single call before | single call after | batch of 100 000 before | batch of 100 000 after |
+|---|---|---|---|---|
+| Jensen | 155 ns | 157 ns | 16.2 ms | 13.2 ms |
+| Skorpo | 169 ns | 159 ns | 16.7 ms | 14.4 ms |
+| Albasrah | 165 ns | 156 ns | 16.5 ms | 13.3 ms |
+
+(before: the JavaScript reader with detail, as one `getHeight` per point). The wasm is 457 757 bytes before and
+467 232 bytes after (+9 475 bytes, +2.1 %).
 
 ## Voxel columns (`VCOL1`)
 
@@ -755,7 +851,7 @@ sh js/build.sh        # js/pkg (plain) and js/pkg-simd (SIMD128 triangle test)
 node --test "js/test/*.test.mjs"  # loads the wasm in Node
 ```
 
-`js/index.mjs` is the ES-module wrapper (`loadEngine`, `Engine.solve`, `loadBvh`, `loadHeightmap`, `loadVcol`,
+`js/index.mjs` is the ES-module wrapper (`loadEngine`, `Engine.solve`, `loadBvh`, `loadHeightmap`, `Heightmap`, `loadVcol`,
 `firstHit`, `voxelFirstBlock`, `buildBvh`, `segmentTriangle`). The SIMD128 build is the same code compiled with `-C target-feature=+simd128` and the
 `simd` feature; the Node test checks that it returns the same `f32` results bit for bit as the scalar build.
 

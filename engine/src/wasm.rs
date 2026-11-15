@@ -1,7 +1,7 @@
 //! WebAssembly exports (feature `wasm`), built with `wasm-bindgen`; `js/index.mjs` wraps them.
 
 use crate::bvh::{triangles_from_le_bytes, BuildOptions, Bvh, BvhSet, MAX_TRIANGLES};
-use crate::heightmap::Heightmap;
+use crate::heightmap::{DetailLoad, Heightmap, Lattice};
 use crate::io::{run_json, Resources};
 use crate::precision::{HitKind, RegionFile};
 use crate::trace::{segment_triangle_f32, Scene};
@@ -196,6 +196,161 @@ impl Engine {
                 None => Vec::new(),
             },
         )
+    }
+}
+
+/// A heightmap of 16-bit levels read in the engine's frame (X east, Y north, metres), for the page's heights: a
+/// handle of its own, so a read does not pass a name through the module's memory. Call `free` when done with it.
+#[wasm_bindgen]
+pub struct Terrain {
+    map: Heightmap,
+    /// The detail layer being read by `begin_detail` and `step_detail`.
+    loading: Option<DetailLoad>,
+}
+
+#[wasm_bindgen]
+impl Terrain {
+    /// A heightmap of `width * height` levels (row 0 first): `Z = z_min + level * z_step`, sample `(row, col)` at
+    /// `origin + col * spacing * (cos yaw, sin yaw) + row * spacing * (sin yaw, -cos yaw)`.
+    #[wasm_bindgen(constructor)]
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        levels: Vec<u16>,
+        width: usize,
+        height: usize,
+        z_min: f64,
+        z_step: f64,
+        origin_x: f64,
+        origin_y: f64,
+        spacing: f64,
+        yaw_deg: f64,
+    ) -> Result<Terrain, JsError> {
+        let lattice = Lattice {
+            origin_x,
+            origin_y,
+            spacing,
+            yaw_deg,
+        };
+        let map = Heightmap::with_frame(width, height, levels, z_min, z_step, lattice)
+            .map_err(js_error)?;
+        Ok(Terrain { map, loading: None })
+    }
+
+    /// Adds the `HMD1` detail layer (gzip, or already decompressed). On an error the heightmap keeps reading
+    /// without it.
+    pub fn set_detail(&mut self, bytes: &[u8]) -> Result<(), JsError> {
+        self.map.set_detail(bytes).map_err(js_error)
+    }
+
+    /// Begins reading the `HMD1` detail layer (gzip, or already decompressed) in slices, replacing a load in
+    /// progress: `step_detail` decodes it. On an error the heightmap keeps reading without it.
+    pub fn begin_detail(&mut self, bytes: Vec<u8>) -> Result<(), JsError> {
+        self.loading = None;
+        self.loading = Some(self.map.begin_detail(bytes).map_err(js_error)?);
+        Ok(())
+    }
+
+    /// Decodes the next `quads` quads of the detail layer begun by `begin_detail`; true once the layer is complete
+    /// and in use. On an error the load is dropped and the heightmap keeps its former detail.
+    pub fn step_detail(&mut self, quads: usize) -> Result<bool, JsError> {
+        let load = self
+            .loading
+            .as_mut()
+            .ok_or_else(|| JsError::new("no detail load in progress"))?;
+        let complete = self
+            .map
+            .continue_detail(load, quads)
+            .inspect_err(|_| self.loading = None)
+            .map_err(js_error)?;
+        if complete {
+            self.loading = None;
+        }
+        Ok(complete)
+    }
+
+    /// Height at world `(x, y)`, NaN where there is none (more than half a sample outside the lattice, a
+    /// non-finite coordinate).
+    pub fn height_at(&self, x: f64, y: f64) -> f64 {
+        self.map.height_at(x, y)
+    }
+
+    /// Heights at the points `xy` (x0, y0, x1, y1, ...), NaN where there is none.
+    pub fn heights(&self, xy: &[f64]) -> Result<Vec<f64>, JsError> {
+        if xy.len() % 2 != 0 {
+            return Err(JsError::new("xy holds x, y pairs"));
+        }
+        Ok(self.map.heights(xy))
+    }
+}
+
+/// The levels of a heightmap handed over a few rows at a time, for a page that must not spend long on one call to copy
+/// the largest maps' (`new Terrain` copies all of them at once). `finish` makes the `Terrain`.
+#[wasm_bindgen]
+pub struct TerrainBuilder {
+    levels: Vec<u16>,
+    samples: usize,
+    width: usize,
+    height: usize,
+    z_min: f64,
+    z_step: f64,
+    lattice: Lattice,
+}
+
+#[wasm_bindgen]
+impl TerrainBuilder {
+    /// A builder of the heightmap `Terrain::new` takes `width * height` levels for.
+    #[wasm_bindgen(constructor)]
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        width: usize,
+        height: usize,
+        z_min: f64,
+        z_step: f64,
+        origin_x: f64,
+        origin_y: f64,
+        spacing: f64,
+        yaw_deg: f64,
+    ) -> Result<TerrainBuilder, JsError> {
+        let samples = width
+            .checked_mul(height)
+            .ok_or_else(|| JsError::new("the grid has more samples than the module can hold"))?;
+        Ok(TerrainBuilder {
+            levels: Vec::with_capacity(samples),
+            samples,
+            width,
+            height,
+            z_min,
+            z_step,
+            lattice: Lattice {
+                origin_x,
+                origin_y,
+                spacing,
+                yaw_deg,
+            },
+        })
+    }
+
+    /// Appends the next levels, row 0 first.
+    pub fn push_rows(&mut self, rows: &[u16]) -> Result<(), JsError> {
+        if rows.len() > self.samples - self.levels.len() {
+            return Err(JsError::new("more levels than the grid has samples"));
+        }
+        self.levels.extend_from_slice(rows);
+        Ok(())
+    }
+
+    /// The heightmap, once all `width * height` levels were pushed.
+    pub fn finish(self) -> Result<Terrain, JsError> {
+        let map = Heightmap::with_frame(
+            self.width,
+            self.height,
+            self.levels,
+            self.z_min,
+            self.z_step,
+            self.lattice,
+        )
+        .map_err(js_error)?;
+        Ok(Terrain { map, loading: None })
     }
 }
 

@@ -67,7 +67,7 @@ export default class SquadCoverage {
         const heightmap = this.map.heightmap;
         const weapon = App.activeWeapon;
 
-        if (!this.enabled || !weaponMarker || !weapon || !heightmap?.jsonPng.length) {
+        if (!this.enabled || !weaponMarker || !weapon || !heightmap?.ready) {
             this.clear();
             return;
         }
@@ -109,7 +109,8 @@ export default class SquadCoverage {
         const map = this.map;
         const origin = weaponMarker.getLatLng();
 
-        const heightAt = (east, north) => map.heightmap.getHeight(map.fromMeters(origin, east, north));
+        // A ray leaves the map: its ground there is the lowest level, nothing the shell meets
+        const heightAt = (east, north) => map.heightmap.getHeight(map.fromMeters(origin, east, north), 0);
         // The map spans lat [-pixelSize, 0] and lng [0, pixelSize]
         const inside = (east, north) => {
             const { lat, lng } = map.fromMeters(origin, east, north);
@@ -338,7 +339,7 @@ export default class SquadCoverage {
             this.removeOverlay();
             this.overlayUrl = blob ? URL.createObjectURL(blob) : canvas.toDataURL();
             this.overlay = new ImageOverlay(this.overlayUrl, bounds, { className: "coverageOverlay", interactive: false, zIndex: COVERAGE_Z_INDEX }).addTo(this.map);
-            $("#coverageLegend").show();
+            $("#coverageLegend").toggleClass("noDetail", this.map.heightmap.detailFailed).show();
         });
     }
 

@@ -443,8 +443,7 @@ pub fn run(request: &Request, resources: &Resources) -> Result<Response, EngineE
         .unwrap_or_else(|| Weapon::parabola(request.weapon_specs.v0));
     weapon.velocity = request.weapon_specs.v0;
 
-    let ground =
-        |x: f64, y: f64| heightmap.map_or(0.0, |h| h.height_at_scaled(x, y, environment.z_scale));
+    let ground = |x: f64, y: f64| ground_z(heightmap, x, y, environment.z_scale);
     let [gx, gy] = request.pos_gun;
     let [tx, ty, tz] = request.pos_target;
     let gz = ground(gx, gy);
@@ -566,6 +565,17 @@ pub fn run(request: &Request, resources: &Resources) -> Result<Response, EngineE
     })
 }
 
+/// Ground height of a request at `(x, y)`: the heightmap's, or 0 without one and where it has no height (off its
+/// lattice).
+fn ground_z(heightmap: Option<&Heightmap>, x: f64, y: f64, z_scale: f64) -> f64 {
+    let z = heightmap.map_or(0.0, |h| h.height_at_scaled(x, y, z_scale));
+    if z.is_nan() {
+        0.0
+    } else {
+        z
+    }
+}
+
 /// First point of the path under the terrain, sampled every heightmap resolution along each segment, leaving
 /// out [`TERRAIN_CLEARANCE`] metres of horizontal distance at both ends. Returns the point and the time.
 fn first_terrain_hit(
@@ -579,7 +589,7 @@ fn first_terrain_hit(
         let length = (segment.p1[0] - segment.p0[0])
             .hypot(segment.p1[1] - segment.p0[1])
             .max(1e-9);
-        let steps = (length / map.resolution).ceil().max(1.0) as usize;
+        let steps = (length / map.resolution()).ceil().max(1.0) as usize;
         for k in 0..=steps {
             let f = k as f64 / steps as f64;
             let p = [
@@ -591,7 +601,7 @@ fn first_terrain_hit(
             if along < TERRAIN_CLEARANCE || along > distance - TERRAIN_CLEARANCE {
                 continue;
             }
-            if p[2] < map.height_at_scaled(p[0], p[1], z_scale) {
+            if p[2] < ground_z(Some(map), p[0], p[1], z_scale) {
                 return Some((p, segment.t0 + f * (segment.t1 - segment.t0)));
             }
         }
@@ -608,6 +618,7 @@ pub fn mrad_to_deg(mrad: f64) -> f64 {
 mod tests {
     use super::*;
     use crate::bvh::{BuildOptions, Triangle};
+    use crate::heightmap::Lattice;
 
     fn request(extra: &str) -> String {
         format!(
@@ -753,8 +764,20 @@ mod tests {
                 levels[row * 3 + col] = 65535;
             }
         }
-        let mut map = Heightmap::new(3, rows, levels, 1.0, 1.0).unwrap();
-        map.origin_x = -1.0;
+        let map = Heightmap::with_frame(
+            3,
+            rows,
+            levels,
+            -1.0,
+            2.0 / 65535.0,
+            Lattice {
+                origin_x: -1.0,
+                origin_y: 0.0,
+                spacing: 1.0,
+                yaw_deg: 0.0,
+            },
+        )
+        .unwrap();
         let mut resources = Resources::new();
         resources.add_heightmap("ridge", map);
         // Rows run south from Y = 0, so the target is at Y = -600

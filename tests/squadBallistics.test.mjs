@@ -99,7 +99,7 @@ test("the firing solution of a target inside the barrel's length has no low arc 
         mapToGameScale: 1,
         mapToGameScaleY: 1,
         toMeters: (origin, latlng) => ({ east: latlng.lng - origin.lng, north: latlng.lat - origin.lat }),
-        heightmap: { jsonPng: [[0]], getHeight: (latlng) => latlng.h },
+        heightmap: { getHeight: (latlng) => latlng.h },
     };
     for (const [name, distance, height] of [["DF_Tank_AP_T_62_2A20", 3, 2], ["Mortar", 0.3885, 1]]) {
         const { weapon } = loadWeapon(name);

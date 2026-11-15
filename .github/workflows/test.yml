@@ -19,5 +19,12 @@ jobs:
         node-version: 22
         cache: npm
 
+    - name: Install the pinned Rust toolchain
+      working-directory: engine
+      run: rustup show active-toolchain || rustup toolchain install
+
+    - run: cargo install wasm-bindgen-cli --version 0.2.130 --locked
+
     - run: npm ci
+    - run: npm run build:engine
     - run: npm test

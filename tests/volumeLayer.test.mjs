@@ -227,7 +227,7 @@ for (const name of ["Mortar", "M1064M121", "HellCannon"]) {
         const map = {
             activeMap: { name: "test" },
             toMeters: (origin, latlng) => ({ east: latlng.lng - origin.lng, north: latlng.lat - origin.lat }),
-            heightmap: { jsonPng: [[0]], getHeight: () => 10, resolution: 1 },
+            heightmap: { getHeight: () => 10, resolution: 1 },
             volume: {
                 ready: true,
                 zMin: -10,

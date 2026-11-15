@@ -25,7 +25,11 @@ jobs:
             # Deploy
             cd ${{ secrets.DIST }}
             git pull origin master
+            # The page reads its heights with the Rust engine (WebAssembly), which the build stops without
+            (cd engine && (rustup show active-toolchain || rustup toolchain install))
+            cargo install wasm-bindgen-cli --version 0.2.130 --locked
             npm ci
+            npm run build:engine
             npm run build
             
     - name: Discord notification

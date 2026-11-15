@@ -506,7 +506,7 @@ export const squadTargetMarker = squadMarker.extend({
     heightAround: function(center) {
         const heightmap = this.map.heightmap;
         if (!heightmap?.ready) return () => 0;
-        return (east, north) => heightmap.getHeight(this.map.fromMeters(center, east, north));
+        return (east, north) => heightmap.getHeight(this.map.fromMeters(center, east, north), 0);
     },
 
 

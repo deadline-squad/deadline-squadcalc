@@ -83,6 +83,7 @@
     "coverageHigh": "仅高弹道",
     "coverageBlocked": "被遮挡（地形、建筑）",
     "noHeightData": "无高度数据",
+    "noHeightDetail": "高度不含墙体细节",
     "targetHeightChoice": "目标高度",
     "targetHeight_ground": "地面",
     "targetHeight_landscape": "地形",

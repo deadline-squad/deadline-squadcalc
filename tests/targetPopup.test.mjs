@@ -17,17 +17,17 @@ await i18next.init({ lng: "en", resources: { en: { common } }, interpolation: { 
 const flatMap = {
     activeMap: { name: "test" },
     toMeters: (origin, latlng) => ({ east: latlng.lng - origin.lng, north: latlng.lat - origin.lat }),
-    heightmap: { jsonPng: [[0]], getHeight: () => 0, resolution: 1 },
+    heightmap: { getHeight: () => 0, resolution: 1 },
 };
 
 /** The elevation line of the popup, without markup */
 const elevationOf = (html) => html.split("<br>")[1].replace(/<[^>]*>/g, "");
 
-function contentFor(weaponName, shellIndex, targetHeight, targetLines = "") {
+function contentFor(weaponName, shellIndex, targetHeight, targetLines = "", map = flatMap) {
     const { weapon } = loadWeapon(weaponName, shellIndex);
     App.activeWeapon = weapon;
     App.userSettings = { lowAndHigh: false, showBearing: true, showTimeOfFlight: false, showDistance: false, showHeight: false };
-    const firingSolution = new SquadFiringSolution({ lat: 0, lng: 0 }, { lat: 0, lng: 400 }, flatMap, 0, undefined, targetHeight);
+    const firingSolution = new SquadFiringSolution({ lat: 0, lng: 0 }, { lat: 0, lng: 400 }, map, 0, undefined, targetHeight);
     return popupContent(firingSolution, "high", { formatRounds: () => "", targetLines })[0];
 }
 
@@ -35,6 +35,19 @@ test("a floor chosen in the dialog adds its line to the popup, an unchosen heigh
     const floor = { kind: "floor", height: 3.3, above: 3.3 };
     assert.match(contentFor("Mortar", 0, 3.3, formatHeightChoice(floor)), /<span class="calcTargetHeight">⌖ Floor \+3\.3<span data-i18n="common:m">m<\/span><\/span>/);
     assert.doesNotMatch(contentFor("Mortar", 0, null, formatHeightChoice(null)), /calcTargetHeight/);
+});
+
+test("a point without height or a heightmap whose detail failed to load is noted in the popup, a whole one is not", () => {
+    const whole = contentFor("Mortar", 0, null);
+    assert.doesNotMatch(whole, /calcNoHeight/);
+
+    const noHeight = contentFor("Mortar", 0, null, "", { ...flatMap, heightmap: { getHeight: () => NaN, resolution: 1 } });
+    assert.match(noHeight, /<span class="calcNoHeight">⚠ <span data-i18n="common:noHeightData">no height data<\/span><\/span>/);
+    assert.equal(elevationOf(noHeight), elevationOf(whole), "the solution is the flat ground's");
+
+    const noDetail = contentFor("Mortar", 0, null, "", { ...flatMap, heightmap: { getHeight: () => 0, resolution: 1, detailFailed: true } });
+    assert.match(noDetail, /<span class="calcNoHeight">⚠ <span data-i18n="common:noHeightDetail">heights without wall detail<\/span><\/span>/);
+    assert.doesNotMatch(noDetail, /common:noHeightData/);
 });
 
 test("the height line names the kind of the choice and signs the height above the ground", () => {

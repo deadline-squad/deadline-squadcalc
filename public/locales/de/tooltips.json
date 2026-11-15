@@ -96,6 +96,8 @@
     "coverage": "Wirkungsbereich: wohin die Waffe vom ersten Waffenmarker trifft, unter Berücksichtigung von Gelände und Gebäuden",
     "heightmapFailed": "Keine Höhendaten",
     "heightmapFailedDesc": "Die Höhenkarte konnte nicht geladen werden: die Schusslösungen nehmen flaches Gelände an (Höhe 0). Lade die Seite neu, um es erneut zu versuchen.",
+    "heightmapDetailFailed": "Höhen ohne Wanddetails",
+    "heightmapDetailFailedDesc": "Die feine Höhenebene dieser Karte (Wände, Dachkanten) konnte nicht geladen werden: Höhen neben Gebäuden können um Dezimeter abweichen. Lade die Seite neu, um es erneut zu versuchen.",
     "mapLayers": "Kartenebenen",
     "moreMapTools": "Weitere Kartenwerkzeuge",
     "closeDialog": "Schließen",
