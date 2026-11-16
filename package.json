@@ -28,6 +28,7 @@
     "build:engine": "sh scripts/build-engine.sh",
     "lint": "stylelint -c ./config/.stylelintrc.json ./src/**/*.scss && htmlhint --config ./config/.htmlhintrc.json --nocolor ./src/ && eslint --fix -c ./config/eslint.config.js ./src/",
     "test": "node --import ./tests/register.mjs --test \"tests/*.test.mjs\"",
+    "check:terrain": "node --import ./tests/register.mjs tests/independent/terrain/run.mjs",
     "locales": "node scripts/check-locales.mjs"
   },
   "engines": {

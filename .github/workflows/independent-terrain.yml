@@ -1,0 +1,73 @@
+name: Independent terrain check
+permissions:
+  contents: read
+
+# The page's sampled obstacle test against the exact parabola-against-triangles reference (tests/independent/terrain).
+# It reads the site's heightmaps, which are not in the repository: it runs on a self-hosted runner that holds them and
+# exports their directory as SQUADCALC_HEIGHTMAPS (<map>/{meta.json, heightmap.png, heightmap.detail.bin}).
+on:
+  workflow_dispatch:
+  push:
+    branches: [ dev ]
+    paths:
+      - src/data/weapons.js
+      - src/js/squadBallistics.js
+      - src/js/squadCoverage.js
+      - src/js/squadCoverageRays.js
+      - src/js/squadFiringSolution.js
+      - src/js/squadHeightmaps.js
+      - src/js/squadWeapons.js
+      - src/js/heightmapWorker.js
+      - engine/**
+      - tests/helpers.mjs
+      - tests/loader.mjs
+      - tests/register.mjs
+      - tests/stubs/**
+      - tests/independent/terrain/**
+      - package.json
+      - .github/workflows/independent-terrain.yml
+  pull_request:
+    branches: [ dev ]
+    paths:
+      - src/data/weapons.js
+      - src/js/squadBallistics.js
+      - src/js/squadCoverage.js
+      - src/js/squadCoverageRays.js
+      - src/js/squadFiringSolution.js
+      - src/js/squadHeightmaps.js
+      - src/js/squadWeapons.js
+      - src/js/heightmapWorker.js
+      - engine/**
+      - tests/helpers.mjs
+      - tests/loader.mjs
+      - tests/register.mjs
+      - tests/stubs/**
+      - tests/independent/terrain/**
+      - package.json
+      - .github/workflows/independent-terrain.yml
+
+jobs:
+  terrain:
+    name: terrain ${{ matrix.map }}
+    runs-on: [ self-hosted, squadcalc-heightmaps ]
+    strategy:
+      fail-fast: false
+      matrix:
+        map: [ anvil, blackcoast, fallujah, jensen, skorpo, yehorivka ]
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 22
+        cache: npm
+
+    - name: Install the pinned Rust toolchain
+      working-directory: engine
+      run: rustup show active-toolchain || rustup toolchain install
+
+    - run: cargo install wasm-bindgen-cli --version 0.2.130 --locked
+
+    - run: npm ci
+    - run: npm run build:engine
+    - run: npm run check:terrain -- ${{ matrix.map }}
