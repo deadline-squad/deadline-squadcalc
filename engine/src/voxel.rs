@@ -155,6 +155,8 @@ impl VoxelColumns {
     /// Decodes a `VCOL1` file, either as written by `codec.py` (gzip) or already decompressed (what a browser's
     /// `DecompressionStream` yields).
     ///
+    /// Formula: F59 in docs/thesis-methods-and-results.md of mapping-squad.
+    ///
     /// # Errors
     /// [`VoxelError`] for a wrong magic, damaged gzip, truncated data or values outside the grid.
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, VoxelError> {
@@ -371,6 +373,8 @@ impl VoxelColumns {
 
     /// The first occupied voxel the segment `p0 -> p1` enters, or `None` if it is clear. Parts of the segment
     /// outside the grid are not blocked. A segment that starts inside an occupied voxel hits it at `t = 0`.
+    ///
+    /// Formula: F44, F45, F46, F47 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn first_block(&self, p0: [f64; 3], p1: [f64; 3]) -> Option<VoxelHit> {
         // Grid units: one unit is a cell horizontally and dz vertically, the origin is the grid's corner
         let origin = [
@@ -455,11 +459,15 @@ impl VoxelColumns {
     }
 
     /// Traces many independent segments; on several threads with the `threads` feature.
+    ///
+    /// Formula: F44, F45, F46, F47 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn first_blocks(&self, segments: &[([f64; 3], [f64; 3])]) -> Vec<Option<VoxelHit>> {
         crate::bvh::map_parallel(segments, |(p0, p1)| self.first_block(*p0, *p1))
     }
 
     /// Whether the segment meets an occupied voxel.
+    ///
+    /// Formula: F44, F45, F46, F47 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn blocked(&self, p0: [f64; 3], p1: [f64; 3]) -> bool {
         self.first_block(p0, p1).is_some()
     }
@@ -472,6 +480,8 @@ impl VoxelColumns {
     /// A segment meets the result exactly when it passes within the grown margin of a voxel of the window, which
     /// [`crate::precision`] uses to find the segments that must be re-checked. Cost and size are proportional to
     /// the voxels of the window times the box, merged where runs touch.
+    ///
+    /// Formula: F62 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn dilated(&self, window: [f64; 4], margin: f64) -> VoxelColumns {
         let radius = |size: f64| (margin / size - 1e-9).ceil().max(0.0);
         let (radius_xy, radius_z) = (radius(self.cell) as i64, radius(self.dz) as u32);
@@ -544,6 +554,8 @@ impl VoxelColumns {
     }
 
     /// Line-of-fire query: the first voxel the trajectory (its segments, in flight order) enters, or `None`.
+    ///
+    /// Formula: F44, F45, F46, F47 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn first_block_along(&self, segments: &[Segment]) -> Option<VoxelPathHit> {
         segments.iter().enumerate().find_map(|(index, segment)| {
             let hit = self.first_block(segment.p0, segment.p1)?;

@@ -207,6 +207,8 @@ impl Weapon {
 
     /// Velocity over the distance to the target: the muzzle velocity, or for a boosted rocket the equivalent
     /// constant velocity.
+    ///
+    /// Formula: F64 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn velocity_over(&self, distance: f64) -> f64 {
         if self.has_boost() {
             self.boost_velocity(distance)
@@ -217,6 +219,8 @@ impl Weapon {
 
     /// Time the elevation key must be held for an elevation, seconds; NaN for a weapon without
     /// `elevation_rate` or an angle outside `hold_elevation`.
+    ///
+    /// Formula: F65 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn hold_time(&self, elevation_deg: f64) -> f64 {
         let Some([lowest, top]) = self.hold_elevation else {
             return f64::NAN;
@@ -228,12 +232,16 @@ impl Weapon {
     }
 
     /// Whether the weapon can be laid at this elevation.
+    ///
+    /// Formula: F21 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn in_elevation_range(&self, elevation_rad: f64) -> bool {
         let degrees = rad_to_deg(elevation_rad);
         degrees >= self.min_elevation_deg && degrees <= self.max_elevation_deg
     }
 
     /// Farthest target on flat ground, metres (`Weapon.getMaxDistance`).
+    ///
+    /// Formula: F10, F66 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn max_distance(&self) -> f64 {
         let gravity = self.gravity();
         if gravity == 0.0 {
@@ -258,6 +266,8 @@ impl Weapon {
 
     /// The firing solution for a target `distance` metres away horizontally and `height_diff` metres above
     /// the weapon's ground (`SquadFiringSolution`).
+    ///
+    /// Formula: F20, F21 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn solve(&self, distance: f64, height_diff: f64) -> FiringSolution {
         let flight = self.flight(self.shot());
         let angle_offset = deg_to_rad(self.angle_offset_deg);
@@ -356,11 +366,15 @@ pub struct FiringSolution {
 }
 
 /// Radians to degrees.
+///
+/// Formula: F122 in docs/thesis-methods-and-results.md of mapping-squad.
 pub fn rad_to_deg(rad: f64) -> f64 {
     (rad * 180.0) / std::f64::consts::PI
 }
 
 /// Degrees to radians.
+///
+/// Formula: F122 in docs/thesis-methods-and-results.md of mapping-squad.
 pub fn deg_to_rad(deg: f64) -> f64 {
     (deg * std::f64::consts::PI) / 180.0
 }

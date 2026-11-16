@@ -72,6 +72,8 @@ impl Engine {
     }
 
     /// Adds the contents of a `bvh.bin` as a part of the BVH registered as `reference` (call once per part).
+    ///
+    /// Formula: F56 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn load_bvh(&mut self, reference: &str, bytes: &[u8]) -> Result<(), JsError> {
         let part = Bvh::from_bytes(bytes).map_err(js_error)?;
         let set = self
@@ -84,6 +86,8 @@ impl Engine {
     }
 
     /// Registers the contents of a `VCOL1` file (gzip, or already decompressed) as `reference`.
+    ///
+    /// Formula: F59 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn load_vcol(&mut self, reference: &str, bytes: &[u8]) -> Result<(), JsError> {
         let columns = VoxelColumns::from_bytes(bytes).map_err(js_error)?;
         self.resources.add_vcol(reference, columns);
@@ -92,6 +96,8 @@ impl Engine {
 
     /// Registers the contents of an `RTRI1` file (gzip, or already decompressed) as the precision region
     /// `reference`, built against the voxel columns registered as `vcol_reference` (load those first).
+    ///
+    /// Formula: F60 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn load_region(
         &mut self,
         reference: &str,
@@ -105,12 +111,16 @@ impl Engine {
     }
 
     /// Answers a JSON request (see `README.md`) with a JSON response.
+    ///
+    /// Formula: F20, F21, F37 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn run(&self, request_json: &str) -> Result<String, JsError> {
         run_json(request_json, &self.resources).map_err(js_error)
     }
 
     /// First hit of the segment `p0 -> p1` (6 numbers) in the BVH `reference`: `[part, triangle, t]`, or an
     /// empty array if the segment is clear.
+    ///
+    /// Formula: F48, F57, F58 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn first_hit(&self, reference: &str, segment: &[f64]) -> Result<Vec<f64>, JsError> {
         let set = self
             .bvhs
@@ -133,6 +143,8 @@ impl Engine {
 
     /// First occupied voxel the segment `p0 -> p1` (6 numbers) enters in the columns `reference`:
     /// `[column, row, z, t]`, or an empty array if the segment is clear.
+    ///
+    /// Formula: F44, F45, F46, F47 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn voxel_first_block(&self, reference: &str, segment: &[f64]) -> Result<Vec<f64>, JsError> {
         let columns = self
             .resources
@@ -160,6 +172,8 @@ impl Engine {
     /// The precision pass for the segment `p0 -> p1` (6 numbers): the voxel columns `vcol_reference` decide it
     /// away from the region `reference`'s triangles. `[t, 0, column, row, z]` for a voxel, `[t, 1, triangle]` for
     /// a triangle of the region, or an empty array if the segment is clear.
+    ///
+    /// Formula: F63 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn precision_first_block(
         &self,
         reference: &str,
@@ -238,12 +252,16 @@ impl Terrain {
 
     /// Adds the `HMD1` detail layer (gzip, or already decompressed). On an error the heightmap keeps reading
     /// without it.
+    ///
+    /// Formula: F31, F33 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn set_detail(&mut self, bytes: &[u8]) -> Result<(), JsError> {
         self.map.set_detail(bytes).map_err(js_error)
     }
 
     /// Begins reading the `HMD1` detail layer (gzip, or already decompressed) in slices, replacing a load in
     /// progress: `step_detail` decodes it. On an error the heightmap keeps reading without it.
+    ///
+    /// Formula: F31, F33 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn begin_detail(&mut self, bytes: Vec<u8>) -> Result<(), JsError> {
         self.loading = None;
         self.loading = Some(self.map.begin_detail(bytes).map_err(js_error)?);
@@ -252,6 +270,8 @@ impl Terrain {
 
     /// Decodes the next `quads` quads of the detail layer begun by `begin_detail`; true once the layer is complete
     /// and in use. On an error the load is dropped and the heightmap keeps its former detail.
+    ///
+    /// Formula: F31, F33 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn step_detail(&mut self, quads: usize) -> Result<bool, JsError> {
         let load = self
             .loading
@@ -270,11 +290,15 @@ impl Terrain {
 
     /// Height at world `(x, y)`, NaN where there is none (more than half a sample outside the lattice, a
     /// non-finite coordinate).
+    ///
+    /// Formula: F26, F28, F29, F32 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn height_at(&self, x: f64, y: f64) -> f64 {
         self.map.height_at(x, y)
     }
 
     /// Heights at the points `xy` (x0, y0, x1, y1, ...), NaN where there is none.
+    ///
+    /// Formula: F26, F28, F29, F32 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn heights(&self, xy: &[f64]) -> Result<Vec<f64>, JsError> {
         if xy.len() % 2 != 0 {
             return Err(JsError::new("xy holds x, y pairs"));
@@ -355,6 +379,8 @@ impl TerrainBuilder {
 }
 
 /// Answers a JSON request that needs no heightmap or BVH.
+///
+/// Formula: F20, F21 in docs/thesis-methods-and-results.md of mapping-squad.
 #[wasm_bindgen]
 pub fn solve_json(request_json: &str) -> Result<String, JsError> {
     run_json(request_json, &Resources::new()).map_err(js_error)
@@ -362,6 +388,8 @@ pub fn solve_json(request_json: &str) -> Result<String, JsError> {
 
 /// Builds a BVH from triangle bytes (nine little-endian `f32` per triangle) and returns the `bvh.bin`.
 /// At most 2^24 triangles.
+///
+/// Formula: F52, F53, F54, F56 in docs/thesis-methods-and-results.md of mapping-squad.
 #[wasm_bindgen]
 pub fn build_bvh(triangle_bytes: &[u8]) -> Result<Vec<u8>, JsError> {
     let soup = triangles_from_le_bytes(triangle_bytes).map_err(js_error)?;
@@ -374,6 +402,8 @@ pub fn build_bvh(triangle_bytes: &[u8]) -> Result<Vec<u8>, JsError> {
 
 /// The `f32` segment/triangle test of the GPU path (SIMD128 when built with it): origin (3), direction (3) and
 /// the triangle (9 numbers); returns `t`, or NaN if the segment misses.
+///
+/// Formula: F48 in docs/thesis-methods-and-results.md of mapping-squad.
 #[wasm_bindgen]
 pub fn segment_triangle(origin: &[f32], direction: &[f32], triangle: &[f32]) -> f32 {
     let tri = [

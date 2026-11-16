@@ -134,6 +134,8 @@ impl Reader<'_> {
 impl RegionFile {
     /// Decodes an `RTRI1` file, gzip or already decompressed.
     ///
+    /// Formula: F60 in docs/thesis-methods-and-results.md of mapping-squad.
+    ///
     /// # Errors
     /// [`RegionError`] for a wrong magic, damaged gzip, truncated data or an index outside the vertex list.
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, RegionError> {
@@ -212,6 +214,8 @@ impl RegionFile {
     /// The gzip bytes of the file (the reference writer; `tools/volumetric/py/build_region.py` writes the same
     /// layout). Vertices are quantised to [`QUANT`] relative to the square's centre and the lowest `z`, shared
     /// between triangles where they agree after quantisation, and numbered in the order of first use.
+    ///
+    /// Formula: F60, F61 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn to_bytes(&self) -> Vec<u8> {
         let origin = [
             ((self.bounds[0] + self.bounds[2]) / 2.0) as f32,
@@ -324,6 +328,8 @@ impl PrecisionRegion {
     /// Builds the region of the square `bounds` (`[min_x, min_y, max_x, max_y]`, the frame of `columns`): the
     /// triangles' hierarchy, and the voxels of `columns` in the square grown by `margin` metres.
     ///
+    /// Formula: F62 in docs/thesis-methods-and-results.md of mapping-squad.
+    ///
     /// # Errors
     /// [`RegionError::Bvh`] if a triangle has a vertex that is not finite.
     pub fn new(
@@ -385,6 +391,8 @@ impl PrecisionRegion {
     /// Answers the segment `p0 -> p1`: the voxel walk of `columns` (the columns the region was built against)
     /// for the parts outside the square; inside it, the part that meets the grown voxels is tested against the
     /// triangles and any other part is clear.
+    ///
+    /// Formula: F63 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn query(&self, columns: &VoxelColumns, p0: [f64; 3], p1: [f64; 3]) -> Query {
         let voxel_part = |from: f64, to: f64| {
             let hit = columns.first_block(along(p0, p1, from), along(p0, p1, to))?;
@@ -434,6 +442,8 @@ impl PrecisionRegion {
     }
 
     /// The first obstacle on the segment, or `None` if it is clear; see [`PrecisionRegion::query`].
+    ///
+    /// Formula: F63 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn first_block(
         &self,
         columns: &VoxelColumns,
@@ -444,11 +454,15 @@ impl PrecisionRegion {
     }
 
     /// Answers many independent segments; on several threads with the `threads` feature.
+    ///
+    /// Formula: F63 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn queries(&self, columns: &VoxelColumns, segments: &[([f64; 3], [f64; 3])]) -> Vec<Query> {
         crate::bvh::map_parallel(segments, |(p0, p1)| self.query(columns, *p0, *p1))
     }
 
     /// Line-of-fire query: the first obstacle the trajectory (its segments, in flight order) meets, or `None`.
+    ///
+    /// Formula: F63 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn first_block_along(
         &self,
         columns: &VoxelColumns,

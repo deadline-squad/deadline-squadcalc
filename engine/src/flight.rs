@@ -97,6 +97,8 @@ impl Shot {
     /// Steps the motor acts on: `ceil(boost_time / FRAME_TIME) - 1` (see the module documentation: the server's
     /// thrust is strict, `k dt < T`, from the first movement tick on); the `1e-9` keeps a `boost_time` that is a
     /// whole number of frames, up to rounding, from gaining a step. 0 without boost.
+    ///
+    /// Formula: F2 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn boost_steps(&self) -> usize {
         if !(self.boost_time > 0.0) || self.acceleration == 0.0 {
             return 0;
@@ -105,6 +107,8 @@ impl Shot {
     }
 
     /// Seconds the motor acts: its steps, not the `boost_time` it is configured with. 0 without boost.
+    ///
+    /// Formula: F2 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn burn_time(&self) -> f64 {
         self.boost_steps() as f64 * FRAME_TIME
     }
@@ -135,6 +139,8 @@ impl Shot {
 
     /// Seconds the closed-form motor along the barrel speeds the projectile up: the motor's
     /// [`burn_time`](Shot::burn_time) (whole steps), ended earlier by the cap in a straight flight.
+    ///
+    /// Formula: F11 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn axis_boost_time(&self) -> f64 {
         let burn = self.burn_time();
         if self.gravity == 0.0 && self.max_speed != 0.0 && self.acceleration > 0.0 {
@@ -145,6 +151,8 @@ impl Shot {
 
     /// Whether the trajectory is the textbook parabola from the pivot (no boost, no muzzle offset, not fired
     /// above its cap), as long as it does not come down faster than its cap ([`Shot::clamps_before`]).
+    ///
+    /// Formula: F8 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn is_parabola(&self) -> bool {
         !self.has_boost()
             && self.muzzle_forward == 0.0
@@ -154,6 +162,8 @@ impl Shot {
 
     /// Whether a plain parabola from the pivot comes down faster than its cap before it reaches a target
     /// `height` metres above the weapon's ground.
+    ///
+    /// Formula: F8 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn clamps_before(&self, height: f64) -> bool {
         if self.max_speed == 0.0 {
             return false;
@@ -175,6 +185,8 @@ impl Shot {
     }
 
     /// Where the projectile starts for an elevation: `(metres ahead of the pivot, metres above the ground)`.
+    ///
+    /// Formula: F5 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn launch_point(&self, angle: f64) -> (f64, f64) {
         let (sin, cos) = angle.sin_cos();
         (
@@ -199,6 +211,8 @@ pub struct BoostNode {
 
 /// Flies the boost of a shot fired at `angle` with the game's steps (Velocity Verlet, rotation following
 /// the velocity, speed cap at every step).
+///
+/// Formula: F3 in docs/thesis-methods-and-results.md of mapping-squad.
 pub fn fly_boost(shot: &Shot, angle: f64) -> BoostNode {
     let dt = FRAME_TIME;
     let g = shot.gravity;
@@ -304,6 +318,8 @@ pub struct RangeMax {
 
 impl RangeMax {
     /// Indexes the maxima of `profile` (heights).
+    ///
+    /// Formula: F23 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn new(profile: &[f64]) -> Self {
         let size = profile.len();
         let mut levels = vec![profile.to_vec()];
@@ -320,6 +336,8 @@ impl RangeMax {
     }
 
     /// Largest height of the samples from `first` to `last` (indices, `first <= last`).
+    ///
+    /// Formula: F23 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn max(&self, first: usize, last: usize) -> f64 {
         let level = (last - first + 1).ilog2() as usize;
         self.levels[level][first].max(self.levels[level][last + 1 - (1 << level)])
@@ -413,27 +431,37 @@ impl<'a> Stencil<'a> {
     }
 
     /// Interpolated x of step point `k`.
+    ///
+    /// Formula: F15 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn x(&self, k: usize) -> f64 {
         self.mix(|n| n.xs[k])
     }
 
     /// Interpolated y of step point `k`.
+    ///
+    /// Formula: F15 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn y(&self, k: usize) -> f64 {
         self.mix(|n| n.ys[k])
     }
 
     /// Interpolated horizontal end velocity.
+    ///
+    /// Formula: F15 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn vx(&self) -> f64 {
         self.mix(|n| n.vx)
     }
 
     /// Interpolated vertical end velocity.
+    ///
+    /// Formula: F15 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn vy(&self) -> f64 {
         self.mix(|n| n.vy)
     }
 
     /// The step whose straight segment holds the distance `ahead` from the muzzle (the first one for a
     /// distance behind the muzzle), found by binary search on the interpolated x.
+    ///
+    /// Formula: F17 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn segment(&self, steps: usize, ahead: f64) -> usize {
         let mut low = 0;
         let mut high = steps;
@@ -472,6 +500,8 @@ impl BoostTable {
     }
 
     /// The four nodes that interpolate `angle` (two on each side, shifted inwards at the ends) and their weights.
+    ///
+    /// Formula: F15 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn stencil(&self, angle: f64) -> Stencil<'_> {
         let at = (angle + FRAC_PI_2) / BOOST_NODE_SPACING;
         let first = (at.trunc() - 1.0).max(0.0).min((self.count - 4) as f64) as usize;
@@ -630,6 +660,8 @@ impl Flight {
 
     /// Height of the projectile when it is `distance` metres away horizontally from the pivot, with the
     /// barrel at elevation `angle`.
+    ///
+    /// Formula: F6, F11, F12, F13, F14, F17 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn height_at(&self, angle: f64, distance: f64) -> f64 {
         let shot = &self.shot;
         let (sin, cos) = angle.sin_cos();
@@ -705,6 +737,8 @@ impl Flight {
     /// Height, time and path angle of the projectile when it is `distance` metres away horizontally from the
     /// pivot, with the barrel at elevation `angle`; all NaN for a NaN angle. A distance behind the muzzle
     /// extrapolates the first phase backwards.
+    ///
+    /// Formula: F6, F11, F12, F13, F14, F17 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn path_at(&self, angle: f64, distance: f64) -> PathPoint {
         if angle.is_nan() {
             return PathPoint {
@@ -861,6 +895,8 @@ impl Flight {
     }
 
     /// Elevation that sends the projectile highest at `distance` (golden-section search).
+    ///
+    /// Formula: F18 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn peak_angle(&self, distance: f64) -> f64 {
         let mut low = -ELEVATION_LIMIT;
         let mut high = ELEVATION_LIMIT;
@@ -985,6 +1021,8 @@ impl Flight {
     /// NaN for an arc out of range, for an arc whose root the muzzle has already passed (the projectile starts
     /// at the muzzle: the barrel's own line through the target is no shot), and for a distance that is not
     /// positive or a height that is not finite.
+    ///
+    /// Formula: F7, F8, F9, F18, F19, F20 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn solve_elevation(&self, distance: f64, height: f64) -> (f64, f64) {
         self.solve_elevation_with(distance, height, SolveHints::default())
     }
@@ -992,6 +1030,8 @@ impl Flight {
     /// [`Flight::solve_elevation`] for a caller that solves a row of neighbouring targets (the fire coverage,
     /// along a ray) and passes what it already knows ([`SolveHints`]). The roots are the same to the tolerances
     /// of the search; the hints save about half of the evaluations.
+    ///
+    /// Formula: F7, F8, F9, F18, F19, F20 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn solve_elevation_with(
         &self,
         distance: f64,
@@ -1070,6 +1110,8 @@ impl Flight {
     /// monotone stretch is clear when the highest terrain sample is at or under its lower end and blocked when
     /// that sample is over its higher end; otherwise it is halved. The answer is that of the sample-by-sample
     /// check, in O(log n) comparisons when the path does not graze the terrain.
+    ///
+    /// Formula: F22, F23, F24 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn above(
         &self,
         angle: f64,
@@ -1111,6 +1153,8 @@ impl Flight {
 
     /// Farthest target on flat ground (at the height of the weapon's ground), metres: the largest distance
     /// whose peak height reaches 0 (doubling, then bisection on the distance to 1 mm). Needs gravity > 0.
+    ///
+    /// Formula: F10 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn max_range(&self) -> f64 {
         let shot = &self.shot;
         if shot.is_parabola() && shot.pivot_height == 0.0 {

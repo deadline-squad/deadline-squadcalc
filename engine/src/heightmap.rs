@@ -226,6 +226,8 @@ impl Heightmap {
 
     /// Adds the `HMD1` detail layer (gzip, or already decompressed) to the heightmap, replacing a former one.
     ///
+    /// Formula: F31, F33 in docs/thesis-methods-and-results.md of mapping-squad.
+    ///
     /// # Errors
     /// [`HeightmapError::Detail`] for a wrong magic, a detail of another grid, damaged gzip, or a truncated or
     /// damaged file; the heightmap keeps its former detail then.
@@ -242,6 +244,8 @@ impl Heightmap {
     /// Begins reading the `HMD1` detail layer (gzip, or already decompressed) in slices: the header and the bitset
     /// are checked now, [`Heightmap::continue_detail`] decodes the nodes a few quads at a time.
     ///
+    /// Formula: F31, F33 in docs/thesis-methods-and-results.md of mapping-squad.
+    ///
     /// # Errors
     /// [`HeightmapError::Detail`] for a wrong magic, a detail of another grid, damaged gzip, or a truncated or
     /// damaged header or bitset.
@@ -252,6 +256,8 @@ impl Heightmap {
     /// Decodes the next `quads` quads of `load` (or all that are left); the layer replaces the heightmap's detail when
     /// the last one is decoded. `load` must come from [`Heightmap::begin_detail`] of this heightmap, whose levels
     /// have not changed since.
+    ///
+    /// Formula: F31, F33 in docs/thesis-methods-and-results.md of mapping-squad.
     ///
     /// # Returns
     /// Whether the layer is complete.
@@ -293,17 +299,23 @@ impl Heightmap {
     /// Height at world `(x, y)` on the game's collision surface, in metres (`z_min + level * z_step`); NaN more
     /// than half a sample outside the lattice (the edge sample holds within half a sample) and for a
     /// non-finite coordinate.
+    ///
+    /// Formula: F26, F28, F29, F32 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn height_at(&self, x: f64, y: f64) -> f64 {
         self.z_min + self.level_at(x, y) * self.z_step
     }
 
     /// As [`Heightmap::height_at`] with the legacy transform of another `z_scale` (the one of a request's
     /// environment): `Z = (level / 65535 * 2 - 1) * z_scale`.
+    ///
+    /// Formula: F26, F29, F32 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn height_at_scaled(&self, x: f64, y: f64, z_scale: f64) -> f64 {
         (self.level_at(x, y) / 65535.0 * 2.0 - 1.0) * z_scale
     }
 
     /// [`Heightmap::height_at`] of every `(x, y)` pair of `xy` (a trailing odd value is ignored), in order.
+    ///
+    /// Formula: F26, F28, F29, F32 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn heights(&self, xy: &[f64]) -> Vec<f64> {
         xy.chunks_exact(2)
             .map(|point| self.height_at(point[0], point[1]))
