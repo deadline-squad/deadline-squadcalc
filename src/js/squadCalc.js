@@ -28,6 +28,7 @@ import { serverBrowserTooltips, settingsTooltips } from "./tooltips.js";
 import { MapDrawing, MapArrow, MapCircle, MapRectangle } from "./squadShapes.js";
 import { DEFAULT_LAYER, LAYER_ORDER, urlTypeOf } from "./mapLayers.js";
 import { HOME_FEED_PERIOD_MS, canFollow, fetchServers } from "./serversSource.js";
+import { searchWithUpdates } from "./urlParams.js";
 import { formatKeyPad, keypadPosition } from "./keypad.js";
 import { compassHTML } from "./compass.js";
 
@@ -1894,48 +1895,14 @@ export default class SquadCalc {
 
 
     /**
-     * Updates the URL search parameters by applying the provided updates.
+     * Replaces the query string of the page's URL, keeping its path, with the current parameters after the updates
+     * (see `searchWithUpdates`).
      *
-     * This function reads the current URL's search parameters and applies the given key-value updates:
-     * - If a value is not null or undefined, the corresponding parameter gets added or updated.
-     * - If a value is null or undefined, the parameter is removed.
-     *
-     * After updating, the function reorganizes the parameters based on a defined order 
-     * (["map", "layer", "type", "session"]) to ensure consistency.
-     *
-     * @param {Object} updates - An object with keys and values to update in the URL. 
+     * @param {Object} updates - An object with keys and values to update in the URL.
      * For example: { map: "newMap", session: "abc123", layer: null }
      */
     updateUrlParams(updates = {}) {
-        const urlParams = new URLSearchParams(window.location.search);
-
-        // Apply updates (add or update parameters)
-        for (const [key, value] of Object.entries(updates)) {
-            if (value !== null && value !== undefined) {
-                urlParams.set(key, value);
-                
-            } else {
-                urlParams.delete(key);
-            }
-        }
-       
-        // Create a new URLSearchParams object for the sorted parameters
-        const sortedParams = new URLSearchParams();
-
-        // Add parameters in the order defined by paramOrder
-        ["map", "layer", "type", "session", "server"].forEach((param) => {
-            if (urlParams.has(param)) {
-                sortedParams.set(param, urlParams.get(param));
-                urlParams.delete(param);
-            }
-        });
-
-        // Add any remaining parameters
-        for (const [key, value] of urlParams.entries()) sortedParams.set(key, value);
-
-        // Construct the new URL
-        const newUrl = `${window.location.pathname}?${sortedParams.toString()}`;
-        window.history.replaceState({}, "", newUrl);
+        window.history.replaceState({}, "", searchWithUpdates(window.location.search, updates));
     }
 
     sanitize(str) {
