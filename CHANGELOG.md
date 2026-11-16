@@ -1,3 +1,30 @@
+# <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.52.0** *(2026-11-16)*
+
+</br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
+- **Rockets fly on the server's frame.** The game moves a projectile once per server frame: 1/49.87 s (20.052 ms), the median of 48 055 frame-rate lines in the production server's log. The calculator stepped every 0.02 s and ran a rocket motor for one frame more than the game's rule, so its rockets flew a little too fast. The rule is read in the server binary: the motor pushes while its timer has not run out, and the projectile is created before the world's time moves on in that frame. One link is not read but taken from the stock engine's behaviour: the first step of movement happens in the frame of the shot. If it happens in the next frame instead, the old count of steps was right. With this rule, the UB-32 at 2183 m (low arc) landed 9.7 to 12.8 m beyond the target, depending on the target's height. It now lands within 1 mm of an independent step-by-step integration of the rule. The RPG-7 TBG-7V moved by up to 1.2 m and the PF98 by up to 0.85 m. The NLAW's motor never stops in the game: its data now say 0.65 s, so its rocket keeps its 250 m/s instead of 243.5.
+- **The weapon's maximum range circle cannot freeze the page.** Its search at one bearing could loop forever when no height along it was a hit (a mortar's maximum distance of 1236.94 m was enough). It is now bounded and ends with the farthest distance it tried.
+- **No height where the heightmap has none.** More than half a sample outside the map's heightmap, the page now has no height instead of a 0 m one, and a target there says so.
+- **No step at the edge of the wall detail.** Next to a quad with the half-spacing detail of 45.51.0, the plain quad now takes the detail's nodes on their shared edge. Before, the ground jumped there by the encoder's threshold: about 0.25 m on most maps, 0.50 m on Fallujah and 0.99 m on Sanxian.
+- **A failed download of the wall detail is shown.** The heights then fall back to the heightmap alone, as before, and the page now says so: a warning, a line in the target's popup and a note in the coverage legend.
+- **A map switch does not freeze the page.** Loading the heightmap into the core and decoding its wall detail now run in slices of about 8 ms. Before, on Chora, this took 128 ms in one go. The longest task left is 33 ms on a first load (median of 5 runs, 40 ms at most) and 18 ms after that.
+- **The page opens on an address with a doubled slash** (`//?server=deadline`). Before, it never became ready there.
+- **Offline, the page has its engine.** The engine's files were in the service worker's precache under addresses the page never requests, so they were downloaded and stored for nothing. They now have a cache of their own, which also serves the page when there is no network.
+
+</br><img src="https://img.shields.io/badge/-%20dev%20-lightgrey">  
+- The page reads heights through the Rust core (`engine/`). `Heightmap` reads the site format in full: lattice origin, spacing and yaw, 16-bit levels, the triangle rule and the `HMD1` detail. It refuses a damaged detail file with an error instead of a panic: a quad bit past the last quad, an overlong or cut varint, or a value outside the level range. It has a batch call `heights(xy) -> Float64Array`, and `TerrainBuilder`, `Heightmap.fromSlices` and `Heightmap.loadDetailInSlices` load in slices. The worker decodes the images and hands the levels and the frame to the core. `src/js/heightmapDetail.js` is gone. `getHeight(latlng, none)` takes the value for "no height" (callers that sample around a point pass 0). `engine/tools/heightmap/` holds an independent Python reference with its own PNG decoder: the core agrees with it to 0 m on 3.55 million points over the 25 maps.
+- The Rust solver has what the JavaScript one has:
+  - the past-the-muzzle filter, the warm start and the path-above-profile check with `RangeMax`;
+  - no root above the elevation limit, and a boost-table cache per weapon;
+  - roots are barrel angles below 90 degrees, the low root is computed without cancellation, and azimuth 360 is 0;
+  - parity: 155 shells, 924 paths, 0 mismatches, targets from 0.1 m.
+
+  Tests compare the time of flight and the height of every sampled flight with an independent step-by-step integrator of the server's rule (JS and Rust).
+- The heightmap size check cannot wrap on wasm32, and the inflate of `vcol` and `rtri` files is capped.
+- `test.yml` and the two deploy workflows build the engine first. The webpack build stops when `public/engine` is missing. The service worker's precache excludes `engine/` (`/(^|\/)engine\//`), and `/engine/` has a NetworkFirst route.
+- `urlParams.js` (`searchWithUpdates`) builds the query that `updateUrlParams` writes.
+
+</br></br><!-- CHANGELOG SPLIT MARKER -->
+
 # <img src="https://img.shields.io/badge/-minor%20release-cd6f68?style=for-the-badge"> **45.51.0** *(2026-11-11)*
 
 </br><img src="https://img.shields.io/badge/-bug%20fixes-b22">  
