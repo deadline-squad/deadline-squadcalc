@@ -50,6 +50,8 @@ fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
 }
 
 /// Moller-Trumbore in `f64` for the segment `o + t d`, `t` in `[0, 1]`: the `t` of the hit, if any.
+///
+/// Formula: F48 in docs/thesis-methods-and-results.md of mapping-squad.
 pub fn segment_triangle_f64(o: [f64; 3], d: [f64; 3], tri: &GpuTriangle) -> Option<f64> {
     let v = |i: usize| {
         [
@@ -76,12 +78,16 @@ pub fn segment_triangle_f64(o: [f64; 3], d: [f64; 3], tri: &GpuTriangle) -> Opti
 }
 
 /// Moller-Trumbore in `f32`, the arithmetic of the GPU shader: the `t` of the hit, if any.
+///
+/// Formula: F48 in docs/thesis-methods-and-results.md of mapping-squad.
 #[cfg(not(all(feature = "simd", target_arch = "wasm32", target_feature = "simd128")))]
 pub fn segment_triangle_f32(o: [f32; 3], d: [f32; 3], tri: &GpuTriangle) -> Option<f32> {
     segment_triangle_f32_scalar(o, d, tri)
 }
 
 /// Moller-Trumbore in `f32` with SIMD128 lanes (same results as the scalar version, bit for bit).
+///
+/// Formula: F48 in docs/thesis-methods-and-results.md of mapping-squad.
 #[cfg(all(feature = "simd", target_arch = "wasm32", target_feature = "simd128"))]
 pub fn segment_triangle_f32(o: [f32; 3], d: [f32; 3], tri: &GpuTriangle) -> Option<f32> {
     use core::arch::wasm32::*;
@@ -120,6 +126,8 @@ pub fn segment_triangle_f32(o: [f32; 3], d: [f32; 3], tri: &GpuTriangle) -> Opti
 }
 
 /// The scalar `f32` Moller-Trumbore (also the reference for the SIMD version).
+///
+/// Formula: F48 in docs/thesis-methods-and-results.md of mapping-squad.
 pub fn segment_triangle_f32_scalar(o: [f32; 3], d: [f32; 3], tri: &GpuTriangle) -> Option<f32> {
     let v = |i: usize| [tri[i][0], tri[i][1], tri[i][2]];
     let sub = |a: [f32; 3], b: [f32; 3]| [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -178,6 +186,8 @@ fn hits_box_f32(min: [f32; 3], max: [f32; 3], o: [f32; 3], inv_d: [f32; 3], t_ma
 impl Bvh {
     /// The nearest triangle the segment `p0 -> p1` meets, in `f64` (the arithmetic of `reference.py`).
     /// Traversal is stackless: a missed box or a finished subtree jumps to its escape index.
+    ///
+    /// Formula: F48, F57, F58 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn first_hit(&self, p0: [f64; 3], p1: [f64; 3]) -> Option<Hit> {
         let d = sub(p1, p0);
         let inv_d = [1.0 / d[0], 1.0 / d[1], 1.0 / d[2]];
@@ -216,6 +226,8 @@ impl Bvh {
     }
 
     /// As [`Bvh::first_hit`] in `f32`, the arithmetic of the GPU traversal (boxes and triangles).
+    ///
+    /// Formula: F48, F57, F58 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn first_hit_f32(&self, p0: [f32; 3], p1: [f32; 3]) -> Option<Hit> {
         let d = [p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]];
         let inv_d = [1.0 / d[0], 1.0 / d[1], 1.0 / d[2]];
@@ -271,6 +283,8 @@ impl Scene for Bvh {
 
 impl Scene for BvhSet {
     /// The nearest hit over all parts.
+    ///
+    /// Formula: F48, F57, F58 in docs/thesis-methods-and-results.md of mapping-squad.
     fn first_hit(&self, p0: [f64; 3], p1: [f64; 3]) -> Option<Hit> {
         let mut best: Option<Hit> = None;
         for (index, part) in self.parts.iter().enumerate() {

@@ -258,6 +258,8 @@ impl Bvh {
     /// Builds a hierarchy with the binned surface area heuristic (16 bins on each axis, traversal cost 1,
     /// triangle cost 1).
     ///
+    /// Formula: F52, F53, F54 in docs/thesis-methods-and-results.md of mapping-squad.
+    ///
     /// # Errors
     /// [`BvhError::TooManyTriangles`] above [`MAX_TRIANGLES`], [`BvhError::NonFiniteVertex`] for a NaN or
     /// infinite vertex.
@@ -312,6 +314,8 @@ impl Bvh {
 
     /// Serialises to `bvh.bin`: `u32` node count, `u32` triangle count, the nodes, the triangles; all
     /// little endian.
+    ///
+    /// Formula: F56 in docs/thesis-methods-and-results.md of mapping-squad.
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut out = Vec::with_capacity(
             8 + self.nodes.len() * NODE_BYTES + self.triangles.len() * TRIANGLE_BYTES,
@@ -339,6 +343,8 @@ impl Bvh {
     }
 
     /// Reads a `bvh.bin` written by [`Bvh::to_bytes`] and checks the structure (see [`Bvh::validate`]).
+    ///
+    /// Formula: F56 in docs/thesis-methods-and-results.md of mapping-squad.
     ///
     /// # Errors
     /// [`BvhError::Format`] if the size does not match the header or the structure is inconsistent.
@@ -399,6 +405,8 @@ impl Bvh {
     /// left child's escape and shares the parent's, every leaf has 1..=255 triangles and the leaves tile
     /// `0..triangle_count` in order, and every box contains the boxes of its children and the triangles of its
     /// leaves.
+    ///
+    /// Formula: F56 in docs/thesis-methods-and-results.md of mapping-squad.
     ///
     /// # Errors
     /// [`BvhError::Format`] naming the first violation.

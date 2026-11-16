@@ -29,6 +29,12 @@ Rust core of the Squad ballistics engine for SquadCalc. Russian version: [README
 World frame of the engine: metres, **X east, Y north, Z up**. Bearings are clockwise from north
 (`atan2(dX, dY)`). Unreal's world has Y pointing south: convert before building the BVH or sending positions.
 
+Every public calculation of the core (a `pub fn` or method of `src/`, the wasm exports included) names the formula it
+implements in the last paragraph of its doc comment, as `Formula: F48, F57, F58 in docs/thesis-methods-and-results.md of
+mapping-squad.` The tags are those of the numbered formulas of section 17 of that file. A function that implements no
+formula of the section (a constructor, an accessor, an error type) has no such line, and a formula that no function
+implements has nothing to name.
+
 ## BVH layout (`bvh.bin`)
 
 This layout is a contract with the WGSL traversal. All values are little endian.

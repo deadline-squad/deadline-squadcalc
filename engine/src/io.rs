@@ -368,6 +368,8 @@ impl Resources {
 
 /// Parses a JSON request and answers it as JSON.
 ///
+/// Formula: F20, F21, F37 in docs/thesis-methods-and-results.md of mapping-squad.
+///
 /// # Errors
 /// [`EngineError`] for malformed JSON, unusable values or refs that are not in `resources`.
 pub fn run_json(input: &str, resources: &Resources) -> Result<String, EngineError> {
@@ -377,6 +379,8 @@ pub fn run_json(input: &str, resources: &Resources) -> Result<String, EngineErro
 }
 
 /// Answers a request.
+///
+/// Formula: F20, F21, F37 in docs/thesis-methods-and-results.md of mapping-squad.
 ///
 /// # Errors
 /// [`EngineError::UnknownHeightmap`] / [`EngineError::UnknownBvh`] / [`EngineError::UnknownVcol`] / [`EngineError::UnknownRegion`] for refs that are not in `resources`,
@@ -613,6 +617,8 @@ fn first_terrain_hit(
 }
 
 /// Elevation in degrees of a response's `elevation_mrad`.
+///
+/// Formula: F122 in docs/thesis-methods-and-results.md of mapping-squad.
 pub fn mrad_to_deg(mrad: f64) -> f64 {
     rad_to_deg(mrad / 1000.0)
 }
