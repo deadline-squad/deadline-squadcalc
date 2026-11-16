@@ -83,6 +83,7 @@
     "coverageHigh": "Tir courbe uniquement",
     "coverageBlocked": "Masqué (relief, bâtiments)",
     "noHeightData": "pas de données d'altitude",
+    "noHeightDetail": "hauteurs sans le détail des murs",
     "targetHeightChoice": "Hauteur de la cible",
     "targetHeight_ground": "Sol",
     "targetHeight_landscape": "Terrain",

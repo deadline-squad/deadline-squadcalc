@@ -36,12 +36,16 @@ export default class SquadFiringSolution {
         // Equivalent constant velocity over the distance, for the spread; the trajectory itself is `shot`
         this.velocity = App.activeWeapon.getVelocity(this.distance);
         this.shot = App.activeWeapon.getShot(this.gravity);
-        this.weaponHeight = this.map.heightmap.getHeight(weaponLatLng) + parseFloat(heightPadding);
+        const weaponGround = this.map.heightmap.getHeight(weaponLatLng);
         this.elevatedTarget = targetHeight !== null;
-        this.targetHeight = this.elevatedTarget ? targetHeight : this.map.heightmap.getHeight(heightLatLng);
-        // False while the heightmap loads and when it failed to load: both heights are 0, the solution is
-        // for flat ground
-        this.hasHeightData = this.map.heightmap.jsonPng.length > 0 && !this.map.heightmap.failed;
+        const targetGround = this.elevatedTarget ? targetHeight : this.map.heightmap.getHeight(heightLatLng);
+        // False while the heightmap loads, when it failed to load, and when a point has no height (off the heightmap):
+        // both heights are 0 then, the solution is for flat ground
+        this.hasHeightData = Number.isFinite(weaponGround) && Number.isFinite(targetGround);
+        // The heightmap's coarse surface answers next to walls and roof edges when its detail failed to load
+        this.hasHeightDetail = !this.map.heightmap.detailFailed;
+        this.weaponHeight = (this.hasHeightData ? weaponGround : 0) + parseFloat(heightPadding);
+        this.targetHeight = this.hasHeightData ? targetGround : 0;
         this.heightDiff =  this.targetHeight - this.weaponHeight;
         // Both elevations of the trajectory of `shot`, found once
         this.roots = this.gravity === 0 ? null : solveElevation(this.shot, this.distance, this.heightDiff);
@@ -91,10 +95,10 @@ export default class SquadFiringSolution {
      * @param {boolean} lowAngle - the low trajectory (else the high one)
      * @returns {{distance: number, height: number}|null} - distance from the weapon and height of the
      * obstacle above the weapon, in meters; null if the trajectory is clear, cannot reach the target
-     * from the muzzle, or no heightmap is loaded
+     * from the muzzle, or there is no height data (hasHeightData)
      */
     getObstacle(lowAngle) {
-        if (!this.map.heightmap?.jsonPng?.length) return null;
+        if (!this.hasHeightData) return null;
 
         const weapon = App.activeWeapon;
         const shouldered = !weapon.muzzle && !(weapon.heightOffset > 0);

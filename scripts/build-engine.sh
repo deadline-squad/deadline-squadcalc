@@ -1,8 +1,7 @@
 #!/bin/sh
 # Builds the WebAssembly engine (engine/js/build.sh) and copies what the volume layer loads at run time to
 # public/engine/ (index.mjs and pkg/squad_engine.js, pkg/squad_engine_bg.wasm; the SIMD build is not needed).
-# `npm run build` copies public/ to dist/. Without this step the site builds and runs; the volume layer
-# then finds no engine and every feature keeps using the heightmap.
+# `npm run build` copies public/ to dist/ and stops when this step has not run: the page reads its heights with the engine.
 set -eu
 cd "$(dirname "$0")/.."
 sh engine/js/build.sh

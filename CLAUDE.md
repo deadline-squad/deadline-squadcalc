@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 - `npm start` — webpack dev server (localhost:3000)
 - `npm run build` — production build to `/dist/`
-- `npm run build:engine` — builds the WebAssembly engine (`engine/`, needs the pinned Rust toolchain and `wasm-bindgen-cli`) and copies it to `public/engine/` (gitignored); the volume layer loads it at run time, without it the site works and the layer stays unavailable
+- `npm run build:engine` — builds the WebAssembly engine (`engine/`, needs the pinned Rust toolchain and `wasm-bindgen-cli`) and copies it to `public/engine/` (gitignored); the page loads it at run time to read the heights (`squadEngine.js`) and the volume layer's worker loads its own copy; `npm start`, `npm run build` and `npm test` need it built first
 - `npm run lint` — stylelint + htmlhint + eslint (run once after a batch of changes, not after every edit)
 
 ## Setup
@@ -39,6 +39,7 @@ App.sanitize(str); // HTML escape utility (static method)
 |---|---|---|
 | `SquadCalc` | `squadCalc.js` | Main app — weapon selector, UI wiring, URL state, toast/shortcuts |
 | `squadMinimap` | `squadMinimap.js` | Leaflet `Map` **extension** (not a regular class) — basemap, markers, heatmap, context menu |
+| `SquadHeightmap` | `squadHeightmaps.js` | Heights of the active map: `heightmapWorker.js` fetches and decodes the images into levels, the engine's Rust core (`engine/src/heightmap.rs`, loaded once by `squadEngine.js`) reads them: lattice, triangle rule, detail layer; the page builds the core in slices of a few milliseconds (`Heightmap.fromSlices`, `loadDetailInSlices`) so a map switch does not freeze it. `getHeight` gives NaN where there is none (the `none` argument says what to give instead); `getHeights` is the batch call |
 | `SquadVolume` | `squadVolume.js` | Volume layer (voxel columns of buildings, walls, bridges, trees): lazy `volumeWorker.js` with the WASM engine; used by `SquadFiringSolution.getObstacle`, `SquadCoverage`, the damage zone's cover (`squadDamage.damageField` with `objects`) and the position heatmap when the `volumeLayer` setting is on and the map's `meta.json` has a `volume` entry |
 | position heatmap | `positionHeatmap.js`, `squadPositionHeatmap.js` | Reverse-position heatmap of a target (button in the target dialog, direct-fire weapons, needs the volume layer): which ground positions have a clear line of fire to it, scored by distance and clearance. `positionHeatmap.js` is the pure classifier (run by the volume worker with the voxel walk and, where `meta.json` `volume.regions` has a precision region of the target, the exact triangles), `squadPositionHeatmap.js` the lazy-loaded layer that draws it |
 | target heights, structure damage | `targetHeights.js`, `structureInfo.js`, `structureDamage.js` | `targetHeights.js` turns a vertical ray through the volume layer (`SquadVolume.heightsAt`, worker `column`) into the floors, ceilings, roof, windows and doorways offered by the target dialog; `squadTargetMarker.heightChoice` feeds `SquadFiringSolution`'s `targetHeight`. `structureInfo.js` + `structureDamage.js` (`structureOutcome`) give the shells that destroy a deployable marker's structure; `src/data/structureLinks.js` links `weapons.js` shells and marker icons to the game data |

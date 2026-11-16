@@ -110,7 +110,7 @@
                 font-size: 0.7em;
                 color: #e74c3c;
             }
-            // The heightmap failed to load: the solution assumes flat ground
+            // The heightmap failed to load: the solution assumes flat ground; or its detail did: the surface is coarse
             .calcNoHeight {
                 font-size: 0.7em;
                 color: #f39c12;

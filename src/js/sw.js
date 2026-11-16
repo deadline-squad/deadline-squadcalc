@@ -50,6 +50,21 @@ registerRoute(
 );
 
 
+// The WebAssembly engine (the page's heights and the volume worker), which the precache does not hold (the build
+// excludes it: the pages ask for /engine/...?v=<version>, a URL the precache has no entry for): the network first, so a
+// deploy shows at once, and the last copy offline
+registerRoute(
+    ({ url }) => url.pathname.startsWith("/engine/"),
+    new NetworkFirst({
+        cacheName: "engine",
+        plugins: [
+            keyWithoutQuery,
+            new ExpirationPlugin({ maxEntries: 8 }), // index.mjs, the glue and the wasm
+        ],
+    })
+);
+
+
 // Google Fonts of the page (index.html): the stylesheet is refreshed in the background, the font files never
 // change
 registerRoute(

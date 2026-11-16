@@ -138,6 +138,8 @@ export function popupContent(firingSolution, angleType, { formatRounds, targetLi
     content += formatObstacles(shownArcs);
     if (!firingSolution.hasHeightData) {
         content += `<br><span class="calcNoHeight">⚠ <span data-i18n="common:noHeightData">${i18next.t("common:noHeightData")}</span></span>`;
+    } else if (!firingSolution.hasHeightDetail) {
+        content += `<br><span class="calcNoHeight">⚠ <span data-i18n="common:noHeightDetail">${i18next.t("common:noHeightDetail")}</span></span>`;
     }
     content += formatRounds(shownArcs);
     content += targetLines;

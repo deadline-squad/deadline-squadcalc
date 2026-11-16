@@ -10,6 +10,11 @@ import { heightAt } from "./squadBallistics.js";
 import { makeMarkerIconOperable } from "./accessibility.js";
 import { describeStructure } from "./structureInfo.js";
 
+// Bisections of the maximum range at one bearing before the search gives up with the farthest distance it tried: the
+// 1000 m window narrows to the threshold in about 10, and the integer midpoint stops moving once the bounds are
+// less than 2 m apart, which a height that is never a hit (NaN) leaves for good
+const MAX_RANGE_SEARCH_STEPS = 32;
+
 
 /*
  * Global Squad Marker Class 
@@ -274,7 +279,7 @@ export const squadWeaponMarker = squadMarker.extend({
         const weaponPos = this.getLatLng();
         const shot = App.activeWeapon.getShot(App.gravity * App.activeWeapon.gravityScale);
         const estimatedMaxDistance = App.activeWeapon.getMaxDistance();
-        const weaponHeight = this.map.heightmap.getHeight(weaponPos) + this.heightPadding;
+        const weaponHeight = this.map.heightmap.getHeight(weaponPos, 0) + this.heightPadding;
         const points = [];
 
         // We'll work with radians from now on
@@ -308,13 +313,14 @@ export const squadWeaponMarker = squadMarker.extend({
             let left = estimatedMaxDistance - 500;
             let right = estimatedMaxDistance + 500;
             let foundMaxDistance = false;
+            let steps = 0;
     
-            while (right - left > maxRangeTreshold) {
+            while (right - left > maxRangeTreshold && steps++ < MAX_RANGE_SEARCH_STEPS) {
                 const mid = Math.floor((left + right) / 2);
                 const landing = this.map.fromMeters(weaponPos, mid * Math.sin(angle), mid * Math.cos(angle));
                 let landingX = landing.lat;
                 let landingY = landing.lng;
-                const landingHeight = this.map.heightmap.getHeight({ lat: landingX, lng: landingY });
+                const landingHeight = this.map.heightmap.getHeight({ lat: landingX, lng: landingY }, 0);
                 let hitObstacle = false;
                 let noHit = false;
                 

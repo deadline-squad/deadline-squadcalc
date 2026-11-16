@@ -83,6 +83,7 @@
     "coverageHigh": "Nur Steilfeuer",
     "coverageBlocked": "Verdeckt (Gelände, Gebäude)",
     "noHeightData": "keine Höhendaten",
+    "noHeightDetail": "Höhen ohne Wanddetails",
     "targetHeightChoice": "Zielhöhe",
     "targetHeight_ground": "Boden",
     "targetHeight_landscape": "Gelände",

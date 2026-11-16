@@ -96,6 +96,8 @@
     "coverage": "Zone de tir : où l'arme peut toucher depuis le premier marqueur d'arme, en tenant compte du relief et des bâtiments",
     "heightmapFailed": "Pas de données d'altitude",
     "heightmapFailedDesc": "La carte des hauteurs n'a pas pu être chargée : les solutions de tir supposent un terrain plat (hauteur 0). Rechargez la page pour réessayer.",
+    "heightmapDetailFailed": "Hauteurs sans détail des murs",
+    "heightmapDetailFailedDesc": "La couche fine des hauteurs de cette carte (murs, bords de toits) n'a pas pu être chargée : les hauteurs près des bâtiments peuvent être décalées de quelques décimètres. Rechargez la page pour réessayer.",
     "mapLayers": "Calques de la carte",
     "moreMapTools": "Plus d'outils de carte",
     "closeDialog": "Fermer",

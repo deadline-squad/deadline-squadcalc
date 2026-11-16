@@ -13,7 +13,7 @@ function mapWithVolume(questions) {
     return {
         activeMap: { name: "test" },
         toMeters: (origin, latlng) => ({ east: latlng.lng - origin.lng, north: latlng.lat - origin.lat }),
-        heightmap: { jsonPng: [[0]], getHeight: () => 0, resolution: 1 },
+        heightmap: { getHeight: () => 0, resolution: 1 },
         volume: {
             ready: true,
             zMin: 0,

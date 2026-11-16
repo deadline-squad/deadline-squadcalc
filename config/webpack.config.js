@@ -1,4 +1,5 @@
 import Dotenv from 'dotenv-webpack';
+import fs from 'fs';
 import path from 'path';
 import webpack from 'webpack';
 import CopyWebpackPlugin from 'copy-webpack-plugin';
@@ -97,8 +98,9 @@ export default async (env) => {
                     /manifest\.json$/,
                     /\.map$/,
                     /\/favicons\//,
-                    // The WebAssembly engine of the volume layer: loaded by its worker when the layer is turned on
-                    /\/engine\//,
+                    // The WebAssembly engine: loaded by the page for the heights (squadEngine.js) and by the volume worker under
+                    // /engine/...?v=<version> URLs the precache cannot serve; sw.js caches it at run time
+                    /(^|\/)engine\//,
                     /robots\.txt/,
                     // Fonts: the licence texts and the latin-ext and cyrillic subsets (about 270 kB) are not
                     // precached, sw.js caches each on first use; the three latin files stay precached
@@ -190,6 +192,14 @@ function preChecks(dotenv, env, DEV_SERVER_AUTO_OPEN, SEARCH_ENGINES, SMO_WEBSOC
     else {
         console.error("      -> NO API URL FOUND IN .ENV ❌");
         console.error("      -> Check if a .env file exists and if API_URL is defined\n\n");
+        process.exit(1);
+    }
+    if (fs.existsSync(path.resolve(__dirname, '../public/engine/pkg/squad_engine_bg.wasm'))) {
+        console.log(`      -> WebAssembly engine : ✅`);
+    }
+    else {
+        console.error("      -> NO WEBASSEMBLY ENGINE IN public/engine ❌");
+        console.error("      -> the page reads its heights with it: run `npm run build:engine` first\n\n");
         process.exit(1);
     }
     if (!env.WEBPACK_BUILD) console.log(`      -> Should dev server open in a new Tab ? ${DEV_SERVER_AUTO_OPEN ? "✅" : "❌"}`);

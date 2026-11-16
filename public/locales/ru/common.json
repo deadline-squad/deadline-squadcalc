@@ -83,6 +83,7 @@
     "coverageHigh": "Только навесом",
     "coverageBlocked": "Закрыто (рельеф, здания)",
     "noHeightData": "нет данных о высотах",
+    "noHeightDetail": "высоты без деталей стен",
     "targetHeightChoice": "Высота цели",
     "targetHeight_ground": "Земля",
     "targetHeight_landscape": "Рельеф",

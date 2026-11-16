@@ -96,6 +96,8 @@
     "coverage": "Fire coverage: where the weapon can hit from the first weapon marker, past the terrain and buildings",
     "heightmapFailed": "No height data",
     "heightmapFailedDesc": "The heightmap of this map failed to load: firing solutions assume flat ground (height 0). Reload the page to try again.",
+    "heightmapDetailFailed": "Heights without wall detail",
+    "heightmapDetailFailedDesc": "The fine height layer of this map (walls, roof edges) failed to load: heights next to buildings can be off by decimetres. Reload the page to try again.",
     "mapLayers": "Map layers",
     "moreMapTools": "More map tools",
     "closeDialog": "Close",

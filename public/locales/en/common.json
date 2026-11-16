@@ -83,6 +83,7 @@
     "coverageHigh": "High trajectory only",
     "coverageBlocked": "Blocked (terrain, buildings)",
     "noHeightData": "no height data",
+    "noHeightDetail": "heights without wall detail",
     "targetHeightChoice": "Target height",
     "targetHeight_ground": "Ground",
     "targetHeight_landscape": "Landscape",

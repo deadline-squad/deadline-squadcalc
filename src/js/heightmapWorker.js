@@ -8,8 +8,10 @@
  * Message out: {levels, width, height, step, lattice, bounds, detail, url}, `levels` a Uint16Array (transferred) of
  * width x height integer levels, row-major, height in metres above meta.json `z_min_m` = level * step; `lattice` where the
  * samples lie (see gridLattice), `bounds` the minimap bounds the page covers (meta.json `bounds_m`) and `detail` the
- * finer grid where objects stand (heightmapDetail.js, its arrays transferred), null when meta.json announces none or it
- * cannot be used (`detailError` then says why: the heights are the heightmap's alone); or {error, url}.
+ * bytes (transferred, gunzipped by the browser) of the finer grid where objects stand (`HMD1`, read by the engine:
+ * engine/src/heightmap/detail.rs), null when meta.json announces none or the file could not be fetched (`detailError`
+ * then says why: the heights are the heightmap's alone); or {error, url}. The engine reads the levels and the detail
+ * (squadHeightmaps.js): the worker only fetches and decodes the images.
  *
  * The heightmap is announced by meta.json, fetched first: with `format: "webp-rg16"` the heavy file is
  * heightmap.webp (lossless WebP, high byte of the level in red, low byte in green, decoded by the
@@ -23,8 +25,6 @@
  * apart, before giving up; an HTTP client error (404: this deployment has no heightmap of the map)
  * is final at once.
  */
-import { decodeDetail } from "./heightmapDetail.js";
-
 // Waits before each new attempt of a failed request: 4 attempts over about 7 s
 const RETRY_DELAYS_MS = [1000, 2000, 4000];
 
@@ -228,18 +228,17 @@ function versionedUrl(url, meta) {
 
 
 /**
- * The heightmap.detail.bin announced by `meta`, for the heightmap `image`
+ * The heightmap.detail.bin announced by `meta`, gunzipped
  * @param {string} base - URL of /heightmaps/<map>/
  * @param {object} meta - parsed meta.json with a `detail` entry
- * @param {{levels: Uint16Array, width: number}} image
- * @returns {Promise<import("./heightmapDetail.js").HeightmapDetail>}
- * @throws {Error} - when the file is missing, damaged or of another heightmap; TypeError when the network kept failing
+ * @returns {Promise<Uint8Array>} - the `HMD1` bytes, which the engine checks against the heightmap
+ * @throws {Error} - when the file is missing or its gzip layer damaged; TypeError when the network kept failing
  */
-async function loadDetail(base, meta, image) {
+async function loadDetail(base, meta) {
     const bytes = await fetchBytes(versionedUrl(`${base}${meta.detail.file}`, meta));
     if (!bytes) throw new Error(`no ${meta.detail.file} at ${base}`);
     const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
-    return decodeDetail(new Uint8Array(await new Response(stream).arrayBuffer()), image.levels, image.width);
+    return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 
 
@@ -262,7 +261,7 @@ function gridLattice(meta) {
  * The heightmap of a map, described by its meta.json (fetched first)
  * @param {string} base - URL of /heightmaps/<map>/
  * @returns {Promise<{levels: Uint16Array, width: number, height: number, step: number, lattice: object, bounds: object,
- *   detail: object|null, detailError?: string, url: string}>}
+ *   detail: Uint8Array|null, detailError?: string, url: string}>}
  * @throws {Error} - when this deployment has none for the map (or the dev server answers with index.html), or its files
  *   cannot be used; TypeError when the network kept failing (fetchBytes)
  */
@@ -281,7 +280,7 @@ async function loadHeightmap(base) {
     const result = { ...image, lattice: gridLattice(meta), bounds: meta.bounds_m, detail: null };
     if (meta.detail?.file) {
         try {
-            result.detail = await loadDetail(base, meta, image);
+            result.detail = await loadDetail(base, meta);
         } catch (error) {
             result.detailError = String(error);
         }
@@ -293,8 +292,7 @@ async function loadHeightmap(base) {
 self.onmessage = async ({ data: { base } }) => {
     try {
         const result = await loadHeightmap(base);
-        const { detail } = result;
-        self.postMessage(result, [result.levels.buffer, ...(detail ? [detail.words.buffer, detail.ranks.buffer, detail.nodes.buffer] : [])]);
+        self.postMessage(result, [result.levels.buffer, ...(result.detail ? [result.detail.buffer] : [])]);
     } catch (error) {
         self.postMessage({ error: String(error), url: `${base}meta.json` });
     }

@@ -484,6 +484,20 @@
     .coverageLow::before { background: rgb(46, 204, 113); }
     .coverageHigh::before { background: rgb(241, 196, 15); }
     .coverageBlocked::before { background: rgb(231, 76, 60); }
+    // Shown when the heightmap's detail failed to load (squadCoverage.js): the coverage reads the coarse surface
+    .coverageNoDetail {
+        display: none;
+        color: #f39c12;
+    }
+    .coverageNoDetail::before {
+        content: "⚠";
+        width: auto;
+        height: auto;
+        background: none;
+    }
+    &.noDetail .coverageNoDetail {
+        display: inline;
+    }
 }
 
 .coverageOverlay {

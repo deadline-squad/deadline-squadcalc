@@ -10,7 +10,7 @@ const simd = await import("../pkg-simd/squad_engine.js");
 plain.initSync({ module: readFileSync(here("../pkg/squad_engine_bg.wasm")) });
 // Two instances of the generated glue share nothing, so the SIMD build gets its own module
 simd.initSync({ module: readFileSync(here("../pkg-simd/squad_engine_bg.wasm")) });
-const { Engine, buildBvh } = await import("../index.mjs");
+const { Engine, Heightmap, buildBvh } = await import("../index.mjs");
 
 const request = (extra = {}) => ({
     weapon_specs: { v0: 110, mass: 4.1, drag_coef: 0.47 },
@@ -135,4 +135,59 @@ test("the SIMD128 triangle test equals the scalar one bit for bit", () => {
         if (!Number.isNaN(a)) hits++;
     }
     assert.ok(hits > 500, `only ${hits} hits, the comparison is too weak`);
+});
+
+test("a heightmap is read in the engine's frame, with a detail, in batch, and has no height outside its lattice", () => {
+    // 3 x 3 levels of the plane 10 * row + col on a lattice turned by 90 degrees: columns run north, rows run east
+    const levels = Uint16Array.from([0, 1, 2, 10, 11, 12, 20, 21, 22]);
+    const heightmap = new Heightmap(levels, { width: 3, height: 3, zMin: -5, zStep: 0.5, origin: [100, 200], spacing: 2, yawDeg: 90 });
+    // Sample (row 1, col 2) is at origin + 2 * 2 * (0, 1) + 1 * 2 * (1, 0)
+    const near = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-9, `${actual} vs ${expected}`);
+    near(heightmap.heightAt(102, 204), -5 + 0.5 * 12);
+    near(heightmap.heightAt(100, 200), -5);
+    assert.ok(Number.isNaN(heightmap.heightAt(0, 0)));
+    assert.ok(Number.isNaN(heightmap.heightAt(NaN, 200)));
+    const heights = heightmap.heights([102, 204, 0, 0, 100, 200]);
+    assert.ok(heights instanceof Float64Array);
+    assert.equal(heights.length, 3);
+    near(heights[0], 1);
+    assert.ok(Number.isNaN(heights[1]));
+    near(heights[2], -5);
+    assert.throws(() => heightmap.heights([1, 2, 3]), /pairs/);
+    assert.throws(() => heightmap.loadDetail(new Uint8Array(30)), /detail/);
+    heightmap.free();
+    assert.throws(() => new Heightmap(levels, { width: 4, height: 3, zStep: 1, origin: [0, 0], spacing: 1 }), /expected 12/);
+});
+
+test("a heightmap built in slices is the heightmap built at once, and pauses between its slices", async () => {
+    // 4.2 million levels: 3 slices of levels; a detail of the first 70 quads (factor 2, unit 1): 2 slices of quads
+    const width = 1500;
+    const height = 2800;
+    const levels = Uint16Array.from({ length: width * height }, (_, i) => (i * 7) % 1000);
+    const frame = { width, height, zStep: 0.5, origin: [0, 0], spacing: 1 };
+    const quads = 70;
+    const bits = new Uint8Array(Math.ceil(((width - 1) * (height - 1)) / 8));
+    for (let quad = 0; quad < quads; quad++) bits[quad >> 3] |= 1 << (quad & 7);
+    const header = new Uint8Array(new Uint32Array([0x31444d48, 2, 1, width - 1, height - 1, quads]).buffer);
+    const nodes = Array.from({ length: 5 * quads }, (_, i) => (i * 5) % 40);
+    const detail = Uint8Array.from([...header, ...bits, ...nodes]);
+    const atOnce = new Heightmap(levels, frame);
+    atOnce.loadDetail(detail);
+
+    let pauses = 0;
+    const sliced = await Heightmap.fromSlices(levels, frame, () => { pauses++; });
+    assert.equal(pauses, 3);
+    await sliced.loadDetailInSlices(detail, () => { pauses++; });
+    assert.equal(pauses, 4);
+    const points = [];
+    for (let x = 0; x < 70; x += 0.37) points.push(x, -((x * 3) % 1));
+    assert.deepEqual(sliced.heights(points), atOnce.heights(points));
+    const plain = new Heightmap(levels, frame);
+    assert.notDeepEqual(sliced.heights(points), plain.heights(points));
+
+    const damaged = await Heightmap.fromSlices(levels, frame, () => {});
+    await assert.rejects(() => damaged.loadDetailInSlices(Uint8Array.from(detail).fill(0, 0, 4), () => {}), /detail/);
+    await assert.rejects(() => Heightmap.fromSlices(levels, frame, () => { throw new Error("stop"); }), /stop/);
+    await assert.rejects(() => Heightmap.fromSlices(levels.subarray(1), frame, () => {}), /expected 4200000/);
+    for (const heightmap of [atOnce, sliced, damaged, plain]) heightmap.free();
 });
