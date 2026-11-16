@@ -1,0 +1,41 @@
+{
+  "measuredOn": {
+    "date": "2026-11-16",
+    "commit": "8520ebbbe"
+  },
+  "inLimitsCases": 25377,
+  "miss": {
+    "capped": {
+      "measured": 0.005311383991458897,
+      "bound": 0.0054
+    },
+    "fast_capped": {
+      "measured": 0.0031122391603576275,
+      "bound": 0.0032
+    },
+    "grenade": {
+      "measured": 0.0004925395736825942,
+      "bound": 0.0005
+    },
+    "howitzer": {
+      "measured": 0.000984415169887824,
+      "bound": 0.00099
+    },
+    "plain_mortar": {
+      "measured": 0.0008855054153979442,
+      "bound": 0.00089
+    },
+    "axis_motor": {
+      "measured": 0.001384982735923511,
+      "bound": 0.0014
+    },
+    "path_motor": {
+      "measured": 0.02484144252887358,
+      "bound": 0.025
+    }
+  },
+  "time": {
+    "measured": 0.0000622533090126609,
+    "bound": 0.000063
+  }
+}

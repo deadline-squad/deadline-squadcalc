@@ -1,0 +1,110 @@
+{
+  "measured": {
+    "date": "2026-11-16",
+    "commit": "8520ebbbed394b2acad01c8f54c7a6c460d82281"
+  },
+  "maps": {
+    "anvil": {
+      "DF_Tank_AP_M256_Rh120": {
+        "blocked": 2702,
+        "missed": 14,
+        "worstDepth": 1.206919
+      },
+      "DF_ZiS_3": {
+        "blocked": 2709,
+        "missed": 13,
+        "worstDepth": 0.875679
+      },
+      "Mk19": {
+        "blocked": 1836,
+        "missed": 17,
+        "worstDepth": 1.606008
+      }
+    },
+    "blackcoast": {
+      "DF_Tank_AP_M256_Rh120": {
+        "blocked": 2597,
+        "missed": 2,
+        "worstDepth": 1.077282
+      },
+      "DF_ZiS_3": {
+        "blocked": 2534,
+        "missed": 6,
+        "worstDepth": 5.545027
+      },
+      "Mk19": {
+        "blocked": 1890,
+        "missed": 14,
+        "worstDepth": 0.574986
+      }
+    },
+    "fallujah": {
+      "DF_Tank_AP_M256_Rh120": {
+        "blocked": 2657,
+        "missed": 12,
+        "worstDepth": 1.115701
+      },
+      "DF_ZiS_3": {
+        "blocked": 2643,
+        "missed": 20,
+        "worstDepth": 3.955605
+      },
+      "Mk19": {
+        "blocked": 1729,
+        "missed": 45,
+        "worstDepth": 6.515976
+      }
+    },
+    "jensen": {
+      "DF_Tank_AP_M256_Rh120": {
+        "blocked": 2629,
+        "missed": 6,
+        "worstDepth": 0.134047
+      },
+      "DF_ZiS_3": {
+        "blocked": 2589,
+        "missed": 3,
+        "worstDepth": 0.01946
+      },
+      "Mk19": {
+        "blocked": 1384,
+        "missed": 19,
+        "worstDepth": 0.069062
+      }
+    },
+    "skorpo": {
+      "DF_Tank_AP_M256_Rh120": {
+        "blocked": 1896,
+        "missed": 9,
+        "worstDepth": 0.212716
+      },
+      "DF_ZiS_3": {
+        "blocked": 1931,
+        "missed": 6,
+        "worstDepth": 0.195858
+      },
+      "Mk19": {
+        "blocked": 1509,
+        "missed": 8,
+        "worstDepth": 0.102751
+      }
+    },
+    "yehorivka": {
+      "DF_Tank_AP_M256_Rh120": {
+        "blocked": 2534,
+        "missed": 11,
+        "worstDepth": 0.176102
+      },
+      "DF_ZiS_3": {
+        "blocked": 2506,
+        "missed": 7,
+        "worstDepth": 0.047042
+      },
+      "Mk19": {
+        "blocked": 1374,
+        "missed": 24,
+        "worstDepth": 1.320686
+      }
+    }
+  }
+}
