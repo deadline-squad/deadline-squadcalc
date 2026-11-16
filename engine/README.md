@@ -3,8 +3,15 @@
 Rust core of the Squad ballistics engine for SquadCalc. Russian version: [README.ru.md](README.ru.md).
 
 * **Solver** (`flight`, `weapon`): closed-form `f64` firing solutions for both arcs, rocket motor
-  (ConstantAcceleration) phases, `MaxSpeed` clamp, launch offsets and elevation limits. A function-for-function port of
-  `src/js/squadBallistics.js` and `src/js/squadFiringSolution.js`; the parity test runs the real JS classes.
+  (ConstantAcceleration) phases, `MaxSpeed` clamp, launch offsets and elevation limits, flown in the dedicated
+  server's frames of 1/49.87 s with the motor on `ceil(T / dt) - 1` of them (`flight.rs` documents the rule and its
+  sources). Ported from `src/js/squadBallistics.js` and `src/js/squadFiringSolution.js`, and held to them by the parity
+  test, which runs the real JS classes. Ported: the flight (`height_at`, `path_at`, `apex`), `peak_angle`, the root
+  search with the muzzle filter (a root the muzzle has already passed is no shot) and the warm start from a neighbour's
+  roots (`SolveHints`), `max_range`, and the check of a path against a terrain profile (`Flight::above` with
+  `RangeMax`). Not ported: the page's spread, damage, hit probability and drawing code, and the JS `trajectory` object
+  as such (its `height`, `at` and `above` are `height_at`, `path_at` and `above`). A weapon keeps the boost table of its
+  stepped flights between solves (`Weapon::flight`).
 * **Trajectory segments** (`path`): the flight as straight segments whose vertices lie exactly on the path.
 * **BVH** (`bvh`): binned-SAH builder, flattened into the skip-pointer layout below, with `bvh.bin` import/export.
 * **Queries** (`trace`): Moller-Trumbore segment/triangle test in `f64` (reference) and `f32` (GPU parity, optional
@@ -148,11 +155,12 @@ cargo test --release --features threads            # unit, CLI, random-soup BVH,
 ```
 
 `tests/parity.rs` runs `tools/js/reference.mjs` under Node (the real `Weapon` and `SquadFiringSolution` of this
-checkout, with the stubs of `tools/direct_fire`) over the grid of `tools/direct_fire/compare.py` - 143 shells, 15
+checkout, with the stubs of `tools/direct_fire`) over the grid of `tools/direct_fire/compare.py` - 155 shells, 19
 distances x 9 heights plus 18 cases around each maximum range - and compares both arcs, the sight angle, both times
-of flight, the hold time and the maximum range. Tolerance: 1e-9 degree for angles, 1e-9 s for times, except times of
-flight above 10 s, which are held to 3e-10 relative (near-vertical high arcs of close targets, where the time changes
-by ~5e3 s per radian and the two libm `sin`/`cos` differ in the last bit).
+of flight, the hold time and the maximum range. Besides them: 8 distances from 10 cm to 5 m x 7 heights of a few metres (targets the muzzle has passed, targets on the barrel's
+own line) and 924 paths against terrain profiles (`above`, with and without `RangeMax`). Tolerance: 1e-9 degree for
+angles, 1e-9 s for times, except times of flight above 10 s, which are held to 1e-9 relative (near-vertical high arcs
+of close targets, where the time changes by ~5e3 s per radian and the two libm `sin`/`cos` differ in the last bit).
 
 ### BVH against the exact tracer on Fallujah
 
@@ -204,7 +212,8 @@ only difference from a regeneration). The BVH never disagreed with the exact ans
 The browser cannot hold the collision triangles of a map (Fallujah: 5.7 GB of BVH), but it can hold its voxel columns
 (Fallujah statics at 0.5 m x 0.25 m: 3.4 MB gzip, 3.7 MB with the foliage; 4.7 MB with the earlier sample-lattice builder). `voxel::VoxelColumns::from_bytes` reads the file of
 `tools/volumetric/py/codec.py` (layout there; gzip or already decompressed, malformed input is an error, never a
-panic). A voxel `(column, row, z)` is the half-open box `[min_x + column * cell, +cell) x [min_y + row * cell, +cell) x
+panic; a gzip that inflates past `voxel::MAX_VCOL_BYTES`, 256 MiB against 228 MB for the largest of 58 measured files, is
+an error before it fills the memory, and `precision::MAX_RTRI_BYTES`, 64 MiB against 48.6 MB, does the same for regions). A voxel `(column, row, z)` is the half-open box `[min_x + column * cell, +cell) x [min_y + row * cell, +cell) x
 [z_min + z * dz, +dz)`; at most 4096 height indices per column. The positions of every query are in the frame the file
 was built in (Unreal: metres, X east, **Y south**), exactly as the triangles of a BVH built from `world_tris.py` are:
 convert before you ask if you work in the engine frame.
@@ -768,7 +777,7 @@ pinned stable toolchain and was not built or run here**.
 ## Notes on the model
 
 * Trajectory segments are not integrated: every vertex is evaluated on the exact flight (closed-form parabola, motor
-  along the axis, capped coast, or the game's 20 ms substeps for a motor along the path as the JS does) and a stretch is
+  along the axis, capped coast, or the game's steps for a motor along the path as the JS does) and a stretch is
   split until its middle is within `tolerance_m` of the chord. The apex is always a vertex. The tolerance is checked at
   the middle of each stretch, after a first split into 8 equal pieces.
 * The query reproduces `reference.py`: a segment `p0 + t (p1 - p0)`, `t` in `[0, 1]`, hits a triangle on its edges and

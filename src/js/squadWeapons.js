@@ -1,6 +1,6 @@
 import { App } from "../app.js";
 import { WEAPONS } from "../data/weapons.js";
-import { maxRange } from "./squadBallistics.js";
+import { axisBoostTime, maxRange } from "./squadBallistics.js";
 
 // Range shown for weapons without gravity (NLAW): they fly straight, beyond the largest map.
 const NO_GRAVITY_RANGE = 10000;
@@ -90,8 +90,9 @@ export class Weapon {
 
     /**
      * Equivalent constant velocity over `distance` for a boosted rocket flying straight along the
-     * barrel: it accelerates by `acceleration` m/s² during `accelerationTime` s, then keeps its speed,
-     * held at `maxSpeed`. Same as Weapon.velocity_at in Squad Ballistics (ballistics.py). Only the
+     * barrel: it accelerates by `acceleration` m/s² during the motor's burn time (whole steps, not
+     * `accelerationTime`, ended by the cap in a flight without gravity: axisBoostTime in squadBallistics.js),
+     * then keeps its speed, held at `maxSpeed`. Same as Weapon.velocity_at in Squad Ballistics (ballistics.py). Only the
      * spread uses it: the elevation, time of flight and range come from the trajectory (getShot,
      * squadBallistics.js).
      * @param {number} distance - Distance to the target in meters.
@@ -101,7 +102,7 @@ export class Weapon {
         if (distance <= 0) return this.velocity;
 
         const a = this.acceleration;
-        const boostTime = this.accelerationTime;
+        const boostTime = axisBoostTime(this.getShot());
         const boostDistance = this.velocity * boostTime + 0.5 * a * boostTime ** 2;
         let cruise = this.velocity + a * boostTime;
         if (this.maxSpeed) cruise = Math.min(cruise, this.maxSpeed);

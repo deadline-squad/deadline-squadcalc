@@ -9,29 +9,44 @@
  * `muzzleForward` f along the barrel and `muzzleUp` u above its axis, so the launch point moves with the
  * elevation θ (c = cos θ, s = sin θ):
  *     x0 = f·c − u·s                  y0 = h + f·s + u·c
- * It leaves at `velocity` v0 (WeaponConfig.MuzzleVelocity) along the barrel. The game moves it in
- * substeps of the frame time (UProjectileMovementComponent::TickComponent 0x7cef0c0); the dedicated
- * server, whose projectile deals the damage, ticks at 50 Hz: SUBSTEP = 0.02 s. Per substep, with v the
- * velocity and R the projectile's rotation:
+ * It leaves at `velocity` v0 (WeaponConfig.MuzzleVelocity) along the barrel. The game moves it once per
+ * frame, in one step of the frame's length (UProjectileMovementComponent::TickComponent 0x7cef0c0, whose
+ * sub-stepping limits, the stock 0.05 s and 4 iterations, a frame never reaches). The dedicated server, whose
+ * projectile deals the damage, runs frames of FRAME_TIME = 1/49.87 s = 20.052 ms (not 20.000 ms: the
+ * 49.87 Hz is the median of 48 055 ten-second `Server Tick Rate` samples of the production server over
+ * 133.5 h, 99.51 % of them at 49.5 Hz or more, the Training server's median is the same; the world time of
+ * two `FireProjectile()` log lines advanced 23.619521 s over 1178 frames, 20.0505 ms each). A server under
+ * load, 0.17 % of the samples are below 45 Hz, flies rockets differently: that is a limit of the model.
+ * Per step, with v the velocity and R the projectile's rotation:
  *     move   p += v·dt + (V(R_before) − v)·dt / 2      (Velocity Verlet)
  *     then   R = direction of v, when `rotationFollowsVelocity`
  *     then   v = V(R),  V(R) = (v + (A(R) + g)·dt) clamped to `maxSpeed`
  * A(R) is the rocket motor: `acceleration` a along R during the first `boostTime` T seconds
  * (ConstantAcceleration for ConstantAccelerationTimeout; a < 0: the UB-32's S-5 slows down). Every
  * projectile turns with its velocity (bRotationFollowsVelocity), so the motor pushes along the path, one
- * substep late in the move; the S-5 keeps the barrel's axis (`rotationFollowsVelocity` false). MaxSpeed
- * caps the speed at every substep, the first one too: a shell fired faster than its cap is slowed to it
+ * step late in the move; the S-5 keeps the barrel's axis (`rotationFollowsVelocity` false). MaxSpeed
+ * caps the speed at every step, the first one too: a shell fired faster than its cap is slowed to it
  * at once, a motor holds a rocket at it, and a shell coming down faster than it is held there.
+ * The motor acts on N = ceil(T / dt) − 1 steps, one fewer than the steps that start before T: the server's
+ * thrust runs while float(CreationTime + Timeout) > World->TimeSeconds, strict (0xa747770); the projectile is
+ * spawned inside the RPC handler ServerFireProjectileWithId_Implementation (0xa74f290), which runs in the
+ * network receive of UWorld::Tick (0x804d3a0) before the world time advances (CreationTime is written in
+ * AActor::PostSpawnInitialize, 0x79ff162), so at the k-th movement tick now − creation = k·dt and the motor acts
+ * while k·dt < T. One link is inferred from stock engine behaviour and was not read in the binary: the first
+ * movement tick is in the frame of the spawn (were it one frame later, N would be ceil(T / dt)). The
+ * 32-bit CreationTime rounds to 2 ms above a world time of 16 384 s, which can flip N for a short motor late
+ * in a long server session; that is not modelled. Binary excerpts, the logs and the integrator that checks
+ * this model independently: deadline-squad/deadline-squadcalc#49.
  *
  * The phases with a closed form are computed exactly: a motor along the barrel (constant acceleration,
  * L(t) = v0·t + a·t²/2 along the axis), the parabola of a coasting shell, and a shell coasting at its cap
  * V (speed constant, the path angle γ turns as dγ/dt = −g·cos γ / V, so with R = V²/g:
  *     x = xc + R·(γc − γ)      y = yc + R·ln(cos γ / cos γc)      t = tc + (V/g)·(atanh sin γc − atanh sin γ);
- * continuous, which the 20 ms substeps follow to 1e-5 of the turn). A motor along the path, and a motor
- * along the barrel that the cap could clamp, have none: those boosts are flown with the game's substeps
+ * continuous, which the steps follow to 1e-5 of the turn). A motor along the path, and a motor
+ * along the barrel that the cap could clamp, have none: those boosts are flown with the game's steps
  * (flyBoost) and tabulated over the elevation (BoostTable, nodes every BOOST_NODE_SPACING, four-point
  * Lagrange interpolation) so that the searches below stay fast. A shell fired above its cap without a
- * motor (tank HE) flies its first substep exactly, then coasts. Between two substeps the game's path is a
+ * motor (tank HE) flies its first step exactly, then coasts. Between two steps the game's path is a
  * straight segment, and so is the model's.
  *
  * Elevation for a target D meters away horizontally from the pivot and H meters above the weapon's
@@ -41,7 +56,8 @@
  *      when the bracket is narrower than ANGLE_TOLERANCE = 1e-10 rad (52 steps), at most MAX_ITERATIONS;
  *   2. y(θ*, D) < H: out of range, both elevations NaN;
  *   3. each root is bracketed from θ*: the low one in [θ* − δ, θ*], the high one in [θ*, θ* + δ], δ =
- *      BRACKET_STEP = 0.02 rad doubled until F < 0 at the far end (or the end reaches ∓LIMIT);
+ *      BRACKET_STEP = 0.02 rad doubled until F < 0 at the far end (or the end reaches ∓LIMIT with F ≥ 0 still:
+ *      no root inside ±LIMIT, NaN);
  *   4. the bracket [a, b] is narrowed by the Illinois method (regula falsi): c = (a·F(b) − b·F(a)) /
  *      (F(b) − F(a)) replaces the end whose F has the sign of F(c), and when the same end is replaced
  *      twice in a row the F kept at the other end is halved; stopped when |F(c)| ≤ HEIGHT_TOLERANCE =
@@ -73,12 +89,14 @@ export const WARM_STEP = 2e-4;
 // Iteration cap of each search; the tolerances are reached long before (52 golden-section steps, ~10 Illinois steps)
 export const MAX_ITERATIONS = 200;
 
-// The game's projectile substep on the dedicated server, seconds: one per frame of its 50 Hz tick
-// (NetServerMaxTickRate of the RedpointEOSNetDriver; MaxSimulationTimeStep 0.05 s is never reached)
-export const SUBSTEP = 0.02;
+// The dedicated server's frame, seconds, and the projectile's step: the reciprocal of the median 49.87 Hz of its
+// `Server Tick Rate` log lines (see the top). The server aims at 50 Hz (NetServerMaxTickRate of the
+// RedpointEOSNetDriver) and its frames take 20.052 ms; MaxSimulationTimeStep 0.05 s is never reached
+export const FRAME_TIME = 1 / 49.87;
 
-// Barrel elevations between the nodes of a boost table, radians: the interpolation reproduces the stepped
-// boost to 1e-6 m (to 4e-4 m near the substep where the M3 MAAWS reaches its cap)
+// Barrel elevations between the nodes of a boost table, radians: the interpolation reproduces the stepped boost to
+// 2e-5 m, and the flight just past its end to 6e-4 m (the end velocity, the M3 MAAWS reaches its cap there): the
+// measured maxima over every stepped shell at elevations between the nodes (tests/squadBallistics.test.mjs)
 export const BOOST_NODE_SPACING = Math.PI / 180;
 
 // Samples of a stretch of the profile under which `trajectory().above` checks them one by one
@@ -103,22 +121,35 @@ const GOLDEN = (Math.sqrt(5) - 1) / 2;
 
 
 /**
- * Whether the shot has a motor phase
+ * Whether the shot has a motor phase: a motor that acts on at least one step
  * @param {Shot} shot
  * @returns {boolean}
  */
 function hasBoost(shot) {
-    return shot.boostTime > 0 && shot.acceleration !== 0;
+    // boostSteps(shot) > 0, without the ceil: the searches ask a thousand times per solution
+    return shot.acceleration !== 0 && shot.boostTime / FRAME_TIME - 1e-9 > 1;
 }
 
 
 /**
- * Game substeps the motor acts in: those that start before boostTime
+ * Steps the motor acts on: ceil(T / dt) − 1 (see the top: the server's thrust is strict, `k·dt < T`, from the
+ * first movement tick on); the 1e-9 keeps a T that is a whole number of frames, up to rounding, from gaining a step
  * @param {Shot} shot
  * @returns {number} - 0 without boost
  */
 export function boostSteps(shot) {
-    return hasBoost(shot) ? Math.ceil(shot.boostTime / SUBSTEP - 1e-9) : 0;
+    if (!(shot.boostTime > 0) || shot.acceleration === 0) return 0;
+    return Math.max(0, Math.ceil(shot.boostTime / FRAME_TIME - 1e-9) - 1);
+}
+
+
+/**
+ * Seconds the motor acts: its steps, not the boostTime it is configured with
+ * @param {Shot} shot
+ * @returns {number} - 0 without boost
+ */
+export function burnTime(shot) {
+    return boostSteps(shot) * FRAME_TIME;
 }
 
 
@@ -130,13 +161,14 @@ export function boostSteps(shot) {
  */
 function capBindsOnAxis(shot) {
     if (!shot.maxSpeed) return false;
-    const end = Math.abs(shot.velocity + shot.acceleration * shot.boostTime);
-    return shot.velocity > shot.maxSpeed || end + shot.gravity * shot.boostTime > shot.maxSpeed;
+    const burn = burnTime(shot);
+    const end = Math.abs(shot.velocity + shot.acceleration * burn);
+    return shot.velocity > shot.maxSpeed || end + shot.gravity * burn > shot.maxSpeed;
 }
 
 
 /**
- * Whether the boost has no closed form and is flown with the game's substeps (BoostTable): a motor along
+ * Whether the boost has no closed form and is flown with the game's steps (BoostTable): a motor along
  * the path, or one along the barrel that the cap could clamp. A flight without gravity is straight either way.
  * @param {Shot} shot
  * @returns {boolean}
@@ -148,7 +180,7 @@ export function fliesBoostInSteps(shot) {
 
 
 /**
- * Whether the shot is fired faster than its cap without a motor: the first substep slows it (tank HE)
+ * Whether the shot is fired faster than its cap without a motor: the first step slows it (tank HE)
  * @param {Shot} shot
  * @returns {boolean}
  */
@@ -158,17 +190,18 @@ function launchClamped(shot) {
 
 
 /**
- * Seconds the closed-form motor along the barrel speeds the projectile up: boostTime, ended earlier by the
- * cap in a straight flight (no gravity: the NLAW reaches its 250 m/s in 0.6 s and is held there)
+ * Seconds the closed-form motor along the barrel speeds the projectile up: the motor's burnTime (whole steps),
+ * ended earlier by the cap in a straight flight (no gravity: the NLAW reaches its 250 m/s in 0.6 s and is held there)
  * @param {Shot} shot
  * @returns {number} - 0 without boost
  */
-function axisBoostTime(shot) {
+export function axisBoostTime(shot) {
     if (!hasBoost(shot)) return 0;
+    const burn = burnTime(shot);
     if (shot.gravity === 0 && shot.maxSpeed && shot.acceleration > 0) {
-        return Math.min(shot.boostTime, Math.max(0, (shot.maxSpeed - shot.velocity) / shot.acceleration));
+        return Math.min(burn, Math.max(0, (shot.maxSpeed - shot.velocity) / shot.acceleration));
     }
-    return shot.boostTime;
+    return burn;
 }
 
 
@@ -215,14 +248,14 @@ export function launchPoint(shot, angle) {
 
 
 /**
- * The boost of a shot fired at `angle`, flown with the game's substeps (see the top) from the muzzle
+ * The boost of a shot fired at `angle`, flown with the game's steps (see the top) from the muzzle
  * @param {Shot} shot
  * @param {number} angle - barrel elevation, radians
  * @returns {{xs: Float64Array, ys: Float64Array, vx: number, vy: number}} - the points at the start of every
- *   substep and at the end, and the end velocity, meters and m/s relative to the muzzle
+ *   step and at the end, and the end velocity, meters and m/s relative to the muzzle
  */
 export function flyBoost(shot, angle) {
-    const dt = SUBSTEP;
+    const dt = FRAME_TIME;
     const g = shot.gravity;
     const a = shot.acceleration;
     const cap = shot.maxSpeed || 0;
@@ -242,7 +275,7 @@ export function flyBoost(shot, angle) {
     const ys = new Float64Array(steps + 1);
 
     for (let k = 0; k < steps; k++) {
-        // Move: the velocity this substep would end with, under the rotation of the substep before
+        // Move: the velocity this step would end with, under the rotation of the step before
         let mx = vx + ax * dt;
         let my = vy + (ay - g) * dt;
         if (cap) {
@@ -347,7 +380,7 @@ class BoostTable {
     }
 
     /**
-     * Interpolated substep point k
+     * Interpolated step point k
      * @param {{w: number[], n: Object[]}} stencil
      * @param {number} k
      * @returns {{x: number, y: number}}
@@ -376,8 +409,8 @@ class BoostTable {
     }
 
     /**
-     * The substep whose straight segment holds the distance `ahead` from the muzzle (the first one for a
-     * distance behind the muzzle): binary search on the interpolated x of the substep points
+     * The step whose straight segment holds the distance `ahead` from the muzzle (the first one for a
+     * distance behind the muzzle): binary search on the interpolated x of the step points
      * @param {{w: number[], n: Object[]}} stencil
      * @param {number} ahead - meters from the muzzle
      * @returns {{k: number, start: {x: number, y: number}, end: {x: number, y: number}}}
@@ -426,7 +459,7 @@ function boostTable(shot) {
 
 
 /**
- * State after the first substep of a shell fired above its cap, relative to the muzzle: ComputeVelocity
+ * State after the first step of a shell fired above its cap, relative to the muzzle: ComputeVelocity
  * clamps v0 + g·dt to maxSpeed, and the move is the average of the two velocities
  * @param {Shot} shot
  * @param {number} cos - cos θ
@@ -436,11 +469,11 @@ function boostTable(shot) {
 function clampedLaunch(shot, cos, sin) {
     const v0 = shot.velocity;
     let vx = v0 * cos;
-    let vy = v0 * sin - shot.gravity * SUBSTEP;
+    let vy = v0 * sin - shot.gravity * FRAME_TIME;
     const scale = shot.maxSpeed / Math.hypot(vx, vy);
     vx *= scale;
     vy *= scale;
-    return { x: 0.5 * (v0 * cos + vx) * SUBSTEP, y: 0.5 * (v0 * sin + vy) * SUBSTEP, vx, vy };
+    return { x: 0.5 * (v0 * cos + vx) * FRAME_TIME, y: 0.5 * (v0 * sin + vy) * FRAME_TIME, vx, vy };
 }
 
 
@@ -547,7 +580,7 @@ export function heightAt(shot, angle, distance) {
         const steps = table.steps;
         const endX = w[0] * n[0].xs[steps] + w[1] * n[1].xs[steps] + w[2] * n[2].xs[steps] + w[3] * n[3].xs[steps];
         if (ahead < endX) {
-            // The substep whose segment holds `ahead`, as BoostTable.segment, then the height on it
+            // The step whose segment holds `ahead`, as BoostTable.segment, then the height on it
             let low = 0;
             let high = steps;
             while (high - low > 1) {
@@ -663,7 +696,7 @@ export function trajectory(shot, angle) {
     const g = shot.gravity;
 
     // Each phase as height(ahead) and at(ahead), ahead = meters past the muzzle, relative to the muzzle:
-    // the first phase (boost or first substep) up to `firstPhase` meters, then the coast `after`
+    // the first phase (boost or first step) up to `firstPhase` meters, then the coast `after`
     let height;
     let at;
     let firstPhase;
@@ -679,10 +712,10 @@ export function trajectory(shot, angle) {
         const table = boostTable(shot);
         const stencil = table.stencil(angle);
         const end = table.end(stencil);
-        const boostEnd = table.steps * SUBSTEP;
+        const boostEnd = table.steps * FRAME_TIME;
         firstPhase = end.x;
         after = coast(shot, end.x, end.y, end.vx, end.vy);
-        // The substep points at this elevation, interpolated the first time a height is asked
+        // The step points at this elevation, interpolated the first time a height is asked
         let xs = null;
         let ys = null;
         const interpolate = () => {
@@ -695,7 +728,7 @@ export function trajectory(shot, angle) {
             }
         };
         firstPhaseAbove = (profile, i, last, step, base) => {
-            // The substep points are interpolated into the table's buffers as the scan reaches them
+            // The step points are interpolated into the table's buffers as the scan reaches them
             const { w, n } = stencil;
             const scanXs = table.scratchXs;
             const scanYs = table.scratchYs;
@@ -735,7 +768,7 @@ export function trajectory(shot, angle) {
             if (ahead < end.x) {
                 const { k, start: a, end: b } = table.segment(stencil, ahead);
                 const part = (ahead - a.x) / (b.x - a.x);
-                return { height: a.y + (b.y - a.y) * part, time: Math.max(0, (k + part) * SUBSTEP), angle: Math.atan2(b.y - a.y, b.x - a.x) };
+                return { height: a.y + (b.y - a.y) * part, time: Math.max(0, (k + part) * FRAME_TIME), angle: Math.atan2(b.y - a.y, b.x - a.x) };
             }
             return coastAt(shot, end.x, end.y, end.vx, end.vy, boostEnd, ahead);
         };
@@ -777,9 +810,9 @@ export function trajectory(shot, angle) {
         };
         at = (ahead) => {
             if (ahead < first.x) {
-                return { height: first.y * ahead / first.x, time: Math.max(0, SUBSTEP * ahead / first.x), angle: Math.atan2(first.y, first.x) };
+                return { height: first.y * ahead / first.x, time: Math.max(0, FRAME_TIME * ahead / first.x), angle: Math.atan2(first.y, first.x) };
             }
-            return coastAt(shot, first.x, first.y, first.vx, first.vy, SUBSTEP, ahead);
+            return coastAt(shot, first.x, first.y, first.vx, first.vy, FRAME_TIME, ahead);
         };
     } else {
         const vx = v0 * cos;
@@ -853,7 +886,7 @@ export function trajectory(shot, angle) {
      * Whether the trajectory stays at or above a terrain profile sampled every `step` meters, from sample
      * `first` to `last`, the weapon's ground being `ground` in the profile's reference. The fire coverage
      * runs it for every cell, on hundreds of samples: the first phase is evaluated sample by sample (the
-     * stepped boost walking its substeps), the parabola inline, and the capped coast by turning its path angle by step / R per sample (a rotation)
+     * stepped boost walking its steps), the parabola inline, and the capped coast by turning its path angle by step / R per sample (a rotation)
      * and adding up ln(cos γ) (ln(1 + z) by its series while |z| < 1e-3, exact to 1e-16), the same heights
      * as coastHeight to ~1e-9 m without a cos and a log per sample.
      * With a `rangeMax` of the profile the samples are checked by `concaveAbove` instead.
@@ -862,7 +895,7 @@ export function trajectory(shot, angle) {
         const base = ground + start.y;
         // Without a stepped boost the whole flight is concave: a closed-form boost along the axis has
         // a concave height over the distance (its slope falls with time), and so do the coast and the
-        // first substep of a shell slowed to its cap, which join with a falling slope
+        // first step of a shell slowed to its cap, which join with a falling slope
         if (rangeMax && !fliesBoostInSteps(shot)) {
             return first > last || concaveAbove(profile, first, last, rangeMax, (i) => base + height(i * step - start.x));
         }
@@ -964,7 +997,7 @@ export function peakAngle(shot, distance) {
  * @param {number} direction - -1 or +1
  * @param {number} [guess] - a root found for a neighbouring target, radians: the bracket is built around
  *   it when it lies beyond `top` in `direction`; NaN or missing: from `top`
- * @returns {number} - radians
+ * @returns {number} - radians; NaN when `error` stays at or above 0 up to ±ELEVATION_LIMIT (no root)
  */
 function findRoot(error, top, topError, direction, guess = NaN) {
     // Bracket [a, b]: F(a) ≥ 0 at the top side, F(b) < 0 at the far side
@@ -1001,6 +1034,9 @@ function findRoot(error, top, topError, direction, guess = NaN) {
             if (Math.abs(b) === ELEVATION_LIMIT) break;
         }
     }
+
+    // F stayed at or above 0 up to the elevation limit: no root inside ±ELEVATION_LIMIT
+    if (errorB >= 0) return NaN;
 
     let kept = 0;
     let root = b;
@@ -1048,11 +1084,11 @@ export function solveElevation(shot, distance, height, peak, wanted = { low: tru
         const rise = height - shot.pivotHeight;
         const discriminant = v ** 4 - g * (g * distance ** 2 + 2 * rise * v ** 2);
         if (discriminant < 0) return { low: NaN, high: NaN };
-        const root = Math.sqrt(discriminant);
-        return {
-            low: Math.atan((v ** 2 - root) / (g * distance)),
-            high: Math.atan((v ** 2 + root) / (g * distance)),
-        };
+        const high = (v ** 2 + Math.sqrt(discriminant)) / (g * distance);
+        // The roots of tan² − (2·v² / (g·d))·tan + (1 + 2·rise·v² / (g·d²)) = 0 multiply to its constant term: the
+        // low one from the product, not from (v² − √D) / (g·d), which subtracts nearly equal numbers for a small d
+        const low = (1 + 2 * rise * v ** 2 / (g * distance ** 2)) / high;
+        return { low: Math.atan(low), high: Math.atan(high) };
     }
 
     const top = peak ?? peakAngle(shot, distance);

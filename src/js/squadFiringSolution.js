@@ -252,13 +252,15 @@ export default class SquadFiringSolution {
      * Calculates the bearing required to see the target from the weapon, each map axis with its own
      * scale (squadMinimap.toMeters).
      * https://github.com/sh4rkman/SquadCalc/wiki/Deducing-distance-and-bearing#finding-bearing
-     * @returns {number} - bearing in degrees, clockwise from north, in [0, 360)
+     * @returns {number} - bearing in degrees, clockwise from north, in [0, 360): north is 0 (the game's compass
+     *   reads it as 360, see compass.js)
      */
     getBearing() {
         const { east, north } = this.map.toMeters(this.weaponLatLng, this.targetLatLng);
         let bearing = Math.atan2(east, north) * 180 / Math.PI;
         if (bearing < 0) { bearing += 360; } // Avoid Negative Angle by adding a whole rotation
-        return bearing;
+        // A tiny negative angle gains the whole rotation to exactly 360 in double precision: that is north
+        return bearing === 360 ? 0 : bearing;
     }
 
     

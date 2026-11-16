@@ -61,7 +61,8 @@ impl Heightmap {
     ///
     /// # Errors
     /// [`HeightmapError::TooSmall`] below 2 x 2 samples, [`HeightmapError::Size`] if `levels` does not
-    /// have `width * height` entries.
+    /// have `width * height` entries (`expected` saturates at `usize::MAX` when the product does not fit:
+    /// on wasm32 a 65536 x 65536 header would otherwise wrap to 0 and pass an empty sample list).
     pub fn new(
         width: usize,
         height: usize,
@@ -72,9 +73,9 @@ impl Heightmap {
         if width < 2 || height < 2 {
             return Err(HeightmapError::TooSmall);
         }
-        if levels.len() != width * height {
+        if width.checked_mul(height) != Some(levels.len()) {
             return Err(HeightmapError::Size {
-                expected: width * height,
+                expected: width.saturating_mul(height),
                 found: levels.len(),
             });
         }
@@ -196,6 +197,26 @@ mod tests {
 
     fn map(levels: [u16; 4]) -> Heightmap {
         Heightmap::new(2, 2, levels.to_vec(), 100.0, 1.0).unwrap()
+    }
+
+    /// The size check is a product that does not fit `usize` (on wasm32 a 65536 x 65536 header; here
+    /// 2^63 x 2 on a 64-bit target): it wrapped to 0 and an empty list of samples passed.
+    #[test]
+    fn a_size_whose_product_overflows_is_an_error() {
+        let wrapped = Heightmap::new(1 << (usize::BITS - 1), 2, Vec::new(), 100.0, 1.0);
+        match wrapped {
+            Err(HeightmapError::Size { expected, found }) => {
+                assert_eq!((expected, found), (usize::MAX, 0));
+            }
+            other => panic!("expected a size error, got {other:?}"),
+        }
+        // The header of the wasm32 reproduction: 65536 x 65536 samples announced, none present
+        match Heightmap::from_g16(&[0, 0, 1, 0, 0, 0, 1, 0], 100.0, 1.0) {
+            Err(HeightmapError::Size { expected, found }) => {
+                assert_eq!((expected, found), (65536usize.saturating_mul(65536), 0));
+            }
+            other => panic!("expected a size error, got {other:?}"),
+        }
     }
 
     #[test]

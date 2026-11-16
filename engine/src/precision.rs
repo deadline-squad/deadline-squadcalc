@@ -14,16 +14,20 @@
 use crate::bvh::{BuildOptions, BvhError, BvhSet, Triangle, MAX_TRIANGLES};
 use crate::path::Segment;
 use crate::trace::Scene;
-use crate::voxel::{VoxelColumns, VoxelHit};
-use flate2::read::GzDecoder;
+use crate::voxel::{inflate_capped, VoxelColumns, VoxelHit};
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use std::collections::HashMap;
 use std::fmt;
-use std::io::{Read, Write};
+use std::io::Write;
 
 const MAGIC: &[u8; 8] = b"RTRI1\0\0\0";
 const HEADER_LEN: usize = 48;
+
+/// Largest decompressed `RTRI1` file accepted, bytes (64 MiB). The largest of the 48 region files measured
+/// (every `.rtri` under the exact regions, 2026-11-15) is 48 559 841 bytes (Fallujah `region_210_-220`); see
+/// [`crate::voxel::MAX_VCOL_BYTES`] for why the stream is cut.
+pub const MAX_RTRI_BYTES: u64 = 64 << 20;
 
 /// Metres per unit of the stored vertex coordinates (0.1 mm: about one `f32` ulp at 1 km).
 pub const QUANT: f64 = 1e-4;
@@ -134,10 +138,7 @@ impl RegionFile {
     /// [`RegionError`] for a wrong magic, damaged gzip, truncated data or an index outside the vertex list.
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, RegionError> {
         if bytes.starts_with(&[0x1F, 0x8B]) {
-            let mut raw = Vec::new();
-            GzDecoder::new(bytes)
-                .read_to_end(&mut raw)
-                .map_err(|e| RegionError::Gzip(e.to_string()))?;
+            let raw = inflate_capped(bytes, MAX_RTRI_BYTES).map_err(RegionError::Gzip)?;
             return Self::from_raw(&raw);
         }
         Self::from_raw(bytes)
@@ -468,6 +469,8 @@ impl PrecisionRegion {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use flate2::read::GzDecoder;
+    use std::io::Read;
 
     /// Cell 0.5, dz 0.25, origin (0, 0, 0): voxel `(c, r, z)` is `[c/2, c/2 + 0.5) x [r/2, ..) x [z/4, ..)`.
     fn columns(voxels: &[(u32, u32, u32)]) -> VoxelColumns {

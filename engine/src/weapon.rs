@@ -1,8 +1,9 @@
 //! A Squad weapon and the firing solution it gives for a target: a port of `Weapon` (`squadWeapons.js`) and
 //! `SquadFiringSolution` (`squadFiringSolution.js`) of SquadCalc, without the UI and spread parts.
 
-use crate::flight::{Flight, Shot};
+use crate::flight::{BoostTable, Flight, Shot};
 use serde::{Deserialize, Serialize};
+use std::sync::{Mutex, PoisonError};
 
 /// The game's `DefaultGravityZ` (-980 cm/s^2) in m/s^2, as in SquadCalc's `src/app.js`.
 pub const WORLD_GRAVITY: f64 = 9.80;
@@ -39,6 +40,24 @@ fn default_max_elevation() -> f64 {
 
 fn forward() -> bool {
     true
+}
+
+/// The boost table of a weapon's last stepped flight, kept between its solves: a table costs a hundred boosts and
+/// the weapon's next solve flies the same boost. Not part of the weapon's value: cloning gives an empty cache and
+/// any two caches are equal.
+#[derive(Debug, Default)]
+pub struct BoostCache(Mutex<Option<std::sync::Arc<BoostTable>>>);
+
+impl Clone for BoostCache {
+    fn clone(&self) -> Self {
+        BoostCache::default()
+    }
+}
+
+impl PartialEq for BoostCache {
+    fn eq(&self, _: &Self) -> bool {
+        true
+    }
 }
 
 /// How one shell of one weapon flies and where the weapon can be laid. Every field has a default, so
@@ -87,6 +106,9 @@ pub struct Weapon {
     /// Launch point that moves with the elevation, if the weapon has a skeleton for it.
     #[serde(default)]
     pub muzzle: Option<Muzzle>,
+    /// The boost table of the weapon's last stepped flight ([`Weapon::flight`]).
+    #[serde(skip)]
+    boost_cache: BoostCache,
 }
 
 impl Weapon {
@@ -107,6 +129,7 @@ impl Weapon {
             elevation_rate: 0.0,
             hold_elevation: None,
             muzzle: None,
+            boost_cache: BoostCache::default(),
         }
     }
 
@@ -142,14 +165,32 @@ impl Weapon {
         self.shot_with(self.gravity(), self.height_offset)
     }
 
+    /// A [`Flight`] of `shot` that reuses the boost table of the weapon's last flight when the parameters of the
+    /// boost are the same, and keeps the table it builds otherwise: the flights of one weapon (every solve of
+    /// the fire coverage, the solution and its path) fly the boost once. The fields of the weapon may change
+    /// between calls: the table is rebuilt when the parameters it was built for no longer match.
+    pub fn flight(&self, shot: Shot) -> Flight {
+        let mut cached = self
+            .boost_cache
+            .0
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        let flight = Flight::with_table(shot, cached.as_ref());
+        if let Some(table) = flight.boost_table() {
+            *cached = Some(std::sync::Arc::clone(table));
+        }
+        flight
+    }
+
     /// Equivalent constant velocity over `distance` for a boosted rocket flying straight along the barrel:
-    /// it accelerates during `acceleration_time`, then keeps its speed, held at `max_speed`.
+    /// it accelerates during the motor's burn time (whole steps, not `acceleration_time`, ended by the cap in a
+    /// flight without gravity: [`Shot::axis_boost_time`]), then keeps its speed, held at `max_speed`.
     fn boost_velocity(&self, distance: f64) -> f64 {
         if distance <= 0.0 {
             return self.velocity;
         }
         let a = self.acceleration;
-        let boost_time = self.acceleration_time;
+        let boost_time = self.shot().axis_boost_time();
         let boost_distance = self.velocity * boost_time + 0.5 * a * boost_time.powi(2);
         let mut cruise = self.velocity + a * boost_time;
         if self.max_speed != 0.0 {
@@ -199,10 +240,12 @@ impl Weapon {
             return NO_GRAVITY_RANGE;
         }
         if self.muzzle.is_some() {
-            return Flight::new(self.shot_with(gravity, self.height_offset)).max_range();
+            return self
+                .flight(self.shot_with(gravity, self.height_offset))
+                .max_range();
         }
         if self.has_boost() || (self.max_speed != 0.0 && self.velocity > self.max_speed) {
-            return Flight::new(self.shot_with(gravity, 0.0)).max_range();
+            return self.flight(self.shot_with(gravity, 0.0)).max_range();
         }
         if self.elevation_rate != 0.0 {
             if let Some([lowest, _]) = self.hold_elevation {
@@ -216,7 +259,7 @@ impl Weapon {
     /// The firing solution for a target `distance` metres away horizontally and `height_diff` metres above
     /// the weapon's ground (`SquadFiringSolution`).
     pub fn solve(&self, distance: f64, height_diff: f64) -> FiringSolution {
-        let flight = Flight::new(self.shot());
+        let flight = self.flight(self.shot());
         let angle_offset = deg_to_rad(self.angle_offset_deg);
         let straight = self.gravity() == 0.0;
 
@@ -320,4 +363,85 @@ pub fn rad_to_deg(rad: f64) -> f64 {
 /// Degrees to radians.
 pub fn deg_to_rad(deg: f64) -> f64 {
     (deg * std::f64::consts::PI) / 180.0
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn rpg7() -> Weapon {
+        Weapon {
+            acceleration: 150.0,
+            acceleration_time: 0.8,
+            max_speed: 250.0,
+            ..Weapon::parabola(117.0)
+        }
+    }
+
+    /// The straight-flight velocity counts the steps the motor acts on and stops at the cap: the NLAW of
+    /// the game never stops its motor, and its entry's time only has to cover the cap.
+    #[test]
+    fn the_straight_flight_velocity_of_a_motor_follows_its_steps_and_the_cap() {
+        let burn = (0.8_f64 * 49.87).ceil() - 1.0;
+        let burn = burn / 49.87;
+        let distance = 3000.0;
+        let boost_distance = 117.0 * burn + 0.5 * 150.0 * burn * burn;
+        let expected = distance / (burn + (distance - boost_distance) / (117.0 + 150.0 * burn));
+        assert!((rpg7().velocity_over(distance) - expected).abs() < 1e-9);
+
+        let nlaw = Weapon {
+            gravity_scale: 0.0,
+            acceleration: 350.0,
+            acceleration_time: 0.65,
+            max_speed: 250.0,
+            ..Weapon::parabola(40.0)
+        };
+        let to_cap = (250.0 - 40.0) / 350.0;
+        let to_cap_distance = 40.0 * to_cap + 0.5 * 350.0 * to_cap * to_cap;
+        let expected = 1000.0 / (to_cap + (1000.0 - to_cap_distance) / 250.0);
+        assert!((nlaw.velocity_over(1000.0) - expected).abs() < 1e-9);
+    }
+
+    #[test]
+    fn the_flights_of_a_weapon_share_one_boost_table() {
+        let weapon = rpg7();
+        let first = weapon.flight(weapon.shot());
+        let second = weapon.flight(weapon.shot());
+        let (first, second) = (first.boost_table().unwrap(), second.boost_table().unwrap());
+        assert!(std::sync::Arc::ptr_eq(first, second));
+        // The launch height moves the path, not the boost: max_distance flies it from the ground
+        let from_ground = weapon.flight(weapon.shot_with(weapon.gravity(), 0.0));
+        assert!(std::sync::Arc::ptr_eq(
+            first,
+            from_ground.boost_table().unwrap()
+        ));
+    }
+
+    #[test]
+    fn a_table_is_rebuilt_when_the_parameters_of_the_boost_change() {
+        let mut weapon = rpg7();
+        let before = weapon.flight(weapon.shot());
+        weapon.velocity = 63.0;
+        let after = weapon.flight(weapon.shot());
+        assert!(!std::sync::Arc::ptr_eq(
+            before.boost_table().unwrap(),
+            after.boost_table().unwrap()
+        ));
+        // and a solve with the new velocity is the solve of a flight built from scratch
+        let fresh = Flight::new(weapon.shot()).solve_elevation(300.0, 0.0);
+        let cached = after.solve_elevation(300.0, 0.0);
+        assert_eq!(fresh.0.to_bits(), cached.0.to_bits());
+        assert_eq!(fresh.1.to_bits(), cached.1.to_bits());
+    }
+
+    #[test]
+    fn a_weapon_without_a_stepped_boost_has_no_table_and_a_copy_starts_empty() {
+        let mortar = Weapon::parabola(110.0);
+        assert!(mortar.flight(mortar.shot()).boost_table().is_none());
+        let weapon = rpg7();
+        weapon.flight(weapon.shot());
+        let copy = weapon.clone();
+        assert_eq!(copy, weapon, "the cache is not part of the weapon's value");
+        assert!(copy.boost_cache.0.lock().unwrap().is_none());
+    }
 }
