@@ -34,20 +34,45 @@ const HEADER_LEN: usize = 40;
 /// cut here.
 pub const MAX_VCOL_BYTES: u64 = 256 << 20;
 
-/// Inflates a gzip stream, reading at most `limit` bytes of it.
+/// Smallest framing of a gzip member: the 10-byte header and the 8-byte trailer (CRC-32, then `ISIZE`).
+const GZIP_FRAMING_LEN: usize = 18;
+
+/// Inflates a single-member gzip stream that inflates to at most `limit` bytes (`limit` below 4 GiB).
+///
+/// The memory stays within the stream's declared size: the trailer's `ISIZE` (the uncompressed size modulo 2^32,
+/// the last four bytes) is read first, a stream that declares more than `limit` is refused without being inflated,
+/// and the output buffer is reserved at exactly that size and never grows (on wasm32 an outgrown buffer stays
+/// resident). Because `limit` is below 4 GiB, a stream that inflates to at most `limit` bytes declares its exact
+/// size, so one that yields more than it declares is damaged and is refused at the first byte past it.
 ///
 /// # Errors
-/// The message of the gzip error, or that the stream inflates past `limit`.
+/// The message of the gzip error, or that the stream inflates past `limit` or past the size its trailer declares.
 pub(crate) fn inflate_capped(bytes: &[u8], limit: u64) -> Result<Vec<u8>, String> {
-    let mut raw = Vec::new();
-    GzDecoder::new(bytes)
-        .take(limit + 1)
-        .read_to_end(&mut raw)
-        .map_err(|e| e.to_string())?;
-    if raw.len() as u64 > limit {
+    debug_assert!(limit < 1 << 32, "ISIZE is the size modulo 2^32");
+    let declared = match bytes.last_chunk::<4>() {
+        Some(isize) if bytes.len() >= GZIP_FRAMING_LEN => u64::from(u32::from_le_bytes(*isize)),
+        _ => 0,
+    };
+    if declared > limit {
         return Err(format!("inflates to more than {limit} bytes"));
     }
-    Ok(raw)
+    let size = usize::try_from(declared).map_err(|e| e.to_string())?;
+    let mut raw = Vec::new();
+    raw.try_reserve_exact(size).map_err(|e| e.to_string())?;
+    let mut reader = GzDecoder::new(bytes).take(declared + 1);
+    let mut chunk = [0u8; 16 << 10];
+    loop {
+        let read = reader.read(&mut chunk).map_err(|e| e.to_string())?;
+        if read == 0 {
+            return Ok(raw);
+        }
+        if raw.len() + read > size {
+            return Err(format!(
+                "inflates to more than the {declared} bytes its gzip trailer declares"
+            ));
+        }
+        raw.extend_from_slice(&chunk[..read]);
+    }
 }
 
 /// Why a `VCOL1` file cannot be used.
@@ -605,6 +630,8 @@ mod tests {
     use super::*;
     use flate2::write::GzEncoder;
     use flate2::Compression;
+    use std::alloc::{GlobalAlloc, Layout, System};
+    use std::cell::Cell;
     use std::io::Write;
 
     #[test]
@@ -620,6 +647,110 @@ mod tests {
         assert_eq!(inflate_capped(&gzip, 1000).unwrap().len(), 1000);
         let error = inflate_capped(&gzip, 999).unwrap_err();
         assert!(error.contains("more than 999 bytes"), "{error}");
+    }
+
+    /// Counts, per thread, the live heap bytes and their peak since the last [`Heap::reset_peak`]; a `realloc` counts
+    /// as the growth of the block, as when the allocator extends it in place.
+    struct Heap;
+
+    thread_local! {
+        static LIVE: Cell<usize> = const { Cell::new(0) };
+        static PEAK: Cell<usize> = const { Cell::new(0) };
+    }
+
+    impl Heap {
+        fn grow(bytes: usize) {
+            let live = LIVE.get() + bytes;
+            LIVE.set(live);
+            PEAK.set(PEAK.get().max(live));
+        }
+
+        /// Bytes the closure's thread held at most above what it held when the closure started.
+        fn peak_during<T>(work: impl FnOnce() -> T) -> (T, usize) {
+            let baseline = LIVE.get();
+            PEAK.set(baseline);
+            let result = work();
+            (result, PEAK.get() - baseline)
+        }
+    }
+
+    // SAFETY: every call is forwarded to `System` unchanged; the counters are thread-local plain integers.
+    unsafe impl GlobalAlloc for Heap {
+        unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+            Heap::grow(layout.size());
+            System.alloc(layout)
+        }
+
+        unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+            LIVE.set(LIVE.get().saturating_sub(layout.size()));
+            System.dealloc(ptr, layout);
+        }
+
+        unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
+            if new_size > layout.size() {
+                Heap::grow(new_size - layout.size());
+            } else {
+                LIVE.set(LIVE.get().saturating_sub(layout.size() - new_size));
+            }
+            System.realloc(ptr, layout, new_size)
+        }
+    }
+
+    #[global_allocator]
+    static HEAP: Heap = Heap;
+
+    /// Heap the gzip decoder holds besides the output (its window and tables), as a bound for the peak tests.
+    const DECODER_STATE: usize = 1 << 20;
+
+    /// The gzip of `len` zero bytes (written in pieces, so the zeros are never held at once).
+    fn gzip_of_zeros(len: usize) -> Vec<u8> {
+        let piece = [0u8; 1 << 20];
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::best());
+        for _ in 0..len >> 20 {
+            encoder.write_all(&piece).unwrap();
+        }
+        encoder.finish().unwrap()
+    }
+
+    #[test]
+    fn a_bomb_is_refused_from_its_trailer_without_inflating() {
+        const LIMIT: u64 = 16 << 20;
+        let bomb = gzip_of_zeros(64 << 20);
+        assert!(bomb.len() < 100 << 10, "{} bytes", bomb.len());
+        let (result, peak) = Heap::peak_during(|| inflate_capped(&bomb, LIMIT));
+        assert_eq!(result.unwrap_err(), "inflates to more than 16777216 bytes");
+        assert!(peak < DECODER_STATE, "{peak} bytes held at the peak");
+    }
+
+    #[test]
+    fn a_trailer_that_lies_small_is_refused_at_its_declared_size() {
+        let mut gzip = gzip_of_zeros(6 << 20);
+        let trailer = gzip.len() - 4;
+        gzip[trailer..].copy_from_slice(&10u32.to_le_bytes());
+        let (result, peak) = Heap::peak_during(|| inflate_capped(&gzip, 4 << 20));
+        assert_eq!(
+            result.unwrap_err(),
+            "inflates to more than the 10 bytes its gzip trailer declares"
+        );
+        assert!(peak < DECODER_STATE, "{peak} bytes held at the peak");
+    }
+
+    #[test]
+    fn a_valid_file_inflates_to_its_bytes_in_a_buffer_of_its_size() {
+        let data: Vec<u8> = (0..5u32 << 20)
+            .map(|i| (i.wrapping_mul(i) >> 7) as u8)
+            .collect();
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::fast());
+        encoder.write_all(&data).unwrap();
+        let gzip = encoder.finish().unwrap();
+        let (result, peak) = Heap::peak_during(|| inflate_capped(&gzip, MAX_VCOL_BYTES));
+        let raw = result.unwrap();
+        assert_eq!(raw, data);
+        assert_eq!(raw.capacity(), data.len());
+        assert!(
+            peak <= data.len() + DECODER_STATE,
+            "{peak} bytes held at the peak"
+        );
     }
 
     fn world(voxels: &[(u32, u32, u32)]) -> VoxelColumns {
